@@ -92,6 +92,8 @@ export async function POST(req: Request) {
       descripcion:     body.descripcion,
       unidad:          body.unidad || 'gl',
       cantidad:        Number(body.cantidad) || 1,
+      costo_unitario:  Number(body.costo_unitario) || 0,
+      markup_pct:      body.markup_pct ?? null,
       precio_unitario: Number(body.precio_unitario) || 0,
       avance:          Number(body.avance) || 0,
       notas:           body.notas || null,

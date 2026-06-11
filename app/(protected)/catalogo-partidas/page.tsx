@@ -84,7 +84,7 @@ export default function CatalogoPartidasPage() {
 
   return (
     <div style={{ maxWidth: 860 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+      <div className="flex justify-between items-center mb-6">
         <SectionTitle>Catálogo de partidas</SectionTitle>
         <Btn variant="primary" onClick={openNewPadre}>+ Nueva partida</Btn>
       </div>
@@ -93,7 +93,7 @@ export default function CatalogoPartidasPage() {
         Define tus partidas tipo con sus sub-partidas. Al crear una cotización o proyecto, podrás importarlas directamente sin volver a escribirlas.
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <MetricCard label="Partidas principales" value={totalPadres} />
         <MetricCard label="Sub-partidas"         value={totalHijos} />
         <MetricCard label="Total ítems"          value={allItems.length} />

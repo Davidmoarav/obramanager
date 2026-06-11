@@ -1,22 +1,23 @@
 'use client'
-// components/Sidebar.tsx  — REEMPLAZAR archivo existente
+// components/Sidebar.tsx — versión Tailwind
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
 const MENU = [
-  { href: '/dashboard',             label: 'Dashboard',          icon: '⊞', section: 'Principal' },
-  { href: '/finanzas',              label: 'Finanzas',           icon: '◈', section: 'Operaciones' },
-  { href: '/cotizaciones',          label: 'Cotizaciones',       icon: '◐', section: 'Operaciones' },
-  { href: '/facturacion',           label: 'Facturación',        icon: '◻', section: 'Operaciones' },
-  { href: '/proyectos',             label: 'Proyectos',          icon: '◧', section: 'Operaciones' },
-  { href: '/clientes',              label: 'Clientes',           icon: '◍', section: 'Operaciones' },
-  { href: '/rrhh',                  label: 'RRHH',               icon: '◉', section: 'Operaciones' },
-  { href: '/catalogo-partidas',     label: 'Catálogo partidas',  icon: '📋', section: 'Admin' },
-  { href: '/proveedores',           label: 'Proveedores',        icon: '◦', section: 'Admin' },
-  { href: '/contratos',             label: 'Contratos',          icon: '◫', section: 'Admin' },
-  { href: '/configuracion',         label: 'Configuración',      icon: '⚙', section: 'Admin' },
+  { href: '/dashboard',         label: 'Dashboard',         icon: '⊞', section: 'Principal' },
+  { href: '/finanzas',          label: 'Finanzas',          icon: '◈', section: 'Operaciones' },
+  { href: '/cotizaciones',      label: 'Cotizaciones',      icon: '◐', section: 'Operaciones' },
+  { href: '/facturacion',       label: 'Facturación',       icon: '◻', section: 'Operaciones' },
+  { href: '/proyectos',         label: 'Proyectos',         icon: '◧', section: 'Operaciones' },
+  { href: '/clientes',          label: 'Clientes',          icon: '◍', section: 'Operaciones' },
+  { href: '/rrhh',              label: 'RRHH',              icon: '◉', section: 'Operaciones' },
+  { href: '/remuneraciones',    label: 'Remuneraciones',    icon: '💰', section: 'Contabilidad' },
+  { href: '/catalogo-partidas', label: 'Catálogo partidas', icon: '📋', section: 'Admin' },
+  { href: '/proveedores',       label: 'Proveedores',       icon: '◦', section: 'Admin' },
+  { href: '/contratos',         label: 'Contratos',         icon: '◫', section: 'Admin' },
+  { href: '/configuracion',     label: 'Configuración',     icon: '⚙', section: 'Admin' },
 ]
 
 const sections = [...new Set(MENU.map(m => m.section))]
@@ -33,31 +34,32 @@ export default function Sidebar({ userEmail }: { userEmail?: string }) {
   }
 
   return (
-    <aside style={{ width: 210, flexShrink: 0, background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', height: '100vh', position: 'sticky', top: 0 }}>
-      <div style={{ padding: '18px 16px 16px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 34, height: 34, background: 'var(--primary)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18 }}>⬡</div>
+    <aside className="w-[210px] shrink-0 bg-white border-r border-line flex flex-col h-screen sticky top-0">
+      {/* Logo */}
+      <div className="px-4 pt-[18px] pb-4 border-b border-line">
+        <div className="flex items-center gap-2.5">
+          <div className="w-[34px] h-[34px] bg-brand rounded-lg flex items-center justify-center text-white text-lg">⬡</div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.3 }}>ObraManager</div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 1 }}>Casa del EIFS SpA</div>
+            <div className="text-sm font-extrabold text-ink tracking-tight">ObraManager</div>
+            <div className="text-[10px] text-muted mt-px">Casa del EIFS SpA</div>
           </div>
         </div>
       </div>
 
-      <nav style={{ flex: 1, padding: '10px 0', overflowY: 'auto' }}>
+      {/* Nav */}
+      <nav className="flex-1 py-2.5 overflow-y-auto">
         {sections.map(sec => (
           <div key={sec}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--subtle)', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '12px 16px 4px' }}>{sec}</div>
+            <div className="text-[10px] font-bold text-subtle uppercase tracking-wider px-4 pt-3 pb-1">{sec}</div>
             {MENU.filter(m => m.section === sec).map(m => {
               const active = pathname === m.href || (m.href !== '/dashboard' && pathname.startsWith(m.href))
               return (
                 <Link key={m.href} href={m.href}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', fontSize: 13, fontWeight: active ? 700 : 400,
-                    color: active ? 'var(--primary)' : 'var(--muted)',
-                    background: active ? 'var(--primary-bg)' : 'transparent',
-                    borderLeft: `3px solid ${active ? 'var(--primary)' : 'transparent'}`,
-                    textDecoration: 'none', transition: 'all 0.12s' }}>
-                  <span style={{ fontSize: 15 }}>{m.icon}</span>
+                  className={`flex items-center gap-2.5 px-4 py-2 text-[13px] no-underline transition
+                    ${active
+                      ? 'font-bold text-brand bg-brand-bg border-l-[3px] border-brand'
+                      : 'font-normal text-muted border-l-[3px] border-transparent hover:bg-canvas'}`}>
+                  <span className="text-[15px]">{m.icon}</span>
                   {m.label}
                 </Link>
               )
@@ -66,10 +68,11 @@ export default function Sidebar({ userEmail }: { userEmail?: string }) {
         ))}
       </nav>
 
-      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
-        {userEmail && <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail}</div>}
+      {/* Footer */}
+      <div className="px-4 py-3 border-t border-line">
+        {userEmail && <div className="text-[11px] text-muted mb-2 overflow-hidden text-ellipsis whitespace-nowrap">{userEmail}</div>}
         <button onClick={logout}
-          style={{ width: '100%', padding: '7px 0', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 7, fontSize: 12, fontWeight: 600, color: 'var(--muted)', cursor: 'pointer' }}>
+          className="w-full py-1.5 bg-canvas border border-line rounded-lg text-xs font-semibold text-muted cursor-pointer hover:bg-line transition">
           Cerrar sesión
         </button>
       </div>

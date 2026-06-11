@@ -1,24 +1,35 @@
 'use client'
-// app/(protected)/facturacion/page.tsx
+// app/(protected)/facturacion/page.tsx — v2 con tipo venta/compra + neto/IVA
 
 import { useState, useEffect, useCallback } from 'react'
 import { Badge, Btn, FormInput, FormSelect, MetricCard, Modal, SectionTitle, Table, Td, Th, fmt, fmtM } from '@/components/ui'
-import type { Factura } from '@/types'
 
-const EMPTY: Omit<Factura,'id'|'created_at'|'user_id'> = { numero:'', cliente:'', proyecto:'', monto:0, emision:'', vencimiento:'', estado:'pendiente' }
+const EMPTY: any = { numero:'', cliente:'', proyecto:'', tipo:'venta', neto:0, iva:0, monto:0, emision:'', vencimiento:'', estado:'pendiente' }
 
 export default function FacturacionPage() {
-  const [items, setItems]   = useState<Factura[]>([])
+  const [items, setItems]   = useState<any[]>([])
+  const [clientes, setClientes]       = useState<any[]>([])
+  const [proveedores, setProveedores] = useState<any[]>([])
+  const [proyectos, setProyectos]     = useState<any[]>([])
   const [modal, setModal]   = useState(false)
   const [form, setForm]     = useState<any>({})
   const [filtro, setFiltro] = useState('todos')
+  const [tipoFiltro, setTipoFiltro] = useState('todos')
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/facturas')
-    setItems(await res.json())
+    const [resF, resC, resPr, resPy] = await Promise.all([
+      fetch('/api/facturas').then(r => r.json()).catch(() => []),
+      fetch('/api/clientes').then(r => r.json()).catch(() => []),
+      fetch('/api/proveedores').then(r => r.json()).catch(() => []),
+      fetch('/api/proyectos').then(r => r.json()).catch(() => []),
+    ])
+    setItems(Array.isArray(resF) ? resF : [])
+    setClientes(Array.isArray(resC) ? resC : [])
+    setProveedores(Array.isArray(resPr) ? resPr : [])
+    setProyectos(Array.isArray(resPy) ? resPy : [])
     setLoading(false)
   }, [])
 
@@ -26,11 +37,40 @@ export default function FacturacionPage() {
 
   const upd = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
 
+  // Al cambiar el neto, calcular IVA y total automáticamente
+  const updNeto = (v: any) => {
+    const neto = Number(v) || 0
+    const iva = Math.round(neto * 0.19)
+    setForm((f: any) => ({ ...f, neto, iva, monto: neto + iva }))
+  }
+
   const save = async () => {
-    if (!form.cliente) return
+    if (!form.cliente || form.cliente === '__otro__') { alert('Selecciona o escribe el nombre'); return }
     setSaving(true)
-    await fetch('/api/facturas', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...form, monto: Number(form.monto) }) })
-    await load(); setSaving(false); setModal(false)
+    const periodo = form.emision ? form.emision.slice(0, 7) : new Date().toISOString().slice(0, 7)
+    // Las fechas vacías deben ir como null (Postgres rechaza '' en columnas date)
+    const payload = {
+      ...form,
+      neto: Number(form.neto),
+      iva: Number(form.iva),
+      monto: Number(form.monto),
+      emision: form.emision || null,
+      vencimiento: form.vencimiento || null,
+      proyecto: form.proyecto || null,
+      numero: form.numero || null,
+      periodo,
+    }
+    const res = await fetch('/api/facturas', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    })
+    setSaving(false)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      alert('No se pudo guardar la factura: ' + (err.error || 'error desconocido'))
+      return
+    }
+    await load(); setModal(false)
   }
 
   const setEstado = async (id: string, estado: string) => {
@@ -38,36 +78,61 @@ export default function FacturacionPage() {
     await load()
   }
 
-  const filtered = filtro === 'todos' ? items : items.filter(i => i.estado === filtro)
+  const del = async (id: string) => {
+    if (!confirm('¿Eliminar factura?')) return
+    await fetch('/api/facturas', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id }) })
+    await load()
+  }
 
-  const cobrado   = items.filter(f=>f.estado==='pagada').reduce((s,f)=>s+f.monto,0)
-  const pendiente = items.filter(f=>f.estado==='pendiente').reduce((s,f)=>s+f.monto,0)
-  const vencido   = items.filter(f=>f.estado==='vencida').reduce((s,f)=>s+f.monto,0)
+  let filtered = items
+  if (tipoFiltro !== 'todos') filtered = filtered.filter(i => (i.tipo || 'venta') === tipoFiltro)
+  if (filtro !== 'todos')     filtered = filtered.filter(i => i.estado === filtro)
+
+  const ventas = items.filter(f => (f.tipo || 'venta') === 'venta')
+  const compras = items.filter(f => f.tipo === 'compra')
+  const cobrado   = ventas.filter(f=>f.estado==='pagada').reduce((s,f)=>s+(f.monto||0),0)
+  const pendiente = ventas.filter(f=>f.estado==='pendiente').reduce((s,f)=>s+(f.monto||0),0)
+  const totalCompras = compras.reduce((s,f)=>s+(f.monto||0),0)
 
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
-        <SectionTitle>Facturación</SectionTitle>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <SectionTitle>Facturación</SectionTitle>
+          <p className="text-sm text-muted mt-1">Ventas, compras e IVA</p>
+        </div>
         <Btn variant="primary" onClick={() => { setForm({ ...EMPTY, emision: new Date().toISOString().split('T')[0] }); setModal(true) }}>+ Nueva factura</Btn>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
-        <MetricCard label="Total cobrado"  value={fmtM(cobrado)}   sub="Facturas pagadas"   subColor="#1a7a4a" />
-        <MetricCard label="Por cobrar"     value={fmtM(pendiente)} sub="Facturas pendientes" subColor="#b07d1a" />
-        <MetricCard label="Vencidas"       value={fmtM(vencido)}   sub="Gestión urgente"    subColor="#b0401a" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <MetricCard label="Ventas cobradas"  value={fmtM(cobrado)}   sub="Facturas pagadas"    subColor="#1a7a4a" />
+        <MetricCard label="Por cobrar"       value={fmtM(pendiente)} sub="Ventas pendientes"   subColor="#b07d1a" />
+        <MetricCard label="Compras (gastos)" value={fmtM(totalCompras)} sub="Facturas de proveedores" subColor="#1e6bb8" />
       </div>
 
-      <div style={{ display:'flex', gap:8, marginBottom:16 }}>
-        {['todos','pagada','pendiente','vencida'].map(f => (
-          <button key={f} onClick={() => setFiltro(f)}
-            style={{ padding:'5px 14px', borderRadius:20, border:'1px solid', fontSize:12, fontWeight:600, cursor:'pointer',
-              borderColor: filtro===f ? '#1e6bb8':'#d1d9e6', background: filtro===f ? '#1e6bb8':'#fff', color: filtro===f ? '#fff':'#6b7a8d' }}>
-            {f==='todos'?'Todas': f==='pagada'?'Pagadas': f==='pendiente'?'Pendientes':'Vencidas'}
+      {/* Filtro tipo */}
+      <div className="inline-flex gap-1 p-1 bg-white border border-line rounded-xl mb-3 shadow-card">
+        {[['todos','Todas'],['venta','Ventas'],['compra','Compras']].map(([k,l]) => (
+          <button key={k} onClick={() => setTipoFiltro(k)}
+            className={`px-3.5 py-1.5 rounded-lg text-[13px] font-bold transition
+              ${tipoFiltro===k ? 'bg-accent text-white shadow-sm' : 'text-muted hover:bg-canvas'}`}>
+            {l}
           </button>
         ))}
       </div>
 
-      <div style={{ background:'#fff', border:'1px solid #e4e9f0', borderRadius:12, padding:18 }}>
+      {/* Filtro estado */}
+      <div className="inline-flex gap-1 p-1 bg-white border border-line rounded-xl mb-5 shadow-card flex-wrap">
+        {['todos','pagada','pendiente','vencida'].map(f => (
+          <button key={f} onClick={() => setFiltro(f)}
+            className={`px-3 py-1 rounded-lg text-[12px] font-semibold transition
+              ${filtro===f ? 'bg-brand text-white shadow-sm' : 'text-muted hover:bg-canvas'}`}>
+            {f==='todos'?'Todos los estados': f==='pagada'?'Pagadas': f==='pendiente'?'Pendientes':'Vencidas'}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white border border-line rounded-2xl p-5 shadow-card overflow-x-auto">
         {loading
           ? <p style={{ color:'#6b7a8d', textAlign:'center', padding:40 }}>Cargando...</p>
           : filtered.length === 0
@@ -75,25 +140,35 @@ export default function FacturacionPage() {
           : (
           <Table>
             <thead><tr>
-              <Th>N° Factura</Th><Th>Cliente</Th><Th>Proyecto</Th><Th>Monto</Th><Th>Emisión</Th><Th>Vencimiento</Th><Th>Estado</Th><Th></Th>
+              <Th>Tipo</Th><Th>N°</Th><Th>Cliente / Proveedor</Th><Th>Neto</Th><Th>IVA</Th><Th>Total</Th><Th>Emisión</Th><Th>Estado</Th><Th></Th>
             </tr></thead>
             <tbody>
               {filtered.map(f => (
                 <tr key={f.id}>
-                  <Td><span style={{ fontFamily:'monospace', fontWeight:700, color:'#1e6bb8' }}>{f.numero||'—'}</span></Td>
-                  <Td style={{ fontWeight:600 }}>{f.cliente}</Td>
-                  <Td style={{ color:'#6b7a8d' }}>{f.proyecto||'—'}</Td>
-                  <Td style={{ fontWeight:700 }}>{fmt(f.monto)}</Td>
-                  <Td style={{ color:'#6b7a8d' }}>{f.emision||'—'}</Td>
-                  <Td style={{ color:'#6b7a8d' }}>{f.vencimiento||'—'}</Td>
+                  <Td>
+                    <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:4,
+                      background: f.tipo === 'compra' ? '#eeedfe' : '#e6f4ed',
+                      color: f.tipo === 'compra' ? '#534ab7' : '#1a7a4a' }}>
+                      {f.tipo === 'compra' ? 'COMPRA' : 'VENTA'}
+                    </span>
+                  </Td>
+                  <Td><span style={{ fontFamily:'monospace', fontWeight:700, color:'#1e6bb8', fontSize:12 }}>{f.numero||'—'}</span></Td>
+                  <Td style={{ fontWeight:600 }}>{f.cliente}{f.proyecto && <div style={{ fontSize:10, color:'#6b7a8d' }}>{f.proyecto}</div>}</Td>
+                  <Td>{fmt(f.neto || 0)}</Td>
+                  <Td style={{ color:'#6b7a8d' }}>{fmt(f.iva || 0)}</Td>
+                  <Td style={{ fontWeight:700 }}>{fmt(f.monto || 0)}</Td>
+                  <Td style={{ color:'#6b7a8d', fontSize:11 }}>{f.emision||'—'}</Td>
                   <Td><Badge estado={f.estado} tipo="factura" /></Td>
                   <Td>
-                    <select value={f.estado} onChange={e => setEstado(f.id, e.target.value)}
-                      style={{ fontSize:11, padding:'3px 6px', border:'1px solid #d1d9e6', borderRadius:5, cursor:'pointer' }}>
-                      <option value="pendiente">Pendiente</option>
-                      <option value="pagada">Pagada</option>
-                      <option value="vencida">Vencida</option>
-                    </select>
+                    <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                      <select value={f.estado} onChange={e => setEstado(f.id, e.target.value)}
+                        style={{ fontSize:11, padding:'3px 6px', border:'1px solid #d1d9e6', borderRadius:5, cursor:'pointer' }}>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="pagada">Pagada</option>
+                        <option value="vencida">Vencida</option>
+                      </select>
+                      <button onClick={() => del(f.id)} style={{ background:'#fdecea', color:'#b0401a', border:'none', borderRadius:5, width:24, height:24, cursor:'pointer', fontWeight:700 }}>✕</button>
+                    </div>
                   </Td>
                 </tr>
               ))}
@@ -104,17 +179,74 @@ export default function FacturacionPage() {
 
       {modal && (
         <Modal title="Nueva factura" onClose={() => setModal(false)}>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:'block', fontSize:12, fontWeight:600, color:'#6b7a8d', marginBottom:6 }}>Tipo de documento</label>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => upd('tipo', 'venta')}
+                style={{ flex:1, padding:'10px', borderRadius:8, border:'1.5px solid', cursor:'pointer', fontSize:13, fontWeight:700,
+                  borderColor: form.tipo==='venta'?'#1a7a4a':'#d1d9e6', background: form.tipo==='venta'?'#e6f4ed':'#fff', color: form.tipo==='venta'?'#1a7a4a':'#6b7a8d' }}>
+                📤 Venta (emitida)
+              </button>
+              <button onClick={() => upd('tipo', 'compra')}
+                style={{ flex:1, padding:'10px', borderRadius:8, border:'1.5px solid', cursor:'pointer', fontSize:13, fontWeight:700,
+                  borderColor: form.tipo==='compra'?'#534ab7':'#d1d9e6', background: form.tipo==='compra'?'#eeedfe':'#fff', color: form.tipo==='compra'?'#534ab7':'#6b7a8d' }}>
+                📥 Compra (recibida)
+              </button>
+            </div>
+          </div>
+
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-            <FormInput label="Cliente"       value={form.cliente||''}     onChange={v=>upd('cliente',v)} required />
-            <FormInput label="Proyecto"      value={form.proyecto||''}    onChange={v=>upd('proyecto',v)} />
-            <FormInput label="N° Factura"    value={form.numero||''}      onChange={v=>upd('numero',v)} />
-            <FormInput label="Monto (CLP)"   value={form.monto||''}       onChange={v=>upd('monto',v)} type="number" />
-            <FormInput label="Fecha emisión" value={form.emision||''}     onChange={v=>upd('emision',v)} type="date" />
-            <FormInput label="Vencimiento"   value={form.vencimiento||''} onChange={v=>upd('vencimiento',v)} type="date" />
+            {/* Selector de cliente o proveedor según el tipo */}
+            <div className="mb-3">
+              <label className="label-base">{form.tipo === 'compra' ? 'Proveedor' : 'Cliente'}</label>
+              <select
+                value={form.cliente || ''}
+                onChange={e => upd('cliente', e.target.value)}
+                className="input-base cursor-pointer">
+                <option value="">— Seleccionar {form.tipo === 'compra' ? 'proveedor' : 'cliente'} —</option>
+                {(form.tipo === 'compra' ? proveedores : clientes).map((c: any) => {
+                  const nombre = c.razon_social || c.nombre
+                  return <option key={c.id} value={nombre}>{nombre}</option>
+                })}
+                <option value="__otro__">+ Otro (escribir manual)</option>
+              </select>
+              {form.cliente === '__otro__' && (
+                <input autoFocus placeholder={`Nombre del ${form.tipo === 'compra' ? 'proveedor' : 'cliente'}`}
+                  className="input-base mt-2" value=""
+                  onChange={e => upd('cliente', e.target.value)} />
+              )}
+            </div>
+
+            {/* Selector de proyecto */}
+            <div className="mb-3">
+              <label className="label-base">Proyecto (opcional)</label>
+              <select
+                value={form.proyecto || ''}
+                onChange={e => upd('proyecto', e.target.value)}
+                className="input-base cursor-pointer">
+                <option value="">— Sin proyecto —</option>
+                {proyectos.map((p: any) => (
+                  <option key={p.id} value={p.nombre}>{p.nombre}</option>
+                ))}
+              </select>
+            </div>
+            <FormInput label="N° Factura" value={form.numero||''} onChange={v=>upd('numero',v)} />
+            <div></div>
+            <FormInput label="Monto NETO (CLP)" value={form.neto||''} onChange={updNeto} type="number" />
+            <div>
+              <label style={{ display:'block', fontSize:12, fontWeight:600, color:'#6b7a8d', marginBottom:4 }}>IVA (19%) — automático</label>
+              <div style={{ padding:'8px 11px', background:'#f0f4f8', border:'1px solid #d1d9e6', borderRadius:7, fontSize:13, fontWeight:600 }}>{fmt(form.iva || 0)}</div>
+            </div>
+            <div style={{ gridColumn:'1/-1', padding:'10px 14px', background:'#e8f1fb', borderRadius:8, display:'flex', justifyContent:'space-between' }}>
+              <span style={{ fontSize:13, fontWeight:600, color:'#0c447c' }}>Total (con IVA)</span>
+              <span style={{ fontSize:15, fontWeight:800, color:'#1e6bb8' }}>{fmt(form.monto || 0)}</span>
+            </div>
+            <FormInput label="Fecha emisión" value={form.emision||''} onChange={v=>upd('emision',v)} type="date" />
+            <FormInput label="Vencimiento" value={form.vencimiento||''} onChange={v=>upd('vencimiento',v)} type="date" />
             <FormSelect label="Estado" value={form.estado||'pendiente'} onChange={v=>upd('estado',v)}
               options={[{value:'pendiente',label:'Pendiente'},{value:'pagada',label:'Pagada'},{value:'vencida',label:'Vencida'}]} />
           </div>
-          <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:8 }}>
+          <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:14 }}>
             <Btn onClick={() => setModal(false)}>Cancelar</Btn>
             <Btn variant="primary" onClick={save} disabled={saving}>{saving?'Guardando...':'Guardar'}</Btn>
           </div>

@@ -7,8 +7,9 @@ import { Btn, FormInput, FormSelect, MetricCard, SectionTitle, Table, Td, Th } f
 import { fmt, fmtM } from '@/lib/format'
 import { UNIDADES, type Cotizacion, type PartidaCotizacion } from '@/types/cotizaciones'
 import type { Cliente } from '@/types/cliente'
+import type { CatalogoPartida } from '@/types/catalogo-partida'
 import DescargarPDFBtn from '@/components/DescargarPDFBtn'
-import ConvertirBtn from '@/components/ConvertirBtn'   // ← NUEVO
+import ConvertirBtn from '@/components/ConvertirBtn'
 
 const IVA = 0.19
 
@@ -49,6 +50,12 @@ export default function CotizacionesPage() {
   const [saving, setSaving]     = useState(false)
   const [loading, setLoading]   = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
+
+  // ─── Importar del catálogo ───────────────────────────────
+  const [showImport, setShowImport] = useState(false)
+  const [catalogo, setCatalogo]     = useState<CatalogoPartida[]>([])
+  const [catLoading, setCatLoading] = useState(false)
+  const [selected, setSelected]     = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -109,6 +116,54 @@ export default function CotizacionesPage() {
     }))
   }
 
+  // ─── IMPORTAR PARTIDAS DEL CATÁLOGO ──────────────────────
+  const openImport = async () => {
+    setShowImport(true)
+    setCatLoading(true)
+    setSelected(new Set())
+    const res  = await fetch('/api/catalogo-partidas')
+    const data = await res.json()
+    setCatalogo(Array.isArray(data) ? data : [])
+    setCatLoading(false)
+  }
+
+  const catalogoPadres = useMemo(() => {
+    const ps = catalogo.filter(c => !c.parent_id).sort((a, b) => a.orden - b.orden)
+    return ps.map(p => ({
+      ...p,
+      children: catalogo.filter(h => h.parent_id === p.id).sort((a, b) => a.orden - b.orden),
+    }))
+  }, [catalogo])
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+
+  // Importa las partidas seleccionadas como ítems de la cotización.
+  // En una cotización las partidas son planas: importamos el PADRE como
+  // título-partida con su precio de referencia (el desglose en sub-partidas
+  // se controla luego en el proyecto, no en la cotización).
+  const importarSeleccion = () => {
+    const seleccionados = catalogoPadres.filter(p => selected.has(p.id))
+    if (seleccionados.length === 0) { alert('Selecciona al menos una partida'); return }
+
+    setForm((f: any) => {
+      const base = f.partidas ?? []
+      const nuevas = seleccionados.map((cat, i) => ({
+        id: crypto.randomUUID(),
+        orden: base.length + i,
+        descripcion: cat.descripcion,
+        unidad: cat.unidad || 'gl',
+        cantidad: 1,
+        precio_unitario: cat.precio_unitario_ref || 0,
+        catalogo_id: cat.id,   // ← recuerda el origen; al convertir trae las sub-partidas
+      }))
+      return { ...f, partidas: [...base, ...nuevas] }
+    })
+
+    setShowImport(false)
+  }
+
   const totales = useMemo(() => {
     const partidas = form.partidas ?? []
     const neto = partidas.reduce((s: number, p: any) => s + (Number(p.cantidad) || 0) * (Number(p.precio_unitario) || 0), 0)
@@ -166,47 +221,46 @@ export default function CotizacionesPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <SectionTitle>Cotizaciones</SectionTitle>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <SectionTitle>Cotizaciones</SectionTitle>
+          <p className="text-sm text-muted mt-1">{metricas.total} cotización{metricas.total !== 1 ? 'es' : ''} · {fmtM(metricas.monto)} en cartera</p>
+        </div>
         <Btn variant="primary" onClick={() => { setForm({ ...EMPTY_COTIZACION, partidas: [] }); setModal('nuevo') }}>
           + Nueva cotización
         </Btn>
       </div>
 
       {apiError && (
-        <div style={{ background: '#fdecea', border: '1px solid #f5c6c2', color: '#b0401a', padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
+        <div className="bg-danger-bg border border-[#f5c6c2] text-danger px-4 py-3 rounded-xl mb-4 text-[13px]">
           <strong>Error de la API:</strong> {apiError}
         </div>
       )}
 
       {!loading && clientes.length === 0 && (
-        <div style={{ background: '#e8f1fb', border: '1px solid #b5d4f4', color: '#0c447c', padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
-          💡 Aún no tienes clientes guardados. <Link href="/clientes" style={{ color: '#0c447c', textDecoration: 'underline', fontWeight: 600 }}>Crea uno aquí</Link> antes de hacer una cotización.
+        <div className="bg-brand-bg border border-[#b5d4f4] text-[#0c447c] px-4 py-3 rounded-xl mb-4 text-[13px]">
+          💡 Aún no tienes clientes guardados. <Link href="/clientes" className="underline font-semibold">Crea uno aquí</Link> antes de hacer una cotización.
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard label="Total cotizaciones" value={metricas.total} />
         <MetricCard label="Aprobadas"          value={metricas.aprobadas}   sub="Listas para convertir" subColor="#1a7a4a" />
         <MetricCard label="Convertidas"        value={metricas.convertidas} sub="Ya son proyecto"        subColor="#534ab7" />
         <MetricCard label="Monto en cartera"   value={fmtM(metricas.monto)} sub="Excluye rechazadas" />
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="inline-flex gap-1 p-1 bg-white border border-line rounded-xl mb-6 shadow-card flex-wrap">
         {['todos', 'borrador', 'enviada', 'aprobada', 'rechazada', 'convertida'].map(f => (
           <button key={f} onClick={() => setFiltro(f)}
-            style={{
-              padding: '5px 14px', borderRadius: 20, border: '1px solid', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              borderColor: filtro === f ? '#1e6bb8' : '#d1d9e6',
-              background:  filtro === f ? '#1e6bb8' : '#fff',
-              color:       filtro === f ? '#fff'    : '#6b7a8d',
-            }}>
+            className={`px-3.5 py-1.5 rounded-lg text-[13px] font-semibold transition
+              ${filtro === f ? 'bg-brand text-white shadow-sm' : 'text-muted hover:bg-canvas'}`}>
             {f === 'todos' ? 'Todas' : ESTADO_COTIZ[f]?.label}
           </button>
         ))}
       </div>
 
-      <div style={{ background: '#fff', border: '1px solid #e4e9f0', borderRadius: 12, padding: 18 }}>
+      <div className="bg-white border border-line rounded-2xl p-5 shadow-card">
         {loading
           ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 40 }}>Cargando...</p>
           : filtered.length === 0
@@ -327,7 +381,10 @@ export default function CotizacionesPage() {
             <div style={{ marginTop: 20, marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535' }}>Partidas ({form.partidas?.length ?? 0})</div>
               {modal !== 'ver' && (
-                <Btn variant="primary" onClick={addPartida} style={{ fontSize: 12, padding: '5px 12px' }}>+ Agregar partida</Btn>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <Btn onClick={openImport} style={{ fontSize: 12, padding: '5px 12px', background: '#eeedfe', borderColor: '#ccc5fc', color: '#534ab7', fontWeight: 700 }}>📋 Importar del catálogo</Btn>
+                  <Btn variant="primary" onClick={addPartida} style={{ fontSize: 12, padding: '5px 12px' }}>+ Agregar partida</Btn>
+                </div>
               )}
             </div>
 
@@ -342,8 +399,15 @@ export default function CotizacionesPage() {
               return (
                 <div key={p.id || idx} style={{ background: '#fafbfc', border: '1px solid #e4e9f0', borderRadius: 8, padding: 14, marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#1e6bb8', background: '#e8f1fb', padding: '2px 8px', borderRadius: 4 }}>
-                      PARTIDA {idx + 1}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#1e6bb8', background: '#e8f1fb', padding: '2px 8px', borderRadius: 4 }}>
+                        PARTIDA {idx + 1}
+                      </div>
+                      {p.catalogo_id && (
+                        <span style={{ fontSize: 10, fontWeight: 600, color: '#534ab7', background: '#eeedfe', padding: '2px 8px', borderRadius: 4 }} title="Esta partida traerá sus sub-partidas del catálogo al convertir a proyecto">
+                          📋 con desglose
+                        </span>
+                      )}
                     </div>
                     {modal !== 'ver' && (
                       <button onClick={() => delPartida(idx)} title="Eliminar partida"
@@ -418,6 +482,67 @@ export default function CotizacionesPage() {
             )}
           </div>
         </ModalAncho>
+      )}
+
+      {/* ═══════ MODAL IMPORTAR DEL CATÁLOGO ═══════ */}
+      {showImport && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 28, maxWidth: 640, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', maxHeight: '92vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1a2535', margin: 0 }}>Importar partidas del catálogo</h3>
+              <button onClick={() => setShowImport(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#6b7a8d', lineHeight: 1 }}>×</button>
+            </div>
+
+            {catLoading
+              ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 20 }}>Cargando catálogo...</p>
+              : catalogoPadres.length === 0
+              ? <div style={{ textAlign: 'center', padding: 20 }}>
+                  <p style={{ fontSize: 13, color: '#6b7a8d', marginBottom: 10 }}>Tu catálogo está vacío.</p>
+                  <p style={{ fontSize: 12, color: '#6b7a8d' }}>Ve a <strong>Admin → Catálogo de partidas</strong> para crear tus partidas tipo.</p>
+                </div>
+              : (
+                <>
+                  <p style={{ fontSize: 12, color: '#6b7a8d', marginBottom: 14 }}>
+                    Selecciona las partidas a agregar a la cotización. Se importa el título con su precio de referencia (editable después).
+                  </p>
+                  <div style={{ maxHeight: 380, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {catalogoPadres.map(cp => {
+                      const isSel = selected.has(cp.id)
+                      return (
+                        <div key={cp.id} onClick={() => toggleSelect(cp.id)} style={{
+                          display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                          border: `1.5px solid ${isSel ? '#1e6bb8' : '#e4e9f0'}`,
+                          background: isSel ? '#e8f1fb' : '#fff', borderRadius: 8, cursor: 'pointer',
+                        }}>
+                          <div style={{
+                            width: 20, height: 20, borderRadius: 4, border: `2px solid ${isSel ? '#1e6bb8' : '#d1d9e6'}`,
+                            background: isSel ? '#1e6bb8' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0,
+                          }}>{isSel ? '✓' : ''}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#1a2535' }}>{cp.descripcion}</div>
+                            <div style={{ fontSize: 11, color: '#6b7a8d', marginTop: 2 }}>
+                              {cp.unidad}{cp.precio_unitario_ref > 0 ? ` · ${fmt(cp.precio_unitario_ref)}` : ''}
+                              {cp.children.length > 0 && ` · ${cp.children.length} sub-partidas`}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+                    <span style={{ fontSize: 12, color: '#6b7a8d' }}>{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Btn onClick={() => setShowImport(false)}>Cancelar</Btn>
+                      <Btn variant="primary" onClick={importarSeleccion} disabled={selected.size === 0}>
+                        Importar {selected.size > 0 ? selected.size : ''}
+                      </Btn>
+                    </div>
+                  </div>
+                </>
+              )}
+          </div>
+        </div>
       )}
     </div>
   )

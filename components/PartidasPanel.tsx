@@ -17,10 +17,11 @@ const colorAvance = (pct: number) => {
 
 interface Props {
   proyectoId: string
+  markupGlobal?: number
   onAvanceChange?: () => void
 }
 
-export default function PartidasPanel({ proyectoId, onAvanceChange }: Props) {
+export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceChange }: Props) {
   const [allItems, setAllItems] = useState<PartidaProyecto[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -72,14 +73,36 @@ export default function PartidasPanel({ proyectoId, onAvanceChange }: Props) {
     setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
 
+  // ─── Cálculo costo → markup → precio de venta ────────────
+  const updCosto = (v: any) => {
+    const costo = Number(v) || 0
+    setForm((f: any) => ({ ...f, costo_unitario: costo }))
+  }
+  const updMarkup = (v: any) => {
+    const mk = v === '' ? null : Number(v)
+    setForm((f: any) => ({ ...f, markup_pct: mk }))
+  }
+  // Precio de venta calculado en vivo (markup de la partida o el global)
+  const mkActual = form.markup_pct ?? markupGlobal
+  const precioVentaCalc = Math.round((Number(form.costo_unitario) || 0) * (1 + (Number(mkActual) || 0) / 100))
+
   const save = async () => {
     if (!form.descripcion) { alert('La descripción es obligatoria'); return }
     setSaving(true)
     const method = modal?.type === 'editar' ? 'PUT' : 'POST'
+    // El precio_unitario (venta) se calcula desde costo + markup
+    const esPadre = modal?.type === 'padre' || (modal?.type === 'editar' && !form.parent_id)
+    const payload = {
+      ...form,
+      proyecto_id: proyectoId,
+      parent_id: modal?.type === 'hijo' ? modal.parentId : (form.parent_id || null),
+      // Solo recalcular precio en partidas padre (las que tienen costo)
+      ...(esPadre ? { precio_unitario: precioVentaCalc } : {}),
+    }
     await fetch('/api/partidas-proyecto', {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, proyecto_id: proyectoId, parent_id: modal?.type === 'hijo' ? modal.parentId : (form.parent_id || null) }),
+      body: JSON.stringify(payload),
     })
     await load(); onAvanceChange?.(); setSaving(false); setModal(null)
   }
@@ -282,7 +305,21 @@ export default function PartidasPanel({ proyectoId, onAvanceChange }: Props) {
               <>
                 <FormSelect label="Unidad" value={form.unidad || 'gl'} onChange={v => upd('unidad', v)} options={UNIDADES} />
                 <FormInput label="Cantidad" value={form.cantidad ?? 1} onChange={v => upd('cantidad', v)} type="number" />
-                <FormInput label="Precio unitario" value={form.precio_unitario ?? 0} onChange={v => upd('precio_unitario', v)} type="number" />
+                <FormInput label="Costo unitario ($)" value={form.costo_unitario ?? 0} onChange={v => updCosto(v)} type="number" />
+                <div className="mb-3">
+                  <label className="label-base">Markup / ganancia (%)</label>
+                  <input type="number" value={form.markup_pct ?? markupGlobal}
+                    onChange={e => updMarkup(e.target.value)}
+                    className="input-base" placeholder={`Global: ${markupGlobal}%`} />
+                </div>
+                {/* Precio de venta calculado */}
+                <div className="col-span-2 bg-brand-bg border border-[#b5d4f4] rounded-lg px-4 py-3 flex justify-between items-center">
+                  <div>
+                    <div className="text-[11px] text-[#0c447c] font-semibold">Precio de venta (calculado)</div>
+                    <div className="text-[10px] text-muted">costo × (1 + markup%)</div>
+                  </div>
+                  <div className="text-lg font-extrabold text-brand">{fmt(precioVentaCalc)}</div>
+                </div>
               </>
             )}
             <div style={{ gridColumn: '1/-1' }}>

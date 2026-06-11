@@ -1,0 +1,231 @@
+// app/api/estados-pago/route.ts
+import { createServerSupabase } from '@/lib/supabase-server'
+import { NextResponse, type NextRequest } from 'next/server'
+
+const IVA = 0.19
+
+// ─── GET: lista EPs de un proyecto, o el "borrador sugerido" ──
+export async function GET(req: NextRequest) {
+  const supabase = await createServerSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const proyectoId = req.nextUrl.searchParams.get('proyecto_id')
+  const sugerir    = req.nextUrl.searchParams.get('sugerir')
+  if (!proyectoId) return NextResponse.json({ error: 'Falta proyecto_id' }, { status: 400 })
+
+  // Modo "sugerir": calcula cuánto se cobraría en un EP nuevo según avance actual
+  if (sugerir) {
+    return await sugerirEP(supabase, proyectoId, user.id)
+  }
+
+  const { data, error } = await supabase
+    .from('estados_pago')
+    .select('*, detalle:estado_pago_detalle(*)')
+    .eq('proyecto_id', proyectoId)
+    .eq('user_id', user.id)
+    .order('numero', { ascending: true })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data ?? [])
+}
+
+// ─── Sugerir EP: avance actual menos lo ya cobrado en EPs previos ──
+async function sugerirEP(supabase: any, proyectoId: string, userId: string) {
+  // 1. Partidas padre del proyecto (con su avance actual)
+  const { data: partidas } = await supabase
+    .from('partidas_proyecto')
+    .select('*')
+    .eq('proyecto_id', proyectoId)
+
+  const todas  = partidas ?? []
+  const padres = todas.filter((p: any) => !p.parent_id)
+  const hijos  = todas.filter((p: any) => p.parent_id)
+
+  // 2. EPs anteriores para saber cuánto ya se cobró de cada partida
+  const { data: epsPrevios } = await supabase
+    .from('estado_pago_detalle')
+    .select('partida_id, avance_actual, estado_pago_id')
+    .eq('user_id', userId)
+
+  // avance ya cobrado por partida (el máximo avance_actual registrado)
+  const yaCobrado: Record<string, number> = {}
+  for (const d of (epsPrevios ?? [])) {
+    if (!yaCobrado[d.partida_id] || d.avance_actual > yaCobrado[d.partida_id]) {
+      yaCobrado[d.partida_id] = d.avance_actual
+    }
+  }
+
+  // 3. Para cada partida padre, calcular avance actual real y lo nuevo a cobrar
+  const detalle = padres.map((padre: any) => {
+    const valor = (Number(padre.cantidad) || 0) * (Number(padre.precio_unitario) || 0)
+    const hijosPadre = hijos.filter((h: any) => h.parent_id === padre.id)
+    const avanceActual = hijosPadre.length > 0
+      ? Math.round(hijosPadre.reduce((s: number, h: any) => s + (Number(h.avance) || 0), 0) / hijosPadre.length)
+      : (Number(padre.avance) || 0)
+    const avanceAnterior = yaCobrado[padre.id] || 0
+    const avancePeriodo = Math.max(0, avanceActual - avanceAnterior)
+    const monto = Math.round(valor * avancePeriodo / 100)
+    return {
+      partida_id: padre.id,
+      descripcion: padre.descripcion,
+      valor_partida: valor,
+      avance_anterior: avanceAnterior,
+      avance_actual: avanceActual,
+      avance_periodo: avancePeriodo,
+      monto,
+    }
+  })
+
+  const montoNeto = detalle.reduce((s: number, d: any) => s + d.monto, 0)
+
+  // Número del próximo EP
+  const { data: ultimoEp } = await supabase
+    .from('estados_pago')
+    .select('numero')
+    .eq('proyecto_id', proyectoId)
+    .eq('user_id', userId)
+    .order('numero', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const numero = (ultimoEp?.numero || 0) + 1
+
+  return NextResponse.json({
+    sugerencia: true,
+    numero,
+    monto_neto: montoNeto,
+    detalle: detalle.filter((d: any) => d.avance_periodo > 0),
+  })
+}
+
+// ─── POST: crear un EP ──
+export async function POST(req: Request) {
+  const supabase = await createServerSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const body = await req.json()
+  const {
+    proyecto_id, numero, periodo, fecha, monto_neto,
+    retencion_pct = 0, anticipo_desc = 0, notas, detalle = [],
+  } = body
+
+  const retencionMonto = Math.round(monto_neto * retencion_pct / 100)
+  const montoPagar = monto_neto - retencionMonto - anticipo_desc
+  const iva = Math.round(montoPagar * IVA)
+  const total = montoPagar + iva
+
+  // Crear EP
+  const { data: ep, error: e1 } = await supabase
+    .from('estados_pago')
+    .insert({
+      proyecto_id, numero, periodo,
+      fecha: fecha || new Date().toISOString().split('T')[0],
+      monto_neto,
+      retencion_pct, retencion_monto: retencionMonto,
+      anticipo_desc, monto_pagar: montoPagar, iva, total,
+      estado: 'borrador',
+      notas: notas || null,
+      user_id: user.id,
+    })
+    .select()
+    .single()
+
+  if (e1) return NextResponse.json({ error: e1.message }, { status: 500 })
+
+  // Guardar detalle
+  if (detalle.length > 0) {
+    const filas = detalle.map((d: any) => ({
+      estado_pago_id: ep.id,
+      partida_id: d.partida_id,
+      descripcion: d.descripcion,
+      valor_partida: d.valor_partida,
+      avance_anterior: d.avance_anterior,
+      avance_actual: d.avance_actual,
+      avance_periodo: d.avance_periodo,
+      monto: d.monto,
+      user_id: user.id,
+    }))
+    await supabase.from('estado_pago_detalle').insert(filas)
+  }
+
+  return NextResponse.json(ep)
+}
+
+// ─── PUT: cambiar estado del EP ──
+export async function PUT(req: Request) {
+  const supabase = await createServerSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const { id, estado, generar_factura } = await req.json()
+
+  // Cargar el EP
+  const { data: ep } = await supabase
+    .from('estados_pago')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!ep) return NextResponse.json({ error: 'EP no encontrado' }, { status: 404 })
+
+  let facturaId = ep.factura_id
+
+  // Si se pide generar factura y no existe aún
+  if (generar_factura && !ep.factura_id) {
+    // Datos del proyecto para la factura
+    const { data: proy } = await supabase
+      .from('proyectos').select('nombre, cliente').eq('id', ep.proyecto_id).single()
+
+    const { data: factura } = await supabase
+      .from('facturas')
+      .insert({
+        numero: `EP-${ep.numero}`,
+        cliente: proy?.cliente || 'Cliente',
+        proyecto: proy?.nombre || '',
+        tipo: 'venta',
+        neto: ep.monto_pagar,
+        iva: ep.iva,
+        monto: ep.total,
+        emision: new Date().toISOString().split('T')[0],
+        periodo: ep.periodo || new Date().toISOString().slice(0, 7),
+        estado: 'pendiente',
+        estado_pago_id: ep.id,
+        user_id: user.id,
+      })
+      .select()
+      .single()
+
+    facturaId = factura?.id || null
+  }
+
+  const { data, error } = await supabase
+    .from('estados_pago')
+    .update({ estado: estado || ep.estado, factura_id: facturaId })
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ...data, factura_generada: facturaId && !ep.factura_id })
+}
+
+// ─── DELETE ──
+export async function DELETE(req: Request) {
+  const supabase = await createServerSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const { id } = await req.json()
+  const { error } = await supabase
+    .from('estados_pago')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}

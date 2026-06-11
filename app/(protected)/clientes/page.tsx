@@ -97,7 +97,7 @@ export default function ClientesPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+      <div className="flex justify-between items-center mb-6">
         <SectionTitle>Clientes</SectionTitle>
         <Btn variant="primary" onClick={() => { setForm({ ...EMPTY }); setRutError(null); setModal('nuevo') }}>
           + Nuevo cliente
@@ -105,7 +105,7 @@ export default function ClientesPage() {
       </div>
 
       {/* Métricas */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <MetricCard label="Total clientes" value={items.length} />
         <MetricCard label="Con RUT"        value={items.filter(c => c.rut).length} sub="Empresas registradas" />
         <MetricCard label="Sin RUT"        value={items.filter(c => !c.rut).length} sub="Personas o pendientes" />
@@ -126,7 +126,7 @@ export default function ClientesPage() {
       </div>
 
       {/* Tabla */}
-      <div style={{ background: '#fff', border: '1px solid #e4e9f0', borderRadius: 12, padding: 18 }}>
+      <div className="bg-white border border-line rounded-2xl p-5 shadow-card">
         {loading
           ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 40 }}>Cargando...</p>
           : filtered.length === 0

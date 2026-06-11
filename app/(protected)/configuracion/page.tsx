@@ -145,7 +145,7 @@ export default function ConfiguracionPage() {
       )}
 
       {/* ─── LOGO ─── */}
-      <div style={{ background: '#fff', border: '1px solid #e4e9f0', borderRadius: 12, padding: 20, marginBottom: 18 }}>
+      <div className="bg-white border border-line rounded-2xl p-6 shadow-card mb-5">
         <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535', marginBottom: 14 }}>Logo de la empresa</div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
@@ -182,7 +182,7 @@ export default function ConfiguracionPage() {
       </div>
 
       {/* ─── DATOS DE LA EMPRESA ─── */}
-      <div style={{ background: '#fff', border: '1px solid #e4e9f0', borderRadius: 12, padding: 20, marginBottom: 18 }}>
+      <div className="bg-white border border-line rounded-2xl p-6 shadow-card mb-5">
         <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535', marginBottom: 14 }}>Datos legales y comerciales</div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -205,7 +205,7 @@ export default function ConfiguracionPage() {
       </div>
 
       {/* ─── PERSONALIZACIÓN PDF ─── */}
-      <div style={{ background: '#fff', border: '1px solid #e4e9f0', borderRadius: 12, padding: 20, marginBottom: 18 }}>
+      <div className="bg-white border border-line rounded-2xl p-6 shadow-card mb-5">
         <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535', marginBottom: 14 }}>Personalización de documentos PDF</div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 14, alignItems: 'center' }}>

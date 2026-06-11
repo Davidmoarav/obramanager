@@ -4,37 +4,37 @@
 import React from 'react'
 
 // ── BADGE ────────────────────────────────────────────────
-const BADGE_MAPS: Record<string, Record<string, { label: string; color: string; bg: string }>> = {
+const BADGE_MAPS: Record<string, Record<string, { label: string; cls: string }>> = {
   proyecto: {
-    activo:    { label: 'En curso',      color: '#1e6bb8', bg: '#e8f1fb' },
-    terminado: { label: 'Terminado',     color: '#1a7a4a', bg: '#e6f4ed' },
-    cotizacion:{ label: 'En cotización', color: '#b07d1a', bg: '#fef3d7' },
+    activo:    { label: 'En curso',      cls: 'text-brand bg-brand-bg' },
+    terminado: { label: 'Terminado',     cls: 'text-success bg-success-bg' },
+    cotizacion:{ label: 'En cotización', cls: 'text-warning bg-warning-bg' },
   },
   empleado: {
-    activo:    { label: 'Activo',     color: '#1a7a4a', bg: '#e6f4ed' },
-    vacaciones:{ label: 'Vacaciones', color: '#b07d1a', bg: '#fef3d7' },
-    inactivo:  { label: 'Inactivo',   color: '#b0401a', bg: '#fdecea' },
+    activo:    { label: 'Activo',     cls: 'text-success bg-success-bg' },
+    vacaciones:{ label: 'Vacaciones', cls: 'text-warning bg-warning-bg' },
+    inactivo:  { label: 'Inactivo',   cls: 'text-danger bg-danger-bg' },
   },
   factura: {
-    pagada:   { label: 'Pagada',   color: '#1a7a4a', bg: '#e6f4ed' },
-    pendiente:{ label: 'Pendiente',color: '#b07d1a', bg: '#fef3d7' },
-    vencida:  { label: 'Vencida',  color: '#b0401a', bg: '#fdecea' },
+    pagada:   { label: 'Pagada',   cls: 'text-success bg-success-bg' },
+    pendiente:{ label: 'Pendiente',cls: 'text-warning bg-warning-bg' },
+    vencida:  { label: 'Vencida',  cls: 'text-danger bg-danger-bg' },
   },
   contrato: {
-    ejecucion: { label: 'En ejecución', color: '#1e6bb8', bg: '#e8f1fb' },
-    liquidado: { label: 'Liquidado',    color: '#1a7a4a', bg: '#e6f4ed' },
-    pendiente: { label: 'Pendiente',    color: '#b07d1a', bg: '#fef3d7' },
+    ejecucion: { label: 'En ejecución', cls: 'text-brand bg-brand-bg' },
+    liquidado: { label: 'Liquidado',    cls: 'text-success bg-success-bg' },
+    pendiente: { label: 'Pendiente',    cls: 'text-warning bg-warning-bg' },
   },
   proveedor: {
-    activo:    { label: 'Activo',     color: '#1a7a4a', bg: '#e6f4ed' },
-    cotizacion:{ label: 'Cotización', color: '#b07d1a', bg: '#fef3d7' },
+    activo:    { label: 'Activo',     cls: 'text-success bg-success-bg' },
+    cotizacion:{ label: 'Cotización', cls: 'text-warning bg-warning-bg' },
   },
 }
 
 export function Badge({ estado, tipo }: { estado: string; tipo: keyof typeof BADGE_MAPS }) {
-  const s = BADGE_MAPS[tipo]?.[estado] ?? { label: estado, color: '#555', bg: '#eee' }
+  const s = BADGE_MAPS[tipo]?.[estado] ?? { label: estado, cls: 'text-muted bg-line' }
   return (
-    <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+    <span className={`inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-md whitespace-nowrap ${s.cls}`}>
       {s.label}
     </span>
   )
@@ -43,11 +43,14 @@ export function Badge({ estado, tipo }: { estado: string; tipo: keyof typeof BAD
 // ── PROGRESS ─────────────────────────────────────────────
 export function ProgressBar({ pct }: { pct: number }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ flex: 1, height: 6, background: '#e8edf2', borderRadius: 3, overflow: 'hidden', minWidth: 60 }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#1a7a4a' : '#1e6bb8', borderRadius: 3, transition: 'width 0.4s' }} />
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 bg-[#e8edf2] rounded-full overflow-hidden min-w-[60px]">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-success' : 'bg-brand'}`}
+          style={{ width: `${pct}%` }}
+        />
       </div>
-      <span style={{ fontSize: 12, color: '#6b7a8d', minWidth: 30 }}>{pct}%</span>
+      <span className="text-xs text-muted min-w-[30px]">{pct}%</span>
     </div>
   )
 }
@@ -55,26 +58,29 @@ export function ProgressBar({ pct }: { pct: number }) {
 // ── METRIC CARD ───────────────────────────────────────────
 export function MetricCard({ label, value, sub, subColor }: { label: string; value: string | number; sub?: string; subColor?: string }) {
   return (
-    <div style={{ background: '#f0f4f8', borderRadius: 10, padding: '14px 18px' }}>
-      <div style={{ fontSize: 12, color: '#6b7a8d', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: '#1a2535' }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, marginTop: 3, color: subColor ?? '#6b7a8d' }}>{sub}</div>}
+    <div className="bg-white border border-line rounded-card p-4 shadow-card">
+      <div className="text-xs text-muted mb-1">{label}</div>
+      <div className="text-2xl font-bold text-ink tabular-nums">{value}</div>
+      {sub && (
+        <div className="text-xs mt-0.5" style={{ color: subColor ?? '#6b7a8d' }}>{sub}</div>
+      )}
     </div>
   )
 }
 
 // ── BTN ───────────────────────────────────────────────────
 type BtnVariant = 'default' | 'primary' | 'danger'
-const btnStyles: Record<BtnVariant, React.CSSProperties> = {
-  default: { background: '#fff', border: '1px solid #d1d9e6', color: '#1a2535' },
-  primary: { background: '#1e6bb8', border: '1px solid #1e6bb8', color: '#fff' },
-  danger:  { background: '#fdecea', border: '1px solid #f5c6c2', color: '#b0401a' },
+const btnVariants: Record<BtnVariant, string> = {
+  default: 'bg-white border border-line2 text-ink hover:bg-canvas',
+  primary: 'bg-brand border border-brand text-white hover:bg-brand-dark',
+  danger:  'bg-danger-bg border border-[#f5c6c2] text-danger hover:bg-[#fbdbd7]',
 }
-export function Btn({ children, onClick, variant = 'default', style = {}, disabled, type = 'button' }:
-  { children: React.ReactNode; onClick?: () => void; variant?: BtnVariant; style?: React.CSSProperties; disabled?: boolean; type?: 'button'|'submit' }) {
+export function Btn({ children, onClick, variant = 'default', className = '', style, disabled, type = 'button' }:
+  { children: React.ReactNode; onClick?: () => void; variant?: BtnVariant; className?: string; style?: React.CSSProperties; disabled?: boolean; type?: 'button'|'submit' }) {
   return (
-    <button type={type} onClick={onClick} disabled={disabled}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.6 : 1, ...btnStyles[variant], ...style }}>
+    <button type={type} onClick={onClick} disabled={disabled} style={style}
+      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[13px] font-semibold transition
+        ${disabled ? 'opacity-60 cursor-default' : 'cursor-pointer'} ${btnVariants[variant]} ${className}`}>
       {children}
     </button>
   )
@@ -85,10 +91,10 @@ export function FormInput({ label, value, onChange, type = 'text', placeholder, 
   label?: string; value: string | number; onChange: (v: string) => void; type?: string; placeholder?: string; required?: boolean
 }) {
   return (
-    <div style={{ marginBottom: 12 }}>
-      {label && <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#6b7a8d', marginBottom: 4 }}>{label}</label>}
+    <div className="mb-3">
+      {label && <label className="label-base">{label}</label>}
       <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} required={required}
-        style={{ width: '100%', padding: '8px 11px', border: '1px solid #d1d9e6', borderRadius: 7, fontSize: 13, color: '#1a2535', background: '#fafbfc', boxSizing: 'border-box', outline: 'none' }} />
+        className="input-base" />
     </div>
   )
 }
@@ -98,10 +104,9 @@ export function FormSelect({ label, value, onChange, options }: {
   label?: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[]
 }) {
   return (
-    <div style={{ marginBottom: 12 }}>
-      {label && <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#6b7a8d', marginBottom: 4 }}>{label}</label>}
-      <select value={value} onChange={e => onChange(e.target.value)}
-        style={{ width: '100%', padding: '8px 11px', border: '1px solid #d1d9e6', borderRadius: 7, fontSize: 13, color: '#1a2535', background: '#fafbfc' }}>
+    <div className="mb-3">
+      {label && <label className="label-base">{label}</label>}
+      <select value={value} onChange={e => onChange(e.target.value)} className="input-base cursor-pointer">
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </div>
@@ -111,11 +116,11 @@ export function FormSelect({ label, value, onChange, options }: {
 // ── MODAL ─────────────────────────────────────────────────
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: '#fff', borderRadius: 14, padding: 28, maxWidth: 540, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1a2535', margin: 0 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#6b7a8d', lineHeight: 1 }}>×</button>
+    <div className="fixed inset-0 bg-black/35 z-[100] flex items-center justify-center p-5">
+      <div className="bg-white rounded-card p-7 max-w-[540px] w-full shadow-pop max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-5">
+          <h3 className="text-base font-bold text-ink m-0">{title}</h3>
+          <button onClick={onClose} className="bg-transparent border-none text-2xl cursor-pointer text-muted leading-none hover:text-ink transition">×</button>
         </div>
         {children}
       </div>
@@ -125,18 +130,18 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
 
 // ── TABLE ─────────────────────────────────────────────────
 export function Table({ children }: { children: React.ReactNode }) {
-  return <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>{children}</table></div>
+  return <div className="overflow-x-auto"><table className="w-full border-collapse text-[13px]">{children}</table></div>
 }
 export function Th({ children }: { children: React.ReactNode }) {
-  return <th style={{ textAlign: 'left', padding: '9px 12px', borderBottom: '1px solid #e4e9f0', fontWeight: 600, fontSize: 12, color: '#6b7a8d', whiteSpace: 'nowrap' }}>{children}</th>
+  return <th className="text-left px-3 py-2.5 border-b border-line font-semibold text-xs text-muted whitespace-nowrap">{children}</th>
 }
-export function Td({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return <td style={{ padding: '11px 12px', borderBottom: '1px solid #f0f4f8', ...style }}>{children}</td>
+export function Td({ children, className = '', style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
+  return <td className={`px-3 py-2.5 border-b border-[#f0f4f8] ${className}`} style={style}>{children}</td>
 }
 
 // ── SECTION TITLE ─────────────────────────────────────────
 export function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1a2535', margin: '0 0 18px' }}>{children}</h2>
+  return <h2 className="text-lg font-bold text-ink m-0">{children}</h2>
 }
 
 // ── FORMAT HELPERS (re-exportados desde lib/format) ───────
