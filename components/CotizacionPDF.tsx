@@ -254,7 +254,7 @@ export function CotizacionPDF({ cotizacion, cliente, empresa, logoUrl }: Props) 
   return (
     <Document
       title={`Cotización ${cotizacion.numero || ''}`}
-      author={empresa?.razon_social || 'ObraManager'}
+      author={empresa?.razon_social || 'Cubica Manager'}
       subject="Cotización"
     >
       <Page size="A4" style={styles.page}>
@@ -364,7 +364,7 @@ export function CotizacionPDF({ cotizacion, cliente, empresa, logoUrl }: Props) 
 
         {/* ─── FOOTER ─── */}
         <View style={styles.footer} fixed>
-          <Text>{empresa?.razon_social || 'ObraManager'}</Text>
+          <Text>{empresa?.razon_social || 'Cubica Manager'}</Text>
           <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
         </View>
       </Page>

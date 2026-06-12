@@ -3,6 +3,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 
 const MENU = [
@@ -26,6 +27,14 @@ export default function Sidebar({ userEmail }: { userEmail?: string }) {
   const pathname = usePathname()
   const router   = useRouter()
   const supabase = createClient()
+  const [empresa, setEmpresa] = useState<string>('')
+
+  useEffect(() => {
+    fetch('/api/empresa')
+      .then(r => r.json())
+      .then(d => { if (d?.razon_social) setEmpresa(d.razon_social) })
+      .catch(() => {})
+  }, [])
 
   const logout = async () => {
     await supabase.auth.signOut()
@@ -38,10 +47,10 @@ export default function Sidebar({ userEmail }: { userEmail?: string }) {
       {/* Logo */}
       <div className="px-4 pt-[18px] pb-4 border-b border-line">
         <div className="flex items-center gap-2.5">
-          <div className="w-[34px] h-[34px] bg-brand rounded-lg flex items-center justify-center text-white text-lg">⬡</div>
+          <img src="/logo.png" alt="Cubica Manager" className="w-[34px] h-[34px] rounded-lg object-contain" />
           <div>
-            <div className="text-sm font-extrabold text-ink tracking-tight">ObraManager</div>
-            <div className="text-[10px] text-muted mt-px">Casa del EIFS SpA</div>
+            <div className="text-sm font-extrabold text-ink tracking-tight">Cubica Manager</div>
+            <div className="text-[10px] text-muted mt-px">{empresa || 'Sistema de gestión'}</div>
           </div>
         </div>
       </div>

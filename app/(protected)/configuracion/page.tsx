@@ -186,7 +186,7 @@ export default function ConfiguracionPage() {
         <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535', marginBottom: 14 }}>Datos legales y comerciales</div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          <FormInput label="Razón social"        value={form.razon_social || ''} onChange={v => upd('razon_social', v)} placeholder="Casa del EIFS SpA" />
+          <FormInput label="Razón social"        value={form.razon_social || ''} onChange={v => upd('razon_social', v)} placeholder="Ej: Constructora Ejemplo SpA" />
           <FormInput label="RUT"                 value={form.rut || ''}          onChange={v => upd('rut', v)}          placeholder="76.123.456-7" />
           <div style={{ gridColumn: '1/-1' }}>
             <FormInput label="Giro"              value={form.giro || ''}         onChange={v => upd('giro', v)}         placeholder="Comercialización de materiales de construcción y servicios" />
@@ -194,12 +194,12 @@ export default function ConfiguracionPage() {
           <div style={{ gridColumn: '1/-1' }}>
             <FormInput label="Dirección"         value={form.direccion || ''}    onChange={v => upd('direccion', v)}    placeholder="Av. 1 Sur 1234" />
           </div>
-          <FormInput label="Comuna"              value={form.comuna || ''}       onChange={v => upd('comuna', v)}       placeholder="Talca" />
-          <FormInput label="Ciudad"              value={form.ciudad || ''}       onChange={v => upd('ciudad', v)}       placeholder="Talca" />
+          <FormInput label="Comuna"              value={form.comuna || ''}       onChange={v => upd('comuna', v)}       placeholder="Ej: Santiago" />
+          <FormInput label="Ciudad"              value={form.ciudad || ''}       onChange={v => upd('ciudad', v)}       placeholder="Ej: Santiago" />
           <FormInput label="Teléfono"            value={form.telefono || ''}     onChange={v => upd('telefono', v)}     placeholder="+56 71 222 3333" />
           <FormInput label="Email"               value={form.email || ''}        onChange={v => upd('email', v)}        placeholder="contacto@empresa.cl" type="email" />
           <div style={{ gridColumn: '1/-1' }}>
-            <FormInput label="Sitio web"         value={form.sitio_web || ''}    onChange={v => upd('sitio_web', v)}    placeholder="https://www.casadeleifs.cl" />
+            <FormInput label="Sitio web"         value={form.sitio_web || ''}    onChange={v => upd('sitio_web', v)}    placeholder="https://www.tuempresa.cl" />
           </div>
         </div>
       </div>

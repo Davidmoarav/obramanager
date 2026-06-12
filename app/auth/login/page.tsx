@@ -44,8 +44,8 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ width: 48, height: 48, background: 'var(--primary)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, margin: '0 auto 12px' }}>⬡</div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>ObraManager</h1>
+          <img src="/logo.png" alt="Cubica Manager" style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'contain', margin: '0 auto 12px', display: 'block' }} />
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Cubica Manager</h1>
           <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>Sistema de gestión para contratistas</p>
         </div>
 
@@ -66,7 +66,7 @@ export default function LoginPage() {
           {mode === 'register' && (
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>Nombre completo</label>
-              <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Eliceo Moya" required style={inputStyle} />
+              <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Juan Pérez" required style={inputStyle} />
             </div>
           )}
           <div style={{ marginBottom: 14 }}>

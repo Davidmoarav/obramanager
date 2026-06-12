@@ -172,7 +172,7 @@ export default function ClientesPage() {
         <Modal title={modal === 'nuevo' ? 'Nuevo cliente' : 'Editar cliente'} onClose={() => setModal(null)}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ gridColumn: '1/-1' }}>
-              <FormInput label="Razón social *" value={form.razon_social || ''} onChange={v => upd('razon_social', v)} required placeholder="Inversiones Maule SpA" />
+              <FormInput label="Razón social *" value={form.razon_social || ''} onChange={v => upd('razon_social', v)} required placeholder="Ej: Inmobiliaria Ejemplo SpA" />
             </div>
 
             {/* RUT con validación visual */}
@@ -197,15 +197,15 @@ export default function ClientesPage() {
             </div>
 
             <FormInput label="Giro"     value={form.giro || ''}     onChange={v => upd('giro', v)}     placeholder="Construcción y obras civiles" />
-            <FormInput label="Contacto" value={form.contacto || ''} onChange={v => upd('contacto', v)} placeholder="Juan Pérez" />
+            <FormInput label="Contacto" value={form.contacto || ''} onChange={v => upd('contacto', v)} placeholder="Nombre Apellido" />
             <FormInput label="Email"    value={form.email || ''}    onChange={v => upd('email', v)}    placeholder="contacto@cliente.cl" type="email" />
             <FormInput label="Teléfono" value={form.telefono || ''} onChange={v => upd('telefono', v)} placeholder="+56 9 1234 5678" />
 
             <div style={{ gridColumn: '1/-1' }}>
               <FormInput label="Dirección" value={form.direccion || ''} onChange={v => upd('direccion', v)} placeholder="Av. 1 Sur 123" />
             </div>
-            <FormInput label="Comuna" value={form.comuna || ''} onChange={v => upd('comuna', v)} placeholder="Talca" />
-            <FormInput label="Ciudad" value={form.ciudad || ''} onChange={v => upd('ciudad', v)} placeholder="Talca" />
+            <FormInput label="Comuna" value={form.comuna || ''} onChange={v => upd('comuna', v)} placeholder="Ej: Santiago" />
+            <FormInput label="Ciudad" value={form.ciudad || ''} onChange={v => upd('ciudad', v)} placeholder="Ej: Santiago" />
 
             <div style={{ gridColumn: '1/-1' }}>
               <FormInput label="Notas" value={form.notas || ''} onChange={v => upd('notas', v)} placeholder="Cliente preferente, paga a 30 días, etc." />

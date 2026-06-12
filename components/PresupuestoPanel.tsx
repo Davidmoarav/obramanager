@@ -181,7 +181,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
   const totalCobradoConIva = eps.filter(e => e.estado === 'pagado').reduce((s, e) => s + (e.total || 0), 0)
   const pctCobrado = valorContrato > 0 ? Math.round(totalCobradoConIva / valorContrato * 100) : 0
 
-  if (loading) return <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 20 }}>Cargando...</p>
+  if (loading) return <p className="text-center py-5 text-muted text-[13px]">Cargando...</p>
 
   return (
     <div>
@@ -278,8 +278,8 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
       </div>
 
       {/* ─── ESTADOS DE PAGO ─── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535' }}>
+      <div className="flex justify-between items-center mb-3">
+        <div className="text-sm font-bold text-ink">
           Estados de pago ({eps.length})
         </div>
         <Btn variant="primary" onClick={openNuevoEP} style={{ fontSize: 12, padding: '5px 12px' }}>
@@ -288,43 +288,43 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
       </div>
 
       {eps.length === 0
-        ? <div style={{ background: '#f8fafc', border: '1px dashed #d1d9e6', borderRadius: 8, padding: 24, textAlign: 'center', fontSize: 12, color: '#6b7a8d' }}>
+        ? <div className="bg-canvas border border-dashed border-line2 rounded-lg p-6 text-center text-[12px] text-muted">
             Sin estados de pago. Crea el primero cuando tengas avance de obra que cobrar.
           </div>
         : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {eps.map(ep => {
               const s = ESTADO_EP[ep.estado] || ESTADO_EP.borrador
               return (
-                <div key={ep.id} style={{ border: '1px solid #e4e9f0', borderRadius: 10, padding: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div key={ep.id} className="border border-line rounded-card p-3.5">
+                  <div className="flex justify-between items-start">
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: '#1a2535' }}>EP N°{ep.numero}</span>
-                        <span style={{ background: s.bg, color: s.color, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5 }}>{s.label}</span>
-                        {ep.factura_id && <span style={{ fontSize: 10, color: '#534ab7', fontWeight: 600 }}>🧾 Facturado</span>}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-ink">EP N°{ep.numero}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: s.bg, color: s.color }}>{s.label}</span>
+                        {ep.factura_id && <span className="text-[10px] text-accent font-semibold">🧾 Facturado</span>}
                       </div>
-                      <div style={{ fontSize: 11, color: '#6b7a8d', marginTop: 3 }}>
+                      <div className="text-[11px] text-muted mt-0.5">
                         {ep.periodo} · {ep.fecha}
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: '#1a2535' }}>{fmt(ep.total)}</div>
-                      <div style={{ fontSize: 10, color: '#6b7a8d' }}>Neto {fmt(ep.monto_pagar)} + IVA</div>
+                    <div className="text-right">
+                      <div className="text-base font-extrabold text-ink">{fmt(ep.total)}</div>
+                      <div className="text-[10px] text-muted">Neto {fmt(ep.monto_pagar)} + IVA</div>
                     </div>
                   </div>
 
                   {/* Desglose */}
                   {(ep.retencion_monto > 0 || ep.anticipo_desc > 0) && (
-                    <div style={{ display: 'flex', gap: 14, fontSize: 11, color: '#6b7a8d', marginTop: 8, paddingTop: 8, borderTop: '1px solid #f0f4f8' }}>
+                    <div className="flex gap-3.5 text-[11px] text-muted mt-2 pt-2 border-t border-[#f0f4f8]">
                       <span>Avance: {fmt(ep.monto_neto)}</span>
-                      {ep.retencion_monto > 0 && <span style={{ color: '#b0401a' }}>− Retención {ep.retencion_pct}%: {fmt(ep.retencion_monto)}</span>}
-                      {ep.anticipo_desc > 0 && <span style={{ color: '#b0401a' }}>− Anticipo: {fmt(ep.anticipo_desc)}</span>}
+                      {ep.retencion_monto > 0 && <span className="text-danger">− Retención {ep.retencion_pct}%: {fmt(ep.retencion_monto)}</span>}
+                      {ep.anticipo_desc > 0 && <span className="text-danger">− Anticipo: {fmt(ep.anticipo_desc)}</span>}
                     </div>
                   )}
 
                   {/* Acciones por estado */}
-                  <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                  <div className="flex gap-1.5 mt-2.5 flex-wrap">
                     {ep.estado === 'borrador' && (
                       <Btn onClick={() => cambiarEstado(ep, 'presentado')} style={{ fontSize: 11, padding: '4px 10px' }}>Marcar presentado</Btn>
                     )}
@@ -343,7 +343,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
                       </>
                     )}
                     {ep.estado !== 'pagado' && (
-                      <button onClick={() => delEP(ep.id)} style={{ fontSize: 11, padding: '4px 10px', background: 'transparent', border: 'none', color: '#b0401a', cursor: 'pointer', marginLeft: 'auto' }}>Eliminar</button>
+                      <button onClick={() => delEP(ep.id)} className="text-[11px] px-2.5 py-1 bg-transparent border-none text-danger cursor-pointer ml-auto">Eliminar</button>
                     )}
                   </div>
                 </div>
@@ -356,30 +356,30 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
       {modal && sugerencia && (
         <Modal title={`Nuevo Estado de Pago N°${sugerencia.numero}`} onClose={() => setModal(false)}>
           {detalleEdit.length === 0
-            ? <div style={{ textAlign: 'center', padding: 20 }}>
-                <p style={{ fontSize: 13, color: '#6b7a8d' }}>No hay avance nuevo para cobrar.</p>
-                <p style={{ fontSize: 12, color: '#6b7a8d', marginTop: 6 }}>Actualiza el avance de las partidas en la pestaña "Control de obra" antes de crear un estado de pago.</p>
+            ? <div className="text-center py-5">
+                <p className="text-[13px] text-muted">No hay avance nuevo para cobrar.</p>
+                <p className="text-[12px] text-muted mt-1.5">Actualiza el avance de las partidas en la pestaña "Control de obra" antes de crear un estado de pago.</p>
               </div>
             : (
               <>
-                <p style={{ fontSize: 12, color: '#6b7a8d', marginBottom: 14 }}>
+                <p className="text-[12px] text-muted mb-3.5">
                   Avance a cobrar por partida (sugerido desde el control de obra, editable).
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto', marginBottom: 16 }}>
+                <div className="flex flex-col gap-2 max-h-[280px] overflow-y-auto mb-4">
                   {detalleEdit.map((d, idx) => (
-                    <div key={d.partida_id} style={{ background: '#fafbfc', border: '1px solid #e4e9f0', borderRadius: 8, padding: 12 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1a2535', marginBottom: 6 }}>{d.descripcion}</div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                        <div style={{ fontSize: 11, color: '#6b7a8d' }}>
-                          {d.avance_anterior}% → {d.avance_actual}% <span style={{ color: '#1a7a4a', fontWeight: 700 }}>(+{d.avance_periodo}%)</span>
+                    <div key={d.partida_id} className="bg-canvas border border-line rounded-lg p-3">
+                      <div className="text-[13px] font-semibold text-ink mb-1.5">{d.descripcion}</div>
+                      <div className="flex justify-between items-center gap-3">
+                        <div className="text-[11px] text-muted">
+                          {d.avance_anterior}% → {d.avance_actual}% <span className="text-success font-bold">(+{d.avance_periodo}%)</span>
                           <br/>de {fmt(d.valor_partida)}
                         </div>
-                        <div style={{ width: 150 }}>
-                          <label style={{ fontSize: 10, color: '#6b7a8d', display: 'block', marginBottom: 2 }}>Monto a cobrar</label>
+                        <div className="w-[150px]">
+                          <label className="text-[10px] text-muted block mb-0.5">Monto a cobrar</label>
                           <input type="number" value={d.monto}
                             onChange={e => updDetalle(idx, Number(e.target.value))}
-                            style={{ width: '100%', padding: '6px 8px', border: '1px solid #d1d9e6', borderRadius: 6, fontSize: 13, textAlign: 'right', fontWeight: 700 }} />
+                            className="w-full px-2 py-1.5 border border-line2 rounded-md text-[13px] text-right font-bold" />
                         </div>
                       </div>
                     </div>
@@ -387,27 +387,27 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
                 </div>
 
                 {/* Deducciones */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                <div className="grid grid-cols-2 gap-3 mb-3.5">
                   <FormInput label="Retención garantía (%)" value={retencion} onChange={v => setRetencion(Number(v) || 0)} type="number" />
                   <FormInput label="Amortización anticipo ($)" value={anticipo} onChange={v => setAnticipo(Number(v) || 0)} type="number" />
                 </div>
 
                 {/* Totales */}
-                <div style={{ background: '#f0f4f8', borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                <div className="bg-canvas rounded-card p-3.5 mb-3.5">
                   <Row label="Avance del período (neto)" valor={fmt(montoNeto)} />
                   {retencionMonto > 0 && <Row label={`Retención ${retencion}%`} valor={`− ${fmt(retencionMonto)}`} color="#b0401a" />}
                   {anticipo > 0 && <Row label="Amortización anticipo" valor={`− ${fmt(anticipo)}`} color="#b0401a" />}
                   <Row label="IVA (19%)" valor={fmt(ivaCalc)} />
-                  <div style={{ borderTop: '1px solid #d1d9e6', marginTop: 6, paddingTop: 6 }}>
+                  <div className="border-t border-line2 mt-1.5 pt-1.5">
                     <Row label="Total a facturar" valor={fmt(totalCalc)} bold />
                   </div>
                 </div>
 
-                <div style={{ marginBottom: 14 }}>
+                <div className="mb-3.5">
                   <FormInput label="Notas (opcional)" value={notas} onChange={setNotas} placeholder="Ej: Incluye trabajos extraordinarios aprobados" />
                 </div>
 
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <div className="flex gap-2 justify-end">
                   <Btn onClick={() => setModal(false)}>Cancelar</Btn>
                   <Btn variant="primary" onClick={guardarEP} disabled={saving}>{saving ? 'Guardando...' : 'Crear estado de pago'}</Btn>
                 </div>
@@ -471,17 +471,17 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
 
 function ResumenCard({ label, valor, color, sub }: { label: string; valor: string; color: string; sub?: string }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid #e4e9f0', borderRadius: 10, padding: '12px 14px' }}>
-      <div style={{ fontSize: 10, color: '#6b7a8d', textTransform: 'uppercase', letterSpacing: 0.3, fontWeight: 700 }}>{label}</div>
-      <div style={{ fontSize: 17, fontWeight: 800, color, marginTop: 4 }}>{valor}</div>
-      {sub && <div style={{ fontSize: 10, color: '#6b7a8d', marginTop: 2 }}>{sub}</div>}
+    <div className="bg-white border border-line rounded-card px-3.5 py-3">
+      <div className="text-[10px] text-muted uppercase tracking-wide font-bold">{label}</div>
+      <div className="text-[17px] font-extrabold mt-1" style={{ color }}>{valor}</div>
+      {sub && <div className="text-[10px] text-muted mt-0.5">{sub}</div>}
     </div>
   )
 }
 
 function Row({ label, valor, color, bold }: { label: string; valor: string; color?: string; bold?: boolean }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: bold ? 15 : 13, marginBottom: 3 }}>
+    <div className={`flex justify-between mb-0.5 ${bold ? 'text-[15px]' : 'text-[13px]'}`}>
       <span style={{ color: color || '#6b7a8d', fontWeight: bold ? 700 : 400 }}>{label}</span>
       <span style={{ color: color || '#1a2535', fontWeight: bold ? 800 : 600 }}>{valor}</span>
     </div>
