@@ -73,15 +73,6 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
     setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
 
-  // ─── Cálculo costo → markup → precio de venta ────────────
-  const updCosto = (v: any) => {
-    const costo = Number(v) || 0
-    setForm((f: any) => ({ ...f, costo_unitario: costo }))
-  }
-  const updMarkup = (v: any) => {
-    const mk = v === '' ? null : Number(v)
-    setForm((f: any) => ({ ...f, markup_pct: mk }))
-  }
   // Precio de venta calculado en vivo (markup de la partida o el global)
   const mkActual = form.markup_pct ?? markupGlobal
   const precioVentaCalc = Math.round((Number(form.costo_unitario) || 0) * (1 + (Number(mkActual) || 0) / 100))
@@ -99,12 +90,19 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
       // Solo recalcular precio en partidas padre (las que tienen costo)
       ...(esPadre ? { precio_unitario: precioVentaCalc } : {}),
     }
-    await fetch('/api/partidas-proyecto', {
+    const res = await fetch('/api/partidas-proyecto', {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    await load(); onAvanceChange?.(); setSaving(false); setModal(null)
+    setSaving(false)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      alert('No se pudo guardar: ' + (err.error || 'error desconocido') +
+        '\n\nSi menciona "costo_unitario" o "markup_pct", ejecuta el SQL 13_presupuesto_margen.sql en Supabase.')
+      return
+    }
+    await load(); onAvanceChange?.(); setModal(null)
   }
 
   const updateAvance = async (partida: PartidaProyecto, nuevoAvance: number) => {
@@ -305,11 +303,16 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
               <>
                 <FormSelect label="Unidad" value={form.unidad || 'gl'} onChange={v => upd('unidad', v)} options={UNIDADES} />
                 <FormInput label="Cantidad" value={form.cantidad ?? 1} onChange={v => upd('cantidad', v)} type="number" />
-                <FormInput label="Costo unitario ($)" value={form.costo_unitario ?? 0} onChange={v => updCosto(v)} type="number" />
+                <div className="mb-3">
+                  <label className="label-base">Costo unitario ($)</label>
+                  <input type="number" value={form.costo_unitario || ''}
+                    onChange={e => upd('costo_unitario', e.target.value === '' ? 0 : Number(e.target.value))}
+                    className="input-base" placeholder="0" />
+                </div>
                 <div className="mb-3">
                   <label className="label-base">Markup / ganancia (%)</label>
-                  <input type="number" value={form.markup_pct ?? markupGlobal}
-                    onChange={e => updMarkup(e.target.value)}
+                  <input type="number" value={form.markup_pct ?? ''}
+                    onChange={e => upd('markup_pct', e.target.value === '' ? null : Number(e.target.value))}
                     className="input-base" placeholder={`Global: ${markupGlobal}%`} />
                 </div>
                 {/* Precio de venta calculado */}
