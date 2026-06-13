@@ -192,16 +192,16 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+      <div className="flex justify-between items-center mb-3.5">
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535' }}>Control de obra ({padres.length} partida{padres.length !== 1 ? 's' : ''})</div>
+          <div className="text-sm font-bold text-ink">Control de obra ({padres.length} partida{padres.length !== 1 ? 's' : ''})</div>
           {padres.length > 0 && (
-            <div style={{ fontSize: 12, color: '#6b7a8d', marginTop: 2 }}>
-              Avance general: <span style={{ fontWeight: 700, color: colorAvance(avanceGeneral) }}>{avanceGeneral}%</span>
+            <div className="text-[12px] text-muted mt-0.5">
+              Avance general: <span className="font-bold" style={{ color: colorAvance(avanceGeneral) }}>{avanceGeneral}%</span>
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="flex gap-1.5">
           <Btn onClick={openImport} style={{ fontSize: 12, padding: '5px 12px', background: '#eeedfe', borderColor: '#ccc5fc', color: '#534ab7', fontWeight: 700 }}>
             📋 Importar del catálogo
           </Btn>
@@ -210,26 +210,26 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
       </div>
 
       {padres.length > 0 && (
-        <div style={{ height: 10, background: '#e8edf2', borderRadius: 5, overflow: 'hidden', marginBottom: 16 }}>
-          <div style={{ height: '100%', width: `${avanceGeneral}%`, background: colorAvance(avanceGeneral), borderRadius: 5, transition: 'width 0.4s' }} />
+        <div className="h-2.5 bg-[#e8edf2] rounded-full overflow-hidden mb-4">
+          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${avanceGeneral}%`, background: colorAvance(avanceGeneral) }} />
         </div>
       )}
 
       {loading
-        ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 20 }}>Cargando...</p>
+        ? <p className="text-center py-5 text-muted">Cargando...</p>
         : padres.length === 0
-        ? <div style={{ background: '#f8fafc', border: '1px dashed #d1d9e6', borderRadius: 8, padding: 28, textAlign: 'center', fontSize: 12, color: '#6b7a8d' }}>
+        ? <div className="bg-canvas border border-dashed border-line2 rounded-lg p-7 text-center text-[12px] text-muted">
             Sin partidas de obra. Agrega una manualmente o importa desde tu catálogo.
           </div>
         : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {padres.map((padre, idx) => {
               const isOpen = expanded.has(padre.id)
               const avancePadre = padre.children.length > 0
                 ? Math.round(padre.children.reduce((s, h) => s + h.avance, 0) / padre.children.length)
                 : padre.avance
               return (
-                <div key={padre.id} style={{ border: '1px solid #e4e9f0', borderRadius: 10, overflow: 'hidden' }}>
+                <div key={padre.id} className="border border-line rounded-card overflow-hidden">
                   <div onClick={() => toggle(padre.id)} style={{
                     display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer',
                     background: isOpen ? '#f4f7fb' : '#fff', borderLeft: `4px solid ${colorAvance(avancePadre)}`,
