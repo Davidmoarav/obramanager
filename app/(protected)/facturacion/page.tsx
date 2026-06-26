@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Badge, Btn, FormInput, FormSelect, MetricCard, Modal, SectionTitle, Table, Td, Th, fmt, fmtM } from '@/components/ui'
 import ImportadorSII from '@/components/ImportadorSII'
+import ResumenBoletas from '@/components/ResumenBoletas'
 
 const EMPTY: any = { numero:'', cliente:'', proyecto:'', tipo:'venta', doc_tipo:'factura', factura_ref:'', neto:0, iva:0, monto:0, emision:'', vencimiento:'', estado:'pendiente' }
 
@@ -122,8 +123,9 @@ export default function FacturacionPage() {
           <SectionTitle>Facturación</SectionTitle>
           <p className="text-sm text-muted mt-1">Ventas, compras e IVA</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <ImportadorSII onImported={load} />
+          <ResumenBoletas onSaved={load} />
           <Btn onClick={() => { setForm({ ...EMPTY, doc_tipo:'nota_credito', emision: new Date().toISOString().split('T')[0] }); setModal(true) }}
             style={{ background:'#fdecea', borderColor:'#f5c6c2', color:'#b0401a', fontWeight:700 }}>+ Nota crédito/débito</Btn>
           <Btn variant="primary" onClick={() => { setForm({ ...EMPTY, emision: new Date().toISOString().split('T')[0] }); setModal(true) }}>+ Nueva factura</Btn>

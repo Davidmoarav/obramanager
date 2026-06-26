@@ -18,6 +18,7 @@ interface FilaSII {
   contraparte: string
   rut: string
   neto: number
+  exento?: number
   iva: number
   total: number
   emision: string | null
@@ -37,6 +38,8 @@ export default function ImportadorSII({ onImported }: Props) {
   const [importing, setImporting] = useState(false)
   const [resultado, setResultado] = useState<any>(null)
   const [error, setError]     = useState('')
+  // Cuando el archivo es SOLO notas (sin columna Tipo Doc), forzar el tipo
+  const [docForzado, setDocForzado] = useState<'auto' | 'nota_credito' | 'nota_debito'>('auto')
 
   // Parsea fecha SII (DD-MM-AA o DD-MM-AAAA) → YYYY-MM-DD
   const parseFecha = (s: string): string | null => {
@@ -86,6 +89,7 @@ export default function ImportadorSII({ onImported }: Props) {
         const iRazon  = idx(['razonsocial', 'razon'])
         const iFecha  = idx(['fechadocto', 'fechaemision', 'fecha'])
         const iNeto   = idx(['montoneto', 'neto'])
+        const iExento = idx(['montoexento', 'exento'])
         const iIva    = idx(['montoivarecuperable', 'ivarecuperable', 'montoiva', 'iva'])
         const iTotal  = idx(['montototal', 'total'])
         const iTipoDoc= idx(['tipodoc', 'tipodte', 'tipodocumento'])
@@ -99,8 +103,9 @@ export default function ImportadorSII({ onImported }: Props) {
         for (let i = 1; i < lineas.length; i++) {
           const c = lineas[i].split(sep)
           const neto = Number((c[iNeto] || '0').replace(/[^\d-]/g, '')) || 0
+          const exento = iExento >= 0 ? (Number((c[iExento] || '0').replace(/[^\d-]/g, '')) || 0) : 0
           const total = Number((c[iTotal] || '0').replace(/[^\d-]/g, '')) || 0
-          if (neto === 0 && total === 0) continue
+          if (neto === 0 && total === 0 && exento === 0) continue
 
           const emision = iFecha >= 0 ? parseFecha(c[iFecha]) : null
           const codTipo = iTipoDoc >= 0 ? (c[iTipoDoc] || '').trim() : '33'
@@ -109,7 +114,8 @@ export default function ImportadorSII({ onImported }: Props) {
             numero: iFolio >= 0 ? (c[iFolio] || '').trim() : '',
             contraparte: iRazon >= 0 ? (c[iRazon] || '').trim() : 'Sin nombre',
             rut: iRut >= 0 ? (c[iRut] || '').trim() : '',
-            neto,
+            neto: neto + exento,   // el neto total incluye lo exento (sin IVA)
+            exento,
             iva: iIva >= 0 ? (Number((c[iIva] || '0').replace(/[^\d-]/g, '')) || 0) : 0,
             total,
             emision,
@@ -137,9 +143,13 @@ export default function ImportadorSII({ onImported }: Props) {
 
   const confirmar = async () => {
     setImporting(true); setError('')
+    // Si el usuario forzó un tipo (archivo solo de notas), aplicarlo a todas
+    const filasFinal = docForzado === 'auto'
+      ? filas
+      : filas.map(f => ({ ...f, doc_tipo: docForzado }))
     const res = await fetch('/api/importar-sii', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filas, tipo }),
+      body: JSON.stringify({ filas: filasFinal, tipo }),
     })
     const data = await res.json()
     setImporting(false)
@@ -148,7 +158,7 @@ export default function ImportadorSII({ onImported }: Props) {
     onImported?.()
   }
 
-  const reset = () => { setFilas([]); setNombreArchivo(''); setResultado(null); setError('') }
+  const reset = () => { setFilas([]); setNombreArchivo(''); setResultado(null); setError(''); setDocForzado('auto') }
 
   return (
     <>
@@ -208,6 +218,19 @@ export default function ImportadorSII({ onImported }: Props) {
                         {totales.nd > 0 && <span>➕ {totales.nd} nota(s) de débito</span>}
                       </div>
                     )}
+                  </div>
+
+                  {/* Forzar tipo de documento (para archivos de solo notas sin columna Tipo Doc) */}
+                  <div className="bg-canvas border border-line rounded-xl p-4 mb-4">
+                    <label className="label-base">¿Qué tipo de documento contiene este archivo?</label>
+                    <select value={docForzado} onChange={e => setDocForzado(e.target.value as any)} className="input-base cursor-pointer">
+                      <option value="auto">Detectar automático (facturas, o por código si existe)</option>
+                      <option value="nota_credito">➖ Todo son notas de CRÉDITO</option>
+                      <option value="nota_debito">➕ Todo son notas de DÉBITO</option>
+                    </select>
+                    <p className="text-[11px] text-muted mt-1.5">
+                      Si el SII te entrega las notas en un archivo separado (sin columna de tipo), elige aquí qué son.
+                    </p>
                   </div>
 
                   {/* Primeras filas */}
