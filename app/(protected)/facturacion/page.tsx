@@ -17,6 +17,9 @@ export default function FacturacionPage() {
   const [form, setForm]     = useState<any>({})
   const [filtro, setFiltro] = useState('todos')
   const [tipoFiltro, setTipoFiltro] = useState('todos')
+  const [busqueda, setBusqueda] = useState('')           // buscar en el listado
+  const [orden, setOrden] = useState('fecha_desc')        // ordenar listado
+  const [buscarFactura, setBuscarFactura] = useState('')  // buscar factura para asociar nota
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -109,12 +112,43 @@ export default function FacturacionPage() {
   let filtered = items
   if (tipoFiltro !== 'todos') filtered = filtered.filter(i => (i.tipo || 'venta') === tipoFiltro)
   if (filtro !== 'todos')     filtered = filtered.filter(i => i.estado === filtro)
+  // Búsqueda por texto (cliente, número, proyecto)
+  if (busqueda.trim()) {
+    const q = busqueda.toLowerCase().trim()
+    filtered = filtered.filter(i =>
+      (i.cliente || '').toLowerCase().includes(q) ||
+      (i.numero || '').toLowerCase().includes(q) ||
+      (i.proyecto || '').toLowerCase().includes(q)
+    )
+  }
+  // Ordenamiento
+  filtered = [...filtered].sort((a, b) => {
+    switch (orden) {
+      case 'fecha_asc':  return (a.emision || '').localeCompare(b.emision || '')
+      case 'fecha_desc': return (b.emision || '').localeCompare(a.emision || '')
+      case 'monto_desc': return (b.monto || 0) - (a.monto || 0)
+      case 'monto_asc':  return (a.monto || 0) - (b.monto || 0)
+      case 'cliente':    return (a.cliente || '').localeCompare(b.cliente || '')
+      default: return 0
+    }
+  })
 
   const ventas = items.filter(f => (f.tipo || 'venta') === 'venta')
   const compras = items.filter(f => f.tipo === 'compra')
   const cobrado   = ventas.filter(f=>f.estado==='pagada').reduce((s,f)=>s+(f.monto||0),0)
   const pendiente = ventas.filter(f=>f.estado==='pendiente').reduce((s,f)=>s+(f.monto||0),0)
   const totalCompras = compras.reduce((s,f)=>s+(f.monto||0),0)
+
+  // Facturas filtradas para asociar a una nota (con buscador)
+  const facturasParaNota = items
+    .filter(f => (f.doc_tipo || 'factura') === 'factura')
+    .filter(f => {
+      if (!buscarFactura.trim()) return true
+      const q = buscarFactura.toLowerCase().trim()
+      return (f.cliente || '').toLowerCase().includes(q) ||
+             (f.numero || '').toLowerCase().includes(q)
+    })
+    .slice(0, 50)  // límite para no renderizar miles
 
   return (
     <div>
@@ -158,6 +192,34 @@ export default function FacturacionPage() {
             {f==='todos'?'Todos los estados': f==='pagada'?'Pagadas': f==='pendiente'?'Pendientes':'Vencidas'}
           </button>
         ))}
+      </div>
+
+      {/* Búsqueda + ordenamiento */}
+      <div className="flex gap-2 mb-5 flex-wrap items-center">
+        <div className="relative flex-1 min-w-[220px]">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-[14px]">🔍</span>
+          <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar por cliente, número o proyecto…"
+            className="input-base pl-9 w-full" />
+        </div>
+        <select value={orden} onChange={e => setOrden(e.target.value)}
+          className="input-base cursor-pointer" style={{ width: 'auto', minWidth: 180 }}>
+          <option value="fecha_desc">Más recientes primero</option>
+          <option value="fecha_asc">Más antiguas primero</option>
+          <option value="monto_desc">Mayor monto</option>
+          <option value="monto_asc">Menor monto</option>
+          <option value="cliente">Cliente (A-Z)</option>
+        </select>
+        {(busqueda || orden !== 'fecha_desc') && (
+          <button onClick={() => { setBusqueda(''); setOrden('fecha_desc') }}
+            className="text-[12px] text-muted hover:text-ink px-2">Limpiar</button>
+        )}
+      </div>
+
+      {/* Contador de resultados */}
+      <div className="text-[12px] text-muted mb-2">
+        {filtered.length} {filtered.length === 1 ? 'documento' : 'documentos'}
+        {busqueda && ` · filtrando "${busqueda}"`}
       </div>
 
       <div className="bg-white border border-line rounded-2xl p-5 shadow-card overflow-x-auto">
@@ -234,18 +296,52 @@ export default function FacturacionPage() {
             </div>
           </div>
 
-          {/* Si es nota, elegir la factura que modifica (OBLIGATORIO) */}
+          {/* Si es nota, elegir la factura que modifica (OBLIGATORIO, con buscador) */}
           {form.doc_tipo !== 'factura' && (
             <div style={{ marginBottom:14, background:'#fafbfc', border:'1px solid #e4e9f0', borderRadius:8, padding:12 }}>
               <label className="label-base">Factura que modifica esta nota *</label>
-              <select value={form.factura_ref || ''} onChange={e => onSelectFacturaRef(e.target.value)} className="input-base cursor-pointer">
-                <option value="">— Selecciona la factura —</option>
-                {items.filter(f => (f.doc_tipo || 'factura') === 'factura').map(f => (
-                  <option key={f.id} value={f.id}>
-                    {f.numero || 's/n'} · {f.cliente} · {fmt(f.monto)} ({f.tipo === 'compra' ? 'compra' : 'venta'})
-                  </option>
-                ))}
-              </select>
+
+              {/* Si ya hay una seleccionada, mostrarla */}
+              {form.factura_ref ? (
+                <div className="flex items-center justify-between bg-white border border-brand rounded-lg px-3 py-2 mb-2">
+                  <div className="text-[13px]">
+                    {(() => {
+                      const fac = items.find(f => f.id === form.factura_ref)
+                      return fac ? <span><strong>{fac.numero || 's/n'}</strong> · {fac.cliente} · {fmt(fac.monto)}</span> : 'Factura seleccionada'
+                    })()}
+                  </div>
+                  <button onClick={() => { setForm((f:any) => ({ ...f, factura_ref: '' })); setBuscarFactura('') }}
+                    className="text-[12px] text-danger font-semibold ml-2">Cambiar</button>
+                </div>
+              ) : (
+                <>
+                  {/* Buscador */}
+                  <div className="relative mb-2">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-[13px]">🔍</span>
+                    <input value={buscarFactura} onChange={e => setBuscarFactura(e.target.value)}
+                      placeholder="Buscar por número o cliente…" autoFocus
+                      className="input-base pl-9 w-full" />
+                  </div>
+                  {/* Resultados */}
+                  <div className="max-h-[180px] overflow-y-auto border border-line rounded-lg bg-white">
+                    {facturasParaNota.length === 0
+                      ? <div className="text-center text-[12px] text-muted py-4">
+                          {buscarFactura ? 'Sin resultados' : 'No hay facturas registradas'}
+                        </div>
+                      : facturasParaNota.map(f => (
+                        <button key={f.id} onClick={() => onSelectFacturaRef(f.id)}
+                          className="w-full text-left px-3 py-2 hover:bg-canvas border-b border-[#f0f4f8] last:border-0 transition">
+                          <div className="text-[13px] font-semibold text-ink">{f.numero || 's/n'} · {f.cliente}</div>
+                          <div className="text-[11px] text-muted">{fmt(f.monto)} · {f.tipo === 'compra' ? 'compra' : 'venta'} · {f.emision || 's/f'}</div>
+                        </button>
+                      ))}
+                  </div>
+                  {items.filter(f => (f.doc_tipo || 'factura') === 'factura').length > 50 && (
+                    <p className="text-[10px] text-muted mt-1">Mostrando primeras 50. Usa el buscador para encontrar una específica.</p>
+                  )}
+                </>
+              )}
+
               <p style={{ fontSize:11, color:'#6b7a8d', marginTop:6 }}>
                 {form.doc_tipo === 'nota_credito'
                   ? 'La nota de crédito REBAJA el IVA de esta factura.'
