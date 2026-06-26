@@ -105,7 +105,7 @@ export default function RemuneracionesPage() {
     setMsg(`Liquidación de ${emp.nombre} guardada`)
   }
 
-  if (loading || !params) return <p style={{ color: '#6b7a8d', padding: 20 }}>Cargando...</p>
+  if (loading || !params) return <p className="text-muted p-5">Cargando...</p>
 
   return (
     <div>
@@ -139,59 +139,59 @@ export default function RemuneracionesPage() {
       {tab === 'liquidaciones' && (
         <div>
           {/* Selector de período */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#6b7a8d' }}>Período:</label>
+          <div className="flex items-center gap-3 mb-[18px]">
+            <label className="text-[13px] font-semibold text-muted">Período:</label>
             <input type="month" value={periodo} onChange={e => setPeriodo(e.target.value)}
-              style={{ padding: '8px 12px', border: '1px solid #d1d9e6', borderRadius: 7, fontSize: 13 }} />
-            <span style={{ fontSize: 13, color: '#1a2535', fontWeight: 600 }}>{labelPeriodo(periodo)}</span>
+              className="px-3 py-2 border border-[#d1d9e6] rounded-[7px] text-[13px]" />
+            <span className="text-[13px] text-[#1a2535] font-semibold">{labelPeriodo(periodo)}</span>
           </div>
 
           {/* Métricas */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+          <div className="grid grid-cols-3 gap-3 mb-5">
             <MetricCard label="Total imponible"  value={fmt(totales.imponible)} sub={`${liquidaciones.length} empleados`} />
             <MetricCard label="Total descuentos" value={fmt(totales.descuentos)} subColor="#b0401a" />
             <MetricCard label="Líquido a pagar"  value={fmt(totales.liquido)} subColor="#1a7a4a" sub="Total nómina del mes" />
           </div>
 
           {/* Tabla de liquidaciones */}
-          <div style={{ background: '#fff', border: '1px solid #e4e9f0', borderRadius: 12, padding: 18, overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 800 }}>
+          <div className="bg-white border border-[#e4e9f0] rounded-xl p-[18px] overflow-x-auto">
+            <table className="w-full border-collapse text-[12px] min-w-[800px]">
               <thead>
-                <tr style={{ borderBottom: '2px solid #e4e9f0' }}>
-                  <th style={thS}>Empleado</th>
-                  <th style={thNum}>Imponible</th>
-                  <th style={thNum}>AFP</th>
-                  <th style={thNum}>Salud</th>
-                  <th style={thNum}>AFC</th>
-                  <th style={thNum}>Otros</th>
-                  <th style={thNum}>Líquido</th>
-                  <th style={thS}></th>
+                <tr className="border-b-2 border-[#e4e9f0]">
+                  <th className={thS}>Empleado</th>
+                  <th className={thNum}>Imponible</th>
+                  <th className={thNum}>AFP</th>
+                  <th className={thNum}>Salud</th>
+                  <th className={thNum}>AFC</th>
+                  <th className={thNum}>Otros</th>
+                  <th className={thNum}>Líquido</th>
+                  <th className={thS}></th>
                 </tr>
               </thead>
               <tbody>
                 {liquidaciones.map(({ empleado, calc }) => (
-                  <tr key={empleado.id} style={{ borderBottom: '1px solid #f0f4f8' }}>
-                    <td style={tdS}>
-                      <div style={{ fontWeight: 700, color: '#1a2535' }}>{empleado.nombre}</div>
-                      <div style={{ fontSize: 10, color: '#6b7a8d' }}>{empleado.cargo} · {empleado.afp_nombre || 'AFP'} · {empleado.salud_sistema || 'Fonasa'}</div>
+                  <tr key={empleado.id} className="border-b border-canvas">
+                    <td className={tdS}>
+                      <div className="font-bold text-[#1a2535]">{empleado.nombre}</div>
+                      <div className="text-[10px] text-muted">{empleado.cargo} · {empleado.afp_nombre || 'AFP'} · {empleado.salud_sistema || 'Fonasa'}</div>
                     </td>
-                    <td style={tdNum}>{fmt(calc.total_imponible)}</td>
-                    <td style={{ ...tdNum, color: '#b0401a' }}>{fmt(calc.desc_afp)}</td>
-                    <td style={{ ...tdNum, color: '#b0401a' }}>{fmt(calc.desc_salud)}</td>
-                    <td style={{ ...tdNum, color: '#b0401a' }}>{fmt(calc.desc_afc)}</td>
-                    <td style={{ ...tdNum, color: '#b0401a' }}>{fmt(calc.otros_descuentos)}</td>
-                    <td style={{ ...tdNum, fontWeight: 800, color: '#1a7a4a' }}>{fmt(calc.liquido_pagar)}</td>
-                    <td style={tdS}>
-                      <Btn onClick={() => guardarLiq(empleado, calc)} style={{ fontSize: 10, padding: '3px 8px' }}>Guardar</Btn>
+                    <td className={tdNum}>{fmt(calc.total_imponible)}</td>
+                    <td className={`${tdNum} text-danger`}>{fmt(calc.desc_afp)}</td>
+                    <td className={`${tdNum} text-danger`}>{fmt(calc.desc_salud)}</td>
+                    <td className={`${tdNum} text-danger`}>{fmt(calc.desc_afc)}</td>
+                    <td className={`${tdNum} text-danger`}>{fmt(calc.otros_descuentos)}</td>
+                    <td className={`${tdNum} font-extrabold text-success`}>{fmt(calc.liquido_pagar)}</td>
+                    <td className={tdS}>
+                      <Btn onClick={() => guardarLiq(empleado, calc)} className="text-[10px] px-2 py-0.5">Guardar</Btn>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {liquidaciones.length === 0 && <p style={{ textAlign: 'center', color: '#6b7a8d', padding: 20 }}>No hay empleados activos.</p>}
+            {liquidaciones.length === 0 && <p className="text-center text-muted p-5">No hay empleados activos.</p>}
           </div>
 
-          <p style={{ fontSize: 11, color: '#6b7a8d', marginTop: 10 }}>
+          <p className="text-[11px] text-muted mt-2.5">
             💡 Las liquidaciones se calculan automáticamente con los parámetros y datos previsionales de cada empleado. Edita los datos en la pestaña correspondiente.
           </p>
         </div>
@@ -199,44 +199,44 @@ export default function RemuneracionesPage() {
 
       {/* ══════ TAB DATOS PREVISIONALES POR EMPLEADO ══════ */}
       {tab === 'empleados' && (
-        <div style={{ background: '#fff', border: '1px solid #e4e9f0', borderRadius: 12, padding: 18 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <div className="bg-white border border-[#e4e9f0] rounded-xl p-[18px]">
+          <table className="w-full border-collapse text-[12px]">
             <thead>
-              <tr style={{ borderBottom: '2px solid #e4e9f0' }}>
-                <th style={thS}>Empleado</th>
-                <th style={thS}>AFP</th>
-                <th style={thS}>Salud</th>
-                <th style={thS}>Contrato</th>
-                <th style={thNum}>Sueldo base</th>
-                <th style={thNum}>Bonos/Asign.</th>
-                <th style={thS}></th>
+              <tr className="border-b-2 border-[#e4e9f0]">
+                <th className={thS}>Empleado</th>
+                <th className={thS}>AFP</th>
+                <th className={thS}>Salud</th>
+                <th className={thS}>Contrato</th>
+                <th className={thNum}>Sueldo base</th>
+                <th className={thNum}>Bonos/Asign.</th>
+                <th className={thS}></th>
               </tr>
             </thead>
             <tbody>
               {empleados.map(emp => (
-                <tr key={emp.id} style={{ borderBottom: '1px solid #f0f4f8' }}>
-                  <td style={tdS}><span style={{ fontWeight: 700 }}>{emp.nombre}</span><br/><span style={{ fontSize: 10, color: '#6b7a8d' }}>{emp.cargo}</span></td>
-                  <td style={tdS}>{emp.afp_nombre || 'Modelo'} {emp.afp_pct_custom ? `(${emp.afp_pct_custom}%)` : ''}</td>
-                  <td style={tdS}>{emp.salud_sistema || 'Fonasa'}{emp.salud_sistema === 'Isapre' && emp.salud_uf ? ` (${emp.salud_uf} UF)` : ''}</td>
-                  <td style={tdS}>{emp.contrato_tipo || 'indefinido'}</td>
-                  <td style={tdNum}>{fmt(emp.sueldo)}</td>
-                  <td style={tdNum}>{fmt((emp.bono_imponible || 0) + (emp.colacion || 0) + (emp.movilizacion || 0))}</td>
-                  <td style={tdS}><Btn onClick={() => openEmp(emp)} style={{ fontSize: 10, padding: '3px 8px' }}>Editar</Btn></td>
+                <tr key={emp.id} className="border-b border-canvas">
+                  <td className={tdS}><span className="font-bold">{emp.nombre}</span><br/><span className="text-[10px] text-muted">{emp.cargo}</span></td>
+                  <td className={tdS}>{emp.afp_nombre || 'Modelo'} {emp.afp_pct_custom ? `(${emp.afp_pct_custom}%)` : ''}</td>
+                  <td className={tdS}>{emp.salud_sistema || 'Fonasa'}{emp.salud_sistema === 'Isapre' && emp.salud_uf ? ` (${emp.salud_uf} UF)` : ''}</td>
+                  <td className={tdS}>{emp.contrato_tipo || 'indefinido'}</td>
+                  <td className={tdNum}>{fmt(emp.sueldo)}</td>
+                  <td className={tdNum}>{fmt((emp.bono_imponible || 0) + (emp.colacion || 0) + (emp.movilizacion || 0))}</td>
+                  <td className={tdS}><Btn onClick={() => openEmp(emp)} className="text-[10px] px-2 py-0.5">Editar</Btn></td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {empleados.length === 0 && <p style={{ textAlign: 'center', color: '#6b7a8d', padding: 20 }}>No hay empleados. Agrégalos en el módulo RRHH.</p>}
+          {empleados.length === 0 && <p className="text-center text-muted p-5">No hay empleados. Agrégalos en el módulo RRHH.</p>}
         </div>
       )}
 
       {/* ══════ TAB PARÁMETROS ══════ */}
       {tab === 'parametros' && (
-        <div style={{ maxWidth: 640 }}>
-          <div style={{ background: '#fff', border: '1px solid #e4e9f0', borderRadius: 12, padding: 20, marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535', marginBottom: 4 }}>Porcentajes previsionales</div>
-            <p style={{ fontSize: 12, color: '#6b7a8d', marginBottom: 16 }}>Valores por defecto que se aplican a todos los empleados (salvo que tengan valor propio).</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className="max-w-[640px]">
+          <div className="bg-white border border-[#e4e9f0] rounded-xl p-5 mb-4">
+            <div className="text-[14px] font-bold text-[#1a2535] mb-1">Porcentajes previsionales</div>
+            <p className="text-[12px] text-muted mb-4">Valores por defecto que se aplican a todos los empleados (salvo que tengan valor propio).</p>
+            <div className="grid grid-cols-2 gap-3.5">
               <FormInput label="AFP - cotización obligatoria (%)" value={params.afp_pct} onChange={v => updParam('afp_pct', v)} type="number" />
               <FormInput label="AFP - comisión promedio (%)" value={params.afp_comision_pct} onChange={v => updParam('afp_comision_pct', v)} type="number" />
               <FormInput label="Salud - Fonasa/Isapre base (%)" value={params.salud_pct} onChange={v => updParam('salud_pct', v)} type="number" />
@@ -245,9 +245,9 @@ export default function RemuneracionesPage() {
             </div>
           </div>
 
-          <div style={{ background: '#fff', border: '1px solid #e4e9f0', borderRadius: 12, padding: 20, marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535', marginBottom: 16 }}>Valores de referencia</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div className="bg-white border border-[#e4e9f0] rounded-xl p-5 mb-4">
+            <div className="text-[14px] font-bold text-[#1a2535] mb-4">Valores de referencia</div>
+            <div className="grid grid-cols-2 gap-3.5">
               <FormInput label="Valor UF ($)" value={params.uf_valor} onChange={v => updParam('uf_valor', v)} type="number" />
               <FormInput label="Valor UTM ($)" value={params.utm_valor} onChange={v => updParam('utm_valor', v)} type="number" />
               <FormInput label="Tope imponible (UF)" value={params.tope_imponible_uf} onChange={v => updParam('tope_imponible_uf', v)} type="number" />
@@ -255,7 +255,7 @@ export default function RemuneracionesPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end">
             <Btn variant="primary" onClick={saveParams} disabled={savingParams}>
               {savingParams ? 'Guardando...' : 'Guardar parámetros'}
             </Btn>
@@ -266,7 +266,7 @@ export default function RemuneracionesPage() {
       {/* ══════ MODAL EDITAR PREVISIONAL EMPLEADO ══════ */}
       {empModal && (
         <Modal title={`Datos previsionales — ${empModal.nombre}`} onClose={() => setEmpModal(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="grid grid-cols-2 gap-3">
             <FormInput label="Sueldo base ($)" value={empForm.sueldo ?? 0} onChange={v => updEmp('sueldo', Number(v))} type="number" />
             <FormInput label="Horas extra (cant.)" value={empForm.horas_extra ?? 0} onChange={v => updEmp('horas_extra', Number(v))} type="number" />
 
@@ -290,11 +290,11 @@ export default function RemuneracionesPage() {
             <FormInput label="Colación ($, no imponible)" value={empForm.colacion ?? 0} onChange={v => updEmp('colacion', Number(v))} type="number" />
             <FormInput label="Movilización ($, no imponible)" value={empForm.movilizacion ?? 0} onChange={v => updEmp('movilizacion', Number(v))} type="number" />
 
-            <div style={{ gridColumn: '1/-1' }}>
+            <div className="col-span-full">
               <FormInput label="Otros descuentos ($, anticipos/préstamos)" value={empForm.otros_descuentos ?? 0} onChange={v => updEmp('otros_descuentos', Number(v))} type="number" />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+          <div className="flex gap-2 justify-end mt-3.5">
             <Btn onClick={() => setEmpModal(null)}>Cancelar</Btn>
             <Btn variant="primary" onClick={saveEmp} disabled={savingEmp}>{savingEmp ? 'Guardando...' : 'Guardar'}</Btn>
           </div>
@@ -304,7 +304,7 @@ export default function RemuneracionesPage() {
   )
 }
 
-const thS: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', fontSize: 10, fontWeight: 700, color: '#6b7a8d', textTransform: 'uppercase', letterSpacing: 0.3 }
-const thNum: React.CSSProperties = { ...thS, textAlign: 'right' }
-const tdS: React.CSSProperties = { padding: '8px 10px', color: '#1a2535' }
-const tdNum: React.CSSProperties = { padding: '8px 10px', textAlign: 'right', color: '#1a2535', fontVariantNumeric: 'tabular-nums' }
+const thS = 'text-left px-[10px] py-2 text-[10px] font-bold text-muted uppercase tracking-[0.3px]'
+const thNum = `${thS} text-right`
+const tdS = 'px-[10px] py-2 text-[#1a2535]'
+const tdNum = 'px-[10px] py-2 text-right text-[#1a2535] tabular-nums'

@@ -83,20 +83,8 @@ export default function DescargarPDFBtn({ cotizacion }: Props) {
       onClick={generar}
       disabled={loading}
       title="Descargar cotización en PDF"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        padding: '4px 10px',
-        background: loading ? '#a0aab8' : '#1a7a4a',
-        color: '#fff',
-        border: 'none',
-        borderRadius: 5,
-        fontSize: 11,
-        fontWeight: 700,
-        cursor: loading ? 'default' : 'pointer',
-        opacity: loading ? 0.7 : 1,
-      }}
+      className={`inline-flex items-center gap-1 px-[10px] py-1 border-none rounded-[5px] text-[11px] font-bold text-white
+        ${loading ? 'bg-[#a0aab8] cursor-default opacity-70' : 'bg-success cursor-pointer opacity-100'}`}
     >
       {loading ? '...' : '↓ PDF'}
     </button>

@@ -230,57 +230,73 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
                 : padre.avance
               return (
                 <div key={padre.id} className="border border-line rounded-card overflow-hidden">
-                  <div onClick={() => toggle(padre.id)} style={{
-                    display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer',
-                    background: isOpen ? '#f4f7fb' : '#fff', borderLeft: `4px solid ${colorAvance(avancePadre)}`,
-                  }}>
-                    <span style={{ fontSize: 12, color: '#6b7a8d', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>▶</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1e6bb8', background: '#e8f1fb', padding: '2px 8px', borderRadius: 4, flexShrink: 0 }}>{idx + 1}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535' }}>{padre.descripcion}</div>
-                      <div style={{ display: 'flex', gap: 10, fontSize: 11, color: '#6b7a8d', marginTop: 2 }}>
+                  <div
+                    onClick={() => toggle(padre.id)}
+                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-l-4 ${isOpen ? 'bg-[#f4f7fb]' : 'bg-white'}`}
+                    style={{ borderLeftColor: colorAvance(avancePadre) }}
+                  >
+                    <span
+                      className="text-[12px] text-muted flex-shrink-0 transition-transform duration-150"
+                      style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }}
+                    >▶</span>
+                    <span className="text-[11px] font-bold text-brand bg-[#e8f1fb] px-2 py-0.5 rounded flex-shrink-0">{idx + 1}</span>
+                    <div className="flex-1">
+                      <div className="text-sm font-bold text-[#1a2535]">{padre.descripcion}</div>
+                      <div className="flex gap-2.5 text-[11px] text-muted mt-0.5">
                         <span>{padre.children.length} sub-partida{padre.children.length !== 1 ? 's' : ''}</span>
                         {padre.precio_unitario > 0 && <span>P.U: {fmt(padre.precio_unitario)}</span>}
                       </div>
                     </div>
-                    <div style={{ width: 100, flexShrink: 0 }}>
-                      <div style={{ height: 6, background: '#e8edf2', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${avancePadre}%`, background: colorAvance(avancePadre), borderRadius: 3 }} />
+                    <div className="w-[100px] flex-shrink-0">
+                      <div className="h-1.5 bg-[#e8edf2] rounded-[3px] overflow-hidden">
+                        <div className="h-full rounded-[3px]" style={{ width: `${avancePadre}%`, background: colorAvance(avancePadre) }} />
                       </div>
                     </div>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: colorAvance(avancePadre), minWidth: 42, textAlign: 'right', flexShrink: 0 }}>{avancePadre}%</span>
-                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => openEdit(padre)} style={miniBtn('#6b7a8d', '#f0f4f8')}>✎</button>
-                      <button onClick={() => del(padre.id)} style={miniBtn('#b0401a', '#fdecea')}>✕</button>
+                    <span
+                      className="text-sm font-extrabold min-w-[42px] text-right flex-shrink-0"
+                      style={{ color: colorAvance(avancePadre) }}
+                    >{avancePadre}%</span>
+                    <div className="flex gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => openEdit(padre)} className="w-6 h-6 rounded-[5px] border-none bg-canvas text-muted text-[11px] font-bold cursor-pointer flex items-center justify-center">✎</button>
+                      <button onClick={() => del(padre.id)} className="w-6 h-6 rounded-[5px] border-none bg-danger-bg text-danger text-[11px] font-bold cursor-pointer flex items-center justify-center">✕</button>
                     </div>
                   </div>
 
                   {isOpen && (
-                    <div style={{ padding: '12px 16px 14px 36px', background: '#fafbfc', borderTop: '1px solid #e4e9f0' }}>
-                      {padre.children.length === 0 && <p style={{ fontSize: 12, color: '#6b7a8d', textAlign: 'center', padding: '6px 0' }}>Sin sub-partidas.</p>}
+                    <div className="pl-9 pr-4 pt-3 pb-3.5 bg-[#fafbfc] border-t border-[#e4e9f0]">
+                      {padre.children.length === 0 && <p className="text-[12px] text-muted text-center py-1.5">Sin sub-partidas.</p>}
                       {padre.children.map((hijo, hIdx) => (
-                        <div key={hijo.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: hIdx < padre.children.length - 1 ? '1px solid #e4e9f0' : 'none' }}>
-                          <span style={{ fontSize: 11, color: '#6b7a8d', fontWeight: 600, minWidth: 30 }}>{idx + 1}.{hIdx + 1}</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: '#1a2535' }}>{hijo.descripcion}</div>
-                            {hijo.notas && <div style={{ fontSize: 10, color: '#6b7a8d', fontStyle: 'italic' }}>{hijo.notas}</div>}
+                        <div
+                          key={hijo.id}
+                          className={`flex items-center gap-2.5 py-2 ${hIdx < padre.children.length - 1 ? 'border-b border-[#e4e9f0]' : ''}`}
+                        >
+                          <span className="text-[11px] text-muted font-semibold min-w-[30px]">{idx + 1}.{hIdx + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[12px] font-semibold text-[#1a2535]">{hijo.descripcion}</div>
+                            {hijo.notas && <div className="text-[10px] text-muted italic">{hijo.notas}</div>}
                           </div>
-                          <div style={{ width: 130, flexShrink: 0 }}>
+                          <div className="w-[130px] flex-shrink-0">
                             <input type="range" min={0} max={100} step={5} value={hijo.avance}
                               onChange={e => setAllItems(prev => prev.map(x => x.id === hijo.id ? { ...x, avance: Number(e.target.value) } : x))}
                               onMouseUp={e => updateAvance(hijo, Number((e.target as HTMLInputElement).value))}
                               onTouchEnd={e => updateAvance(hijo, Number((e.target as HTMLInputElement).value))}
-                              style={{ width: '100%', accentColor: colorAvance(hijo.avance), cursor: 'pointer' }} />
+                              className="w-full cursor-pointer"
+                              style={{ accentColor: colorAvance(hijo.avance) }} />
                           </div>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: colorAvance(hijo.avance), minWidth: 38, textAlign: 'right', flexShrink: 0 }}>{hijo.avance}%</span>
-                          <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
-                            <button onClick={() => openEdit(hijo)} style={miniBtn('#6b7a8d', '#f0f4f8')}>✎</button>
-                            <button onClick={() => del(hijo.id)} style={miniBtn('#b0401a', '#fdecea')}>✕</button>
+                          <span
+                            className="text-[13px] font-bold min-w-[38px] text-right flex-shrink-0"
+                            style={{ color: colorAvance(hijo.avance) }}
+                          >{hijo.avance}%</span>
+                          <div className="flex gap-[3px] flex-shrink-0">
+                            <button onClick={() => openEdit(hijo)} className="w-6 h-6 rounded-[5px] border-none bg-canvas text-muted text-[11px] font-bold cursor-pointer flex items-center justify-center">✎</button>
+                            <button onClick={() => del(hijo.id)} className="w-6 h-6 rounded-[5px] border-none bg-danger-bg text-danger text-[11px] font-bold cursor-pointer flex items-center justify-center">✕</button>
                           </div>
                         </div>
                       ))}
-                      <button onClick={() => openNewHijo(padre.id, padre.children.length)}
-                        style={{ width: '100%', padding: '8px 0', marginTop: 8, background: '#fff', border: '1px dashed #d1d9e6', borderRadius: 6, fontSize: 12, color: '#1e6bb8', fontWeight: 600, cursor: 'pointer' }}>
+                      <button
+                        onClick={() => openNewHijo(padre.id, padre.children.length)}
+                        className="w-full py-2 mt-2 bg-white border border-dashed border-[#d1d9e6] rounded-[6px] text-[12px] text-brand font-semibold cursor-pointer"
+                      >
                         + Agregar sub-partida
                       </button>
                     </div>
@@ -294,8 +310,8 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
       {/* MODAL NUEVA/EDITAR */}
       {modal && (
         <Modal title={modal.type === 'padre' ? 'Nueva partida' : modal.type === 'hijo' ? 'Nueva sub-partida' : 'Editar partida'} onClose={() => setModal(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div style={{ gridColumn: '1/-1' }}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-full">
               <FormInput label="Descripción *" value={form.descripcion || ''} onChange={v => upd('descripcion', v)} required
                 placeholder={modal.type === 'hijo' ? 'Ej: Excavación' : 'Ej: Obra Gruesa'} />
             </div>
@@ -325,11 +341,11 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
                 </div>
               </>
             )}
-            <div style={{ gridColumn: '1/-1' }}>
+            <div className="col-span-full">
               <FormInput label="Notas (opcional)" value={form.notas || ''} onChange={v => upd('notas', v)} />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+          <div className="flex gap-2 justify-end mt-3.5">
             <Btn onClick={() => setModal(null)}>Cancelar</Btn>
             <Btn variant="primary" onClick={save} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Btn>
           </div>
@@ -340,34 +356,32 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
       {showImport && (
         <Modal title="Importar partidas del catálogo" onClose={() => setShowImport(false)}>
           {catLoading
-            ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 20 }}>Cargando catálogo...</p>
+            ? <p className="text-muted text-center p-5">Cargando catálogo...</p>
             : catalogoPadres.length === 0
-            ? <div style={{ textAlign: 'center', padding: 20 }}>
-                <p style={{ fontSize: 13, color: '#6b7a8d', marginBottom: 10 }}>Tu catálogo está vacío.</p>
-                <p style={{ fontSize: 12, color: '#6b7a8d' }}>Ve a <strong>Admin → Catálogo de partidas</strong> para crear tus partidas tipo.</p>
+            ? <div className="text-center p-5">
+                <p className="text-[13px] text-muted mb-2.5">Tu catálogo está vacío.</p>
+                <p className="text-[12px] text-muted">Ve a <strong>Admin → Catálogo de partidas</strong> para crear tus partidas tipo.</p>
               </div>
             : (
               <>
-                <p style={{ fontSize: 12, color: '#6b7a8d', marginBottom: 14 }}>
+                <p className="text-[12px] text-muted mb-3.5">
                   Selecciona las partidas que quieres agregar. Se importarán con todas sus sub-partidas y avance 0%.
                 </p>
-                <div style={{ maxHeight: 400, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="max-h-[400px] overflow-y-auto flex flex-col gap-1.5">
                   {catalogoPadres.map(cp => {
                     const isSel = selected.has(cp.id)
                     return (
-                      <div key={cp.id} onClick={() => toggleSelect(cp.id)} style={{
-                        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                        border: `1.5px solid ${isSel ? '#1e6bb8' : '#e4e9f0'}`,
-                        background: isSel ? '#e8f1fb' : '#fff', borderRadius: 8, cursor: 'pointer',
-                      }}>
-                        <div style={{
-                          width: 20, height: 20, borderRadius: 4, border: `2px solid ${isSel ? '#1e6bb8' : '#d1d9e6'}`,
-                          background: isSel ? '#1e6bb8' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0,
-                        }}>{isSel ? '✓' : ''}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1a2535' }}>{cp.descripcion}</div>
-                          <div style={{ fontSize: 11, color: '#6b7a8d', marginTop: 2 }}>
+                      <div
+                        key={cp.id}
+                        onClick={() => toggleSelect(cp.id)}
+                        className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg cursor-pointer border-[1.5px] ${isSel ? 'border-brand bg-[#e8f1fb]' : 'border-[#e4e9f0] bg-white'}`}
+                      >
+                        <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 text-white text-[12px] font-bold border-2 ${isSel ? 'bg-brand border-brand' : 'bg-white border-[#d1d9e6]'}`}>
+                          {isSel ? '✓' : ''}
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-[13px] font-bold text-[#1a2535]">{cp.descripcion}</div>
+                          <div className="text-[11px] text-muted mt-0.5">
                             {cp.children.length} sub-partida{cp.children.length !== 1 ? 's' : ''}
                             {cp.children.length > 0 && ': ' + cp.children.map(h => h.descripcion).join(', ')}
                           </div>
@@ -376,9 +390,9 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
                     )
                   })}
                 </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
-                  <span style={{ fontSize: 12, color: '#6b7a8d' }}>{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                <div className="flex gap-2 justify-between items-center mt-3.5">
+                  <span className="text-[12px] text-muted">{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
+                  <div className="flex gap-2">
                     <Btn onClick={() => setShowImport(false)}>Cancelar</Btn>
                     <Btn variant="primary" onClick={doImport} disabled={importing || selected.size === 0}>
                       {importing ? 'Importando...' : `Importar ${selected.size}`}
@@ -392,9 +406,3 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
     </div>
   )
 }
-
-const miniBtn = (color: string, bg: string): React.CSSProperties => ({
-  width: 24, height: 24, borderRadius: 5, border: 'none',
-  background: bg, color, fontSize: 11, fontWeight: 700,
-  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-})

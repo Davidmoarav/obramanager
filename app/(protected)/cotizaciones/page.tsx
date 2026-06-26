@@ -35,7 +35,10 @@ const ESTADO_COTIZ: Record<string, { label: string; bg: string; color: string }>
 function BadgeCotiz({ estado }: { estado: string }) {
   const s = ESTADO_COTIZ[estado] ?? { label: estado, bg: '#eee', color: '#555' }
   return (
-    <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+    <span
+      className="text-[11px] font-semibold px-2.5 py-[3px] rounded-[6px] whitespace-nowrap"
+      style={{ background: s.bg, color: s.color }}
+    >
       {s.label}
     </span>
   )
@@ -262,9 +265,9 @@ export default function CotizacionesPage() {
 
       <div className="bg-white border border-line rounded-2xl p-5 shadow-card">
         {loading
-          ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 40 }}>Cargando...</p>
+          ? <p className="text-muted text-center p-10">Cargando...</p>
           : filtered.length === 0
-          ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 40 }}>Sin cotizaciones en este filtro</p>
+          ? <p className="text-muted text-center p-10">Sin cotizaciones en este filtro</p>
           : (
             <Table>
               <thead><tr>
@@ -276,10 +279,10 @@ export default function CotizacionesPage() {
                   const bloqueada = c.estado === 'convertida'
                   return (
                     <tr key={c.id}>
-                      <Td><span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e6bb8', fontSize: 12 }}>{c.numero || '—'}</span></Td>
+                      <Td><span className="font-mono font-bold text-brand text-[12px]">{c.numero || '—'}</span></Td>
                       <Td>
-                        <div style={{ fontWeight: 600 }}>{c.cliente}</div>
-                        {cli?.rut && <div style={{ fontSize: 11, color: '#6b7a8d', fontFamily: 'monospace' }}>{cli.rut}</div>}
+                        <div className="font-semibold">{c.cliente}</div>
+                        {cli?.rut && <div className="text-[11px] text-muted font-mono">{cli.rut}</div>}
                       </Td>
                       <Td style={{ color: '#6b7a8d' }}>{c.proyecto_nombre || '—'}</Td>
                       <Td style={{ color: '#6b7a8d' }}>{c.fecha || '—'}</Td>
@@ -287,7 +290,7 @@ export default function CotizacionesPage() {
                       <Td style={{ fontWeight: 700 }}>{fmt(calcTotal(c))}</Td>
                       <Td><BadgeCotiz estado={c.estado} /></Td>
                       <Td>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap' }}>
+                        <div className="flex gap-1 flex-nowrap">
                           <DescargarPDFBtn cotizacion={c} />
                           <ConvertirBtn cotizacion={c} onSuccess={load} />
                           <Btn
@@ -316,12 +319,12 @@ export default function CotizacionesPage() {
         >
           {/* AVISO si está convertida */}
           {esConvertida || modal === 'ver' ? (
-            <div style={{ background: '#eeedfe', border: '1px solid #ccc5fc', color: '#534ab7', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
+            <div className="bg-accent-bg border border-[#ccc5fc] text-accent px-3.5 py-2.5 rounded-lg mb-4 text-[13px]">
               🔒 Esta cotización ya fue convertida a proyecto. No se puede editar para mantener la trazabilidad.
               {form.proyecto_id && (
                 <>
                   {' '}
-                  <Link href="/proyectos" style={{ color: '#534ab7', textDecoration: 'underline', fontWeight: 700 }}>
+                  <Link href="/proyectos" className="text-accent underline font-bold">
                     Ver el proyecto creado
                   </Link>
                 </>
@@ -329,22 +332,22 @@ export default function CotizacionesPage() {
             </div>
           ) : null}
 
-          <fieldset disabled={modal === 'ver'} style={{ border: 'none', padding: 0, margin: 0, opacity: modal === 'ver' ? 0.85 : 1 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <fieldset
+            disabled={modal === 'ver'}
+            className={`border-none p-0 m-0 ${modal === 'ver' ? 'opacity-85' : 'opacity-100'}`}
+          >
+            <div className="grid grid-cols-2 gap-3">
               <FormInput label="N° cotización" value={form.numero || ''} onChange={v => upd('numero', v)} placeholder="Ej: COT-2026-015" />
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#6b7a8d', marginBottom: 4 }}>
+                <label className="block text-[12px] font-semibold text-muted mb-1">
                   Cliente *
                 </label>
                 <select
                   value={form.cliente_id || ''}
                   onChange={e => handleClienteChange(e.target.value)}
                   disabled={modal === 'ver'}
-                  style={{
-                    width: '100%', padding: '8px 11px', border: '1px solid #d1d9e6',
-                    borderRadius: 7, fontSize: 13, background: '#fafbfc', outline: 'none',
-                  }}
+                  className="w-full px-[11px] py-2 border border-[#d1d9e6] rounded-[7px] text-[13px] bg-[#fafbfc] outline-none"
                 >
                   <option value="">— Selecciona un cliente —</option>
                   {clientes.map(c => (
@@ -354,8 +357,8 @@ export default function CotizacionesPage() {
                   ))}
                 </select>
                 {modal !== 'ver' && (
-                  <div style={{ marginTop: 4 }}>
-                    <Link href="/clientes" target="_blank" style={{ fontSize: 11, color: '#1e6bb8', textDecoration: 'underline' }}>
+                  <div className="mt-1">
+                    <Link href="/clientes" target="_blank" className="text-[11px] text-brand underline">
                       + Crear cliente nuevo (en otra pestaña)
                     </Link>
                   </div>
@@ -373,15 +376,15 @@ export default function CotizacionesPage() {
                   { value: 'rechazada',  label: 'Rechazada' },
                   { value: 'convertida', label: 'Convertida' },
                 ]} />
-              <div style={{ gridColumn: '1/-1' }}>
+              <div className="col-span-full">
                 <FormInput label="Descripción general (aparece como intro en el PDF)" value={form.descripcion || ''} onChange={v => upd('descripcion', v)} placeholder="Junto con saludar, envío la siguiente cotización por..." />
               </div>
             </div>
 
-            <div style={{ marginTop: 20, marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535' }}>Partidas ({form.partidas?.length ?? 0})</div>
+            <div className="mt-5 mb-2.5 flex justify-between items-center">
+              <div className="text-[14px] font-bold text-[#1a2535]">Partidas ({form.partidas?.length ?? 0})</div>
               {modal !== 'ver' && (
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div className="flex gap-1.5">
                   <Btn onClick={openImport} style={{ fontSize: 12, padding: '5px 12px', background: '#eeedfe', borderColor: '#ccc5fc', color: '#534ab7', fontWeight: 700 }}>📋 Importar del catálogo</Btn>
                   <Btn variant="primary" onClick={addPartida} style={{ fontSize: 12, padding: '5px 12px' }}>+ Agregar partida</Btn>
                 </div>
@@ -389,7 +392,7 @@ export default function CotizacionesPage() {
             </div>
 
             {form.partidas?.length === 0 && (
-              <div style={{ background: '#f8fafc', border: '1px dashed #d1d9e6', borderRadius: 8, padding: 28, textAlign: 'center', fontSize: 12, color: '#6b7a8d' }}>
+              <div className="bg-[#f8fafc] border border-dashed border-[#d1d9e6] rounded-lg p-7 text-center text-[12px] text-muted">
                 Sin partidas aún.
               </div>
             )}
@@ -397,56 +400,61 @@ export default function CotizacionesPage() {
             {form.partidas?.map((p: any, idx: number) => {
               const subtotal = (Number(p.cantidad) || 0) * (Number(p.precio_unitario) || 0)
               return (
-                <div key={p.id || idx} style={{ background: '#fafbfc', border: '1px solid #e4e9f0', borderRadius: 8, padding: 14, marginBottom: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#1e6bb8', background: '#e8f1fb', padding: '2px 8px', borderRadius: 4 }}>
+                <div key={p.id || idx} className="bg-[#fafbfc] border border-[#e4e9f0] rounded-lg p-3.5 mb-2.5">
+                  <div className="flex justify-between items-center mb-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-[11px] font-bold text-brand bg-[#e8f1fb] px-2 py-[2px] rounded">
                         PARTIDA {idx + 1}
                       </div>
                       {p.catalogo_id && (
-                        <span style={{ fontSize: 10, fontWeight: 600, color: '#534ab7', background: '#eeedfe', padding: '2px 8px', borderRadius: 4 }} title="Esta partida traerá sus sub-partidas del catálogo al convertir a proyecto">
+                        <span
+                          className="text-[10px] font-semibold text-accent bg-accent-bg px-2 py-[2px] rounded"
+                          title="Esta partida traerá sus sub-partidas del catálogo al convertir a proyecto"
+                        >
                           📋 con desglose
                         </span>
                       )}
                     </div>
                     {modal !== 'ver' && (
-                      <button onClick={() => delPartida(idx)} title="Eliminar partida"
-                        style={{ background: 'transparent', border: 'none', color: '#b0401a', cursor: 'pointer', fontSize: 13, padding: 4, fontWeight: 600 }}>
+                      <button
+                        onClick={() => delPartida(idx)}
+                        title="Eliminar partida"
+                        className="bg-transparent border-none text-danger cursor-pointer text-[13px] p-1 font-semibold"
+                      >
                         ✕ Eliminar
                       </button>
                     )}
                   </div>
-                  <div style={{ marginBottom: 10 }}>
-                    <label style={lblStyle}>Descripción</label>
+                  <div className="mb-2.5">
+                    <label className={lblClass}>Descripción</label>
                     <input value={p.descripcion}
                       onChange={e => updPartida(idx, 'descripcion', e.target.value)}
-                      style={{ ...inputStyle, width: '100%' }} />
+                      className={inputClass} />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.3fr 1.2fr', gap: 10 }}>
+                  <div className="grid gap-2.5" style={{ gridTemplateColumns: '1.2fr 1fr 1.3fr 1.2fr' }}>
                     <div>
-                      <label style={lblStyle}>Unidad</label>
-                      <select value={p.unidad} onChange={e => updPartida(idx, 'unidad', e.target.value)} style={inputStyle}>
+                      <label className={lblClass}>Unidad</label>
+                      <select value={p.unidad} onChange={e => updPartida(idx, 'unidad', e.target.value)} className={inputClass}>
                         {UNIDADES.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label style={lblStyle}>Cantidad</label>
+                      <label className={lblClass}>Cantidad</label>
                       <input type="number" step="0.01" value={p.cantidad}
                         onChange={e => updPartida(idx, 'cantidad', e.target.value)}
-                        style={{ ...inputStyle, textAlign: 'right' }} />
+                        className={`${inputClass} text-right`} />
                     </div>
                     <div>
-                      <label style={lblStyle}>Precio unitario</label>
+                      <label className={lblClass}>Precio unitario</label>
                       <input type="number" value={p.precio_unitario}
                         onChange={e => updPartida(idx, 'precio_unitario', e.target.value)}
-                        style={{ ...inputStyle, textAlign: 'right' }} />
+                        className={`${inputClass} text-right`} />
                     </div>
                     <div>
-                      <label style={lblStyle}>Subtotal</label>
-                      <div style={{
-                        padding: '8px 10px', background: '#fff', border: '1px solid #d1d9e6',
-                        borderRadius: 6, fontSize: 13, fontWeight: 700, textAlign: 'right', color: '#1a2535',
-                      }}>{fmt(subtotal)}</div>
+                      <label className={lblClass}>Subtotal</label>
+                      <div className="px-2.5 py-2 bg-white border border-[#d1d9e6] rounded-[6px] text-[13px] font-bold text-right text-[#1a2535]">
+                        {fmt(subtotal)}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -454,28 +462,28 @@ export default function CotizacionesPage() {
             })}
 
             {form.partidas?.length > 0 && (
-              <div style={{ marginTop: 14, padding: 16, background: '#f0f4f8', borderRadius: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                  <span style={{ color: '#6b7a8d' }}>Neto</span>
-                  <span style={{ fontWeight: 600 }}>{fmt(totales.neto)}</span>
+              <div className="mt-3.5 p-4 bg-canvas rounded-[10px]">
+                <div className="flex justify-between text-[13px] mb-1">
+                  <span className="text-muted">Neto</span>
+                  <span className="font-semibold">{fmt(totales.neto)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
-                  <span style={{ color: '#6b7a8d' }}>IVA (19%)</span>
-                  <span style={{ fontWeight: 600 }}>{fmt(totales.iva)}</span>
+                <div className="flex justify-between text-[13px] mb-1.5">
+                  <span className="text-muted">IVA (19%)</span>
+                  <span className="font-semibold">{fmt(totales.iva)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 17, paddingTop: 8, borderTop: '1px solid #d1d9e6' }}>
-                  <span style={{ fontWeight: 700 }}>Total</span>
-                  <span style={{ fontWeight: 700, color: '#1e6bb8' }}>{fmt(totales.total)}</span>
+                <div className="flex justify-between text-[17px] pt-2 border-t border-[#d1d9e6]">
+                  <span className="font-bold">Total</span>
+                  <span className="font-bold text-brand">{fmt(totales.total)}</span>
                 </div>
               </div>
             )}
 
-            <div style={{ marginTop: 14 }}>
+            <div className="mt-3.5">
               <FormInput label="Notas / términos (opcional, aparecen al pie del PDF)" value={form.notas || ''} onChange={v => upd('notas', v)} />
             </div>
           </fieldset>
 
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+          <div className="flex gap-2 justify-end mt-3.5">
             <Btn onClick={() => setModal(null)}>{modal === 'ver' ? 'Cerrar' : 'Cancelar'}</Btn>
             {modal !== 'ver' && (
               <Btn variant="primary" onClick={save} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Btn>
@@ -486,42 +494,40 @@ export default function CotizacionesPage() {
 
       {/* ═══════ MODAL IMPORTAR DEL CATÁLOGO ═══════ */}
       {showImport && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 14, padding: 28, maxWidth: 640, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', maxHeight: '92vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1a2535', margin: 0 }}>Importar partidas del catálogo</h3>
-              <button onClick={() => setShowImport(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#6b7a8d', lineHeight: 1 }}>×</button>
+        <div className="fixed inset-0 bg-black/45 z-[200] flex items-center justify-center p-5">
+          <div className="bg-white rounded-[14px] p-7 max-w-[640px] w-full shadow-[0_8px_32px_rgba(0,0,0,0.18)] max-h-[92vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-[16px] font-bold text-[#1a2535] m-0">Importar partidas del catálogo</h3>
+              <button onClick={() => setShowImport(false)} className="bg-transparent border-none text-[22px] cursor-pointer text-muted leading-none">×</button>
             </div>
 
             {catLoading
-              ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 20 }}>Cargando catálogo...</p>
+              ? <p className="text-muted text-center p-5">Cargando catálogo...</p>
               : catalogoPadres.length === 0
-              ? <div style={{ textAlign: 'center', padding: 20 }}>
-                  <p style={{ fontSize: 13, color: '#6b7a8d', marginBottom: 10 }}>Tu catálogo está vacío.</p>
-                  <p style={{ fontSize: 12, color: '#6b7a8d' }}>Ve a <strong>Admin → Catálogo de partidas</strong> para crear tus partidas tipo.</p>
+              ? <div className="text-center p-5">
+                  <p className="text-[13px] text-muted mb-2.5">Tu catálogo está vacío.</p>
+                  <p className="text-[12px] text-muted">Ve a <strong>Admin → Catálogo de partidas</strong> para crear tus partidas tipo.</p>
                 </div>
               : (
                 <>
-                  <p style={{ fontSize: 12, color: '#6b7a8d', marginBottom: 14 }}>
+                  <p className="text-[12px] text-muted mb-3.5">
                     Selecciona las partidas a agregar a la cotización. Se importa el título con su precio de referencia (editable después).
                   </p>
-                  <div style={{ maxHeight: 380, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div className="max-h-[380px] overflow-y-auto flex flex-col gap-1.5">
                     {catalogoPadres.map(cp => {
                       const isSel = selected.has(cp.id)
                       return (
-                        <div key={cp.id} onClick={() => toggleSelect(cp.id)} style={{
-                          display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                          border: `1.5px solid ${isSel ? '#1e6bb8' : '#e4e9f0'}`,
-                          background: isSel ? '#e8f1fb' : '#fff', borderRadius: 8, cursor: 'pointer',
-                        }}>
-                          <div style={{
-                            width: 20, height: 20, borderRadius: 4, border: `2px solid ${isSel ? '#1e6bb8' : '#d1d9e6'}`,
-                            background: isSel ? '#1e6bb8' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#fff', fontSize: 12, fontWeight: 700, flexShrink: 0,
-                          }}>{isSel ? '✓' : ''}</div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: '#1a2535' }}>{cp.descripcion}</div>
-                            <div style={{ fontSize: 11, color: '#6b7a8d', marginTop: 2 }}>
+                        <div
+                          key={cp.id}
+                          onClick={() => toggleSelect(cp.id)}
+                          className={`flex items-center gap-3 px-3.5 py-2.5 border-[1.5px] rounded-lg cursor-pointer ${isSel ? 'border-brand bg-[#e8f1fb]' : 'border-[#e4e9f0] bg-white'}`}
+                        >
+                          <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 text-white text-[12px] font-bold ${isSel ? 'border-brand bg-brand' : 'border-[#d1d9e6] bg-white'}`}>
+                            {isSel ? '✓' : ''}
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-[13px] font-bold text-[#1a2535]">{cp.descripcion}</div>
+                            <div className="text-[11px] text-muted mt-0.5">
                               {cp.unidad}{cp.precio_unitario_ref > 0 ? ` · ${fmt(cp.precio_unitario_ref)}` : ''}
                               {cp.children.length > 0 && ` · ${cp.children.length} sub-partidas`}
                             </div>
@@ -530,9 +536,9 @@ export default function CotizacionesPage() {
                       )
                     })}
                   </div>
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-                    <span style={{ fontSize: 12, color: '#6b7a8d' }}>{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                  <div className="flex gap-2 justify-between items-center mt-4">
+                    <span className="text-[12px] text-muted">{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
+                    <div className="flex gap-2">
                       <Btn onClick={() => setShowImport(false)}>Cancelar</Btn>
                       <Btn variant="primary" onClick={importarSeleccion} disabled={selected.size === 0}>
                         Importar {selected.size > 0 ? selected.size : ''}
@@ -550,11 +556,11 @@ export default function CotizacionesPage() {
 
 function ModalAncho({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: '#fff', borderRadius: 14, padding: 28, maxWidth: 760, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', maxHeight: '92vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1a2535', margin: 0 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#6b7a8d', lineHeight: 1 }}>×</button>
+    <div className="fixed inset-0 bg-black/35 z-[100] flex items-center justify-center p-5">
+      <div className="bg-white rounded-[14px] p-7 max-w-[760px] w-full shadow-[0_8px_32px_rgba(0,0,0,0.18)] max-h-[92vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-5">
+          <h3 className="text-[16px] font-bold text-[#1a2535] m-0">{title}</h3>
+          <button onClick={onClose} className="bg-transparent border-none text-[22px] cursor-pointer text-muted leading-none">×</button>
         </div>
         {children}
       </div>
@@ -562,13 +568,6 @@ function ModalAncho({ title, onClose, children }: { title: string; onClose: () =
   )
 }
 
-const inputStyle: React.CSSProperties = {
-  padding: '8px 10px', border: '1px solid #d1d9e6', borderRadius: 6,
-  fontSize: 13, background: '#fff', color: '#1a2535', outline: 'none',
-  width: '100%', boxSizing: 'border-box',
-}
+const inputClass = 'w-full px-2.5 py-2 border border-[#d1d9e6] rounded-[6px] text-[13px] bg-white text-[#1a2535] outline-none box-border'
 
-const lblStyle: React.CSSProperties = {
-  display: 'block', fontSize: 11, fontWeight: 600, color: '#6b7a8d',
-  marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3,
-}
+const lblClass = 'block text-[11px] font-semibold text-muted mb-1 uppercase tracking-[0.3px]'

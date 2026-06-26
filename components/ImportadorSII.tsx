@@ -162,7 +162,7 @@ export default function ImportadorSII({ onImported }: Props) {
 
   return (
     <>
-      <Btn onClick={() => setOpen(true)} style={{ background: '#e6f4ed', borderColor: '#b9e0c9', color: '#1a7a4a', fontWeight: 700 }}>
+      <Btn onClick={() => setOpen(true)} className="!bg-success-bg !border-[#b9e0c9] !text-success font-bold">
         📥 Importar del SII
       </Btn>
 
@@ -210,7 +210,7 @@ export default function ImportadorSII({ onImported }: Props) {
                     <div className="grid grid-cols-3 gap-3 mb-3">
                       <div><div className="text-[11px] text-muted">Documentos</div><div className="text-base font-bold text-ink">{filas.length}</div></div>
                       <div><div className="text-[11px] text-muted">Neto</div><div className="text-base font-bold text-ink">{fmt(totales.neto)}</div></div>
-                      <div><div className="text-[11px] text-muted">IVA {tipo === 'compra' ? 'crédito' : 'débito'}</div><div className="text-base font-bold" style={{ color: tipo === 'compra' ? '#1a7a4a' : '#1e6bb8' }}>{fmt(totales.iva)}</div></div>
+                      <div><div className="text-[11px] text-muted">IVA {tipo === 'compra' ? 'crédito' : 'débito'}</div><div className={`text-base font-bold ${tipo === 'compra' ? 'text-success' : 'text-brand'}`}>{fmt(totales.iva)}</div></div>
                     </div>
                     {(totales.nc > 0 || totales.nd > 0) && (
                       <div className="flex gap-3 text-[11px] text-muted pt-2 border-t border-line">

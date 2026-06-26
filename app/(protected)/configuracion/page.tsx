@@ -123,56 +123,51 @@ export default function ConfiguracionPage() {
     setSaving(false)
   }
 
-  if (loading) return <p style={{ color: '#6b7a8d', padding: 20 }}>Cargando...</p>
+  if (loading) return <p className="text-muted p-5">Cargando...</p>
 
   return (
-    <div style={{ maxWidth: 860 }}>
+    <div className="max-w-[860px]">
       <SectionTitle>Configuración de empresa</SectionTitle>
-      <p style={{ fontSize: 13, color: '#6b7a8d', marginBottom: 24 }}>
+      <p className="text-[13px] text-muted mb-6">
         Estos datos aparecerán en tus cotizaciones, facturas y reportes PDF.
       </p>
 
       {/* ── BANNER MSG ── */}
       {msg && (
-        <div style={{
-          background: msg.kind === 'ok' ? '#e6f4ed' : '#fdecea',
-          color:      msg.kind === 'ok' ? '#1a7a4a' : '#b0401a',
-          border: '1px solid ' + (msg.kind === 'ok' ? '#b9e0c9' : '#f5c6c2'),
-          padding: '12px 16px', borderRadius: 8, marginBottom: 18, fontSize: 13,
-        }}>
+        <div className={`px-4 py-3 rounded-lg mb-[18px] text-[13px] border ${
+          msg.kind === 'ok'
+            ? 'bg-success-bg text-success border-[#b9e0c9]'
+            : 'bg-danger-bg text-danger border-[#f5c6c2]'
+        }`}>
           {msg.text}
         </div>
       )}
 
       {/* ─── LOGO ─── */}
       <div className="bg-white border border-line rounded-2xl p-6 shadow-card mb-5">
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535', marginBottom: 14 }}>Logo de la empresa</div>
+        <div className="text-[14px] font-bold text-[#1a2535] mb-3.5">Logo de la empresa</div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+        <div className="flex items-center gap-6">
           {/* Preview */}
-          <div style={{
-            width: 160, height: 160, border: '1px dashed #d1d9e6', borderRadius: 10,
-            background: '#fafbfc', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0, overflow: 'hidden',
-          }}>
+          <div className="w-40 h-40 border border-dashed border-[#d1d9e6] rounded-[10px] bg-[#fafbfc] flex items-center justify-center shrink-0 overflow-hidden">
             {logoUrl
-              ? <img src={logoUrl} alt="Logo" style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain' }} />
-              : <div style={{ fontSize: 12, color: '#a0aab8', textAlign: 'center', padding: 12 }}>Sin logo<br/>Sube uno aquí</div>}
+              ? <img src={logoUrl} alt="Logo" className="max-w-[90%] max-h-[90%] object-contain" />
+              : <div className="text-[12px] text-[#a0aab8] text-center p-3">Sin logo<br/>Sube uno aquí</div>}
           </div>
 
           {/* Controles */}
-          <div style={{ flex: 1 }}>
+          <div className="flex-1">
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              onChange={handleLogoUpload} style={{ display: 'none' }} />
+              onChange={handleLogoUpload} className="hidden" />
 
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <div className="flex gap-2 mb-3 flex-wrap">
               <Btn variant="primary" onClick={() => fileRef.current?.click()} disabled={uploading}>
                 {uploading ? 'Subiendo...' : (logoUrl ? 'Cambiar logo' : 'Subir logo')}
               </Btn>
               {logoUrl && <Btn variant="danger" onClick={removeLogo}>Quitar logo</Btn>}
             </div>
 
-            <ul style={{ fontSize: 12, color: '#6b7a8d', paddingLeft: 18, lineHeight: 1.7 }}>
+            <ul className="text-[12px] text-muted pl-[18px] leading-7">
               <li>Formatos: PNG, JPG, WEBP, SVG</li>
               <li>Tamaño máximo: 2 MB</li>
               <li>Recomendado: 400×400 px o fondo transparente (PNG)</li>
@@ -183,22 +178,22 @@ export default function ConfiguracionPage() {
 
       {/* ─── DATOS DE LA EMPRESA ─── */}
       <div className="bg-white border border-line rounded-2xl p-6 shadow-card mb-5">
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535', marginBottom: 14 }}>Datos legales y comerciales</div>
+        <div className="text-[14px] font-bold text-[#1a2535] mb-3.5">Datos legales y comerciales</div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className="grid grid-cols-2 gap-3.5">
           <FormInput label="Razón social"        value={form.razon_social || ''} onChange={v => upd('razon_social', v)} placeholder="Ej: Constructora Ejemplo SpA" />
           <FormInput label="RUT"                 value={form.rut || ''}          onChange={v => upd('rut', v)}          placeholder="76.123.456-7" />
-          <div style={{ gridColumn: '1/-1' }}>
+          <div className="col-span-2">
             <FormInput label="Giro"              value={form.giro || ''}         onChange={v => upd('giro', v)}         placeholder="Comercialización de materiales de construcción y servicios" />
           </div>
-          <div style={{ gridColumn: '1/-1' }}>
+          <div className="col-span-2">
             <FormInput label="Dirección"         value={form.direccion || ''}    onChange={v => upd('direccion', v)}    placeholder="Av. 1 Sur 1234" />
           </div>
           <FormInput label="Comuna"              value={form.comuna || ''}       onChange={v => upd('comuna', v)}       placeholder="Ej: Santiago" />
           <FormInput label="Ciudad"              value={form.ciudad || ''}       onChange={v => upd('ciudad', v)}       placeholder="Ej: Santiago" />
           <FormInput label="Teléfono"            value={form.telefono || ''}     onChange={v => upd('telefono', v)}     placeholder="+56 71 222 3333" />
           <FormInput label="Email"               value={form.email || ''}        onChange={v => upd('email', v)}        placeholder="contacto@empresa.cl" type="email" />
-          <div style={{ gridColumn: '1/-1' }}>
+          <div className="col-span-2">
             <FormInput label="Sitio web"         value={form.sitio_web || ''}    onChange={v => upd('sitio_web', v)}    placeholder="https://www.tuempresa.cl" />
           </div>
         </div>
@@ -206,22 +201,22 @@ export default function ConfiguracionPage() {
 
       {/* ─── PERSONALIZACIÓN PDF ─── */}
       <div className="bg-white border border-line rounded-2xl p-6 shadow-card mb-5">
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535', marginBottom: 14 }}>Personalización de documentos PDF</div>
+        <div className="text-[14px] font-bold text-[#1a2535] mb-3.5">Personalización de documentos PDF</div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 14, alignItems: 'center' }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: '#6b7a8d' }}>Color principal</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="grid grid-cols-[180px_1fr] gap-3.5 items-center">
+          <label className="text-[12px] font-semibold text-muted">Color principal</label>
+          <div className="flex items-center gap-[10px]">
             <input type="color" value={form.color_primario || '#1e6bb8'}
               onChange={e => upd('color_primario', e.target.value)}
-              style={{ width: 50, height: 36, border: '1px solid #d1d9e6', borderRadius: 6, cursor: 'pointer' }} />
+              className="w-[50px] h-9 border border-[#d1d9e6] rounded-[6px] cursor-pointer" />
             <input value={form.color_primario || '#1e6bb8'}
               onChange={e => upd('color_primario', e.target.value)}
-              style={{ width: 120, padding: '8px 11px', border: '1px solid #d1d9e6', borderRadius: 7, fontSize: 13, fontFamily: 'monospace' }} />
-            <span style={{ fontSize: 12, color: '#6b7a8d' }}>Se usa en títulos y bordes del PDF</span>
+              className="w-[120px] px-[11px] py-2 border border-[#d1d9e6] rounded-[7px] text-[13px] font-mono" />
+            <span className="text-[12px] text-muted">Se usa en títulos y bordes del PDF</span>
           </div>
         </div>
 
-        <div style={{ marginTop: 14 }}>
+        <div className="mt-3.5">
           <FormInput label="Notas / términos al pie del PDF (opcional)"
             value={form.notas_pdf || ''}
             onChange={v => upd('notas_pdf', v)}
@@ -230,7 +225,7 @@ export default function ConfiguracionPage() {
       </div>
 
       {/* ─── ACCIONES ─── */}
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
+      <div className="flex gap-[10px] justify-end mt-[18px]">
         <Btn variant="primary" onClick={save} disabled={saving}>
           {saving ? 'Guardando...' : 'Guardar configuración'}
         </Btn>

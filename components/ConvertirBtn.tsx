@@ -25,12 +25,7 @@ export default function ConvertirBtn({ cotizacion, onSuccess }: Props) {
       <button
         onClick={() => router.push('/proyectos')}
         title="Ver proyecto creado"
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          padding: '4px 10px', background: '#eeedfe', color: '#534ab7',
-          border: '1px solid #ccc5fc', borderRadius: 5,
-          fontSize: 11, fontWeight: 700, cursor: 'pointer',
-        }}>
+        className="inline-flex items-center gap-1 px-[10px] py-1 bg-accent-bg text-accent border border-[#ccc5fc] rounded-[5px] text-[11px] font-bold cursor-pointer">
         → Proyecto
       </button>
     )
@@ -41,11 +36,7 @@ export default function ConvertirBtn({ cotizacion, onSuccess }: Props) {
     const motivo = sinCliente ? 'Asigna un cliente primero' : 'Agrega al menos una partida'
     return (
       <button disabled title={motivo}
-        style={{
-          padding: '4px 10px', background: '#f0f4f8', color: '#a0aab8',
-          border: '1px solid #d1d9e6', borderRadius: 5,
-          fontSize: 11, fontWeight: 700, cursor: 'not-allowed',
-        }}>
+        className="px-[10px] py-1 bg-canvas text-[#a0aab8] border border-[#d1d9e6] rounded-[5px] text-[11px] font-bold cursor-not-allowed">
         ↗ Convertir
       </button>
     )
@@ -94,15 +85,8 @@ export default function ConvertirBtn({ cotizacion, onSuccess }: Props) {
       onClick={convertir}
       disabled={loading}
       title="Convertir esta cotización en proyecto activo"
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 4,
-        padding: '4px 10px',
-        background: loading ? '#a0aab8' : '#534ab7',
-        color: '#fff', border: 'none', borderRadius: 5,
-        fontSize: 11, fontWeight: 700,
-        cursor: loading ? 'default' : 'pointer',
-        opacity: loading ? 0.7 : 1,
-      }}>
+      className={`inline-flex items-center gap-1 px-[10px] py-1 border-none rounded-[5px] text-[11px] font-bold text-white
+        ${loading ? 'bg-[#a0aab8] cursor-default opacity-70' : 'bg-accent cursor-pointer opacity-100'}`}>
       {loading ? '...' : '↗ Convertir'}
     </button>
   )

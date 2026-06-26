@@ -43,38 +43,38 @@ export default function ContratosPage() {
 
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
+      <div className="flex justify-between items-center mb-[18px]">
         <SectionTitle>Contratos</SectionTitle>
         <Btn variant="primary" onClick={() => { setForm({ ...EMPTY }); setModal('nuevo') }}>+ Nuevo contrato</Btn>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
+      <div className="grid grid-cols-3 gap-3 mb-5">
         <MetricCard label="Contratos vigentes" value={items.filter(c=>c.estado==='ejecucion').length} />
         <MetricCard label="Cartera total"       value={fmtM(totalCartera)} sub="Suma alzada + serie" />
         <MetricCard label="Liquidados"          value={items.filter(c=>c.estado==='liquidado').length} sub="Este año" subColor="#1a7a4a" />
       </div>
 
-      <div style={{ background:'#fff', border:'1px solid #e4e9f0', borderRadius:12, padding:18 }}>
+      <div className="bg-white border border-[#e4e9f0] rounded-xl p-[18px]">
         {loading
-          ? <p style={{ color:'#6b7a8d', textAlign:'center', padding:40 }}>Cargando...</p>
+          ? <p className="text-muted text-center p-10">Cargando...</p>
           : items.length === 0
-          ? <p style={{ color:'#6b7a8d', textAlign:'center', padding:40 }}>Sin contratos aún</p>
+          ? <p className="text-muted text-center p-10">Sin contratos aún</p>
           : (
           <Table>
             <thead><tr><Th>N° Contrato</Th><Th>Contraparte</Th><Th>Tipo</Th><Th>Valor</Th><Th>Vigencia</Th><Th>Estado</Th><Th></Th></tr></thead>
             <tbody>
               {items.map(c => (
                 <tr key={c.id}>
-                  <Td><span style={{ fontFamily:'monospace', fontWeight:700, color:'#1e6bb8', fontSize:12 }}>{c.numero||'—'}</span></Td>
-                  <Td style={{ fontWeight:600 }}>{c.contraparte}</Td>
-                  <Td style={{ color:'#6b7a8d' }}>{c.tipo}</Td>
-                  <Td style={{ fontWeight:700 }}>{fmt(c.valor)}</Td>
-                  <Td style={{ fontSize:12, color:'#6b7a8d' }}>{c.inicio||'—'} → {c.fin||'—'}</Td>
+                  <Td><span className="font-mono font-bold text-brand text-[12px]">{c.numero||'—'}</span></Td>
+                  <Td className="font-semibold">{c.contraparte}</Td>
+                  <Td className="text-muted">{c.tipo}</Td>
+                  <Td className="font-bold">{fmt(c.valor)}</Td>
+                  <Td className="text-[12px] text-muted">{c.inicio||'—'} → {c.fin||'—'}</Td>
                   <Td><Badge estado={c.estado} tipo="contrato" /></Td>
                   <Td>
-                    <div style={{ display:'flex', gap:4 }}>
-                      <Btn onClick={() => { setForm({ ...c }); setModal('editar') }} style={{ fontSize:11, padding:'4px 8px' }}>Editar</Btn>
-                      <Btn variant="danger" onClick={() => del(c.id)} style={{ fontSize:11, padding:'4px 8px' }}>✕</Btn>
+                    <div className="flex gap-1">
+                      <Btn onClick={() => { setForm({ ...c }); setModal('editar') }} className="text-[11px] px-2 py-1">Editar</Btn>
+                      <Btn variant="danger" onClick={() => del(c.id)} className="text-[11px] px-2 py-1">✕</Btn>
                     </div>
                   </Td>
                 </tr>
@@ -86,7 +86,7 @@ export default function ContratosPage() {
 
       {modal && (
         <Modal title={modal==='nuevo'?'Nuevo contrato':'Editar contrato'} onClose={() => setModal(null)}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div className="grid grid-cols-2 gap-3">
             <FormInput label="N° Contrato"    value={form.numero||''}      onChange={v=>upd('numero',v)} />
             <FormInput label="Contraparte"    value={form.contraparte||''} onChange={v=>upd('contraparte',v)} required />
             <FormSelect label="Tipo" value={form.tipo||'Suma alzada'} onChange={v=>upd('tipo',v)}
@@ -97,7 +97,7 @@ export default function ContratosPage() {
             <FormSelect label="Estado" value={form.estado||'ejecucion'} onChange={v=>upd('estado',v)}
               options={[{value:'ejecucion',label:'En ejecución'},{value:'liquidado',label:'Liquidado'},{value:'pendiente',label:'Pendiente'}]} />
           </div>
-          <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:8 }}>
+          <div className="flex gap-2 justify-end mt-2">
             <Btn onClick={() => setModal(null)}>Cancelar</Btn>
             <Btn variant="primary" onClick={save} disabled={saving}>{saving?'Guardando...':'Guardar'}</Btn>
           </div>

@@ -62,7 +62,7 @@ export function MetricCard({ label, value, sub, subColor }: { label: string; val
       <div className="text-xs text-muted mb-1">{label}</div>
       <div className="text-2xl font-bold text-ink tabular-nums">{value}</div>
       {sub && (
-        <div className="text-xs mt-0.5" style={{ color: subColor ?? '#6b7a8d' }}>{sub}</div>
+        <div className="text-xs mt-0.5 text-muted" style={subColor ? { color: subColor } : undefined}>{sub}</div>
       )}
     </div>
   )

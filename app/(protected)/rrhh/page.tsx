@@ -46,12 +46,12 @@ export default function RRHHPage() {
 
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
+      <div className="flex justify-between items-center mb-[18px]">
         <SectionTitle>Recursos humanos</SectionTitle>
         <Btn variant="primary" onClick={() => { setForm({ ...EMPTY }); setModal('nuevo') }}>+ Agregar trabajador</Btn>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
+      <div className="grid grid-cols-4 gap-3 mb-6">
         <MetricCard label="Total personal"  value={items.length} />
         <MetricCard label="Nómina mensual"  value={fmtM(totalNomina)} />
         <MetricCard label="Horas extra"     value={`${totalHE} h`} sub="Este mes" subColor="#b07d1a" />
@@ -59,35 +59,35 @@ export default function RRHHPage() {
       </div>
 
       {loading
-        ? <p style={{ color:'#6b7a8d', textAlign:'center', padding:40 }}>Cargando...</p>
+        ? <p className="text-muted text-center p-10">Cargando...</p>
         : (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+        <div className="grid grid-cols-2 gap-4">
           {/* Lista */}
-          <div style={{ background:'#fff', border:'1px solid #e4e9f0', borderRadius:12, padding:18 }}>
-            <div style={{ fontSize:14, fontWeight:700, marginBottom:14, color:'#1a2535' }}>Personal</div>
+          <div className="bg-white border border-[#e4e9f0] rounded-xl p-[18px]">
+            <div className="text-sm font-bold mb-3.5 text-[#1a2535]">Personal</div>
             {items.length === 0
-              ? <p style={{ fontSize:13, color:'#6b7a8d', textAlign:'center', padding:20 }}>Sin trabajadores aún</p>
+              ? <p className="text-[13px] text-muted text-center p-5">Sin trabajadores aún</p>
               : items.map(e => (
-              <div key={e.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid #f0f4f8' }}>
-                <div style={{ width:36, height:36, borderRadius:'50%', background:'#e8f1fb', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'#1e6bb8', flexShrink:0 }}>
+              <div key={e.id} className="flex items-center gap-3 py-2.5 border-b border-canvas">
+                <div className="w-9 h-9 rounded-full bg-[#e8f1fb] flex items-center justify-center text-[12px] font-bold text-brand shrink-0">
                   {initials(e.nombre)}
                 </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:600 }}>{e.nombre}</div>
-                  <div style={{ fontSize:12, color:'#6b7a8d' }}>{e.cargo} · {e.tipo}</div>
+                <div className="flex-1">
+                  <div className="text-[13px] font-semibold">{e.nombre}</div>
+                  <div className="text-[12px] text-muted">{e.cargo} · {e.tipo}</div>
                 </div>
                 <Badge estado={e.estado} tipo="empleado" />
-                <div style={{ display:'flex', gap:4 }}>
-                  <Btn onClick={() => { setForm({ ...e }); setModal('editar') }} style={{ fontSize:11, padding:'4px 8px' }}>✎</Btn>
-                  <Btn variant="danger" onClick={() => del(e.id)} style={{ fontSize:11, padding:'4px 8px' }}>✕</Btn>
+                <div className="flex gap-1">
+                  <Btn onClick={() => { setForm({ ...e }); setModal('editar') }} className="text-[11px] px-2 py-1">✎</Btn>
+                  <Btn variant="danger" onClick={() => del(e.id)} className="text-[11px] px-2 py-1">✕</Btn>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Liquidaciones */}
-          <div style={{ background:'#fff', border:'1px solid #e4e9f0', borderRadius:12, padding:18 }}>
-            <div style={{ fontSize:14, fontWeight:700, marginBottom:14, color:'#1a2535' }}>Liquidaciones del mes</div>
+          <div className="bg-white border border-[#e4e9f0] rounded-xl p-[18px]">
+            <div className="text-sm font-bold mb-3.5 text-[#1a2535]">Liquidaciones del mes</div>
             <Table>
               <thead><tr><Th>Trabajador</Th><Th>Base</Th><Th>HH.EE</Th><Th>Total</Th></tr></thead>
               <tbody>
@@ -95,17 +95,17 @@ export default function RRHHPage() {
                   const he = e.horas_extra * 14000
                   return (
                     <tr key={e.id}>
-                      <Td style={{ fontWeight:600 }}>{e.nombre.split(' ')[0]} {e.nombre.split(' ')[1]?.[0]}.</Td>
+                      <Td className="font-semibold">{e.nombre.split(' ')[0]} {e.nombre.split(' ')[1]?.[0]}.</Td>
                       <Td>{fmt(e.sueldo)}</Td>
-                      <Td style={{ color: he>0 ? '#b07d1a':'#aaa' }}>{he>0 ? fmt(he):'—'}</Td>
-                      <Td style={{ fontWeight:700 }}>{fmt(e.sueldo + he)}</Td>
+                      <Td className={he > 0 ? 'text-warning' : 'text-[#aaa]'}>{he>0 ? fmt(he):'—'}</Td>
+                      <Td className="font-bold">{fmt(e.sueldo + he)}</Td>
                     </tr>
                   )
                 })}
                 {items.length > 0 && (
                   <tr>
-                    <Td colSpan={3} style={{ fontWeight:700, textAlign:'right', paddingTop:12 }}>Total nómina</Td>
-                    <Td style={{ fontWeight:700, color:'#1e6bb8', paddingTop:12 }}>{fmt(totalNomina)}</Td>
+                    <Td colSpan={3} className="font-bold text-right pt-3">Total nómina</Td>
+                    <Td className="font-bold text-brand pt-3">{fmt(totalNomina)}</Td>
                   </tr>
                 )}
               </tbody>
@@ -116,8 +116,8 @@ export default function RRHHPage() {
 
       {modal && (
         <Modal title={modal==='nuevo'?'Nuevo trabajador':'Editar trabajador'} onClose={() => setModal(null)}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-            <div style={{ gridColumn:'1/-1' }}><FormInput label="Nombre completo" value={form.nombre||''} onChange={v=>upd('nombre',v)} required /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><FormInput label="Nombre completo" value={form.nombre||''} onChange={v=>upd('nombre',v)} required /></div>
             <FormInput label="RUT"                value={form.rut||''}          onChange={v=>upd('rut',v)} />
             <FormInput label="Cargo"              value={form.cargo||''}        onChange={v=>upd('cargo',v)} />
             <FormInput label="Sueldo base (CLP)"  value={form.sueldo||''}       onChange={v=>upd('sueldo',v)}      type="number" />
@@ -128,7 +128,7 @@ export default function RRHHPage() {
               options={[{value:'activo',label:'Activo'},{value:'vacaciones',label:'Vacaciones'},{value:'inactivo',label:'Inactivo'}]} />
             <FormInput label="Fecha ingreso" value={form.inicio||''} onChange={v=>upd('inicio',v)} type="date" />
           </div>
-          <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:8 }}>
+          <div className="flex gap-2 justify-end mt-2">
             <Btn onClick={() => setModal(null)}>Cancelar</Btn>
             <Btn variant="primary" onClick={save} disabled={saving}>{saving?'Guardando...':'Guardar'}</Btn>
           </div>

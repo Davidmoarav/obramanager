@@ -39,24 +39,25 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '40px 36px', width: '100%', maxWidth: 420, boxShadow: 'var(--shadow-lg)' }}>
+    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-5">
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl px-9 py-10 w-full max-w-[420px] shadow-[var(--shadow-lg)]">
 
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <img src="/logo.png" alt="Cubica Manager" style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'contain', margin: '0 auto 12px', display: 'block' }} />
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Cubica Manager</h1>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>Sistema de gestión para contratistas</p>
+        <div className="text-center mb-8">
+          <img src="/logo.png" alt="Cubica Manager" className="w-14 h-14 rounded-xl object-contain mx-auto mb-3 block" />
+          <h1 className="text-[22px] font-extrabold text-[var(--text)] tracking-[-0.5px]">Cubica Manager</h1>
+          <p className="text-[13px] text-[var(--muted)] mt-1">Sistema de gestión para contratistas</p>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: 8, padding: 4, marginBottom: 24 }}>
+        <div className="flex bg-[var(--bg)] rounded-lg p-1 mb-6">
           {(['login', 'register'] as const).map(m => (
             <button key={m} onClick={() => { setMode(m); setError(''); setMsg('') }}
-              style={{ flex: 1, padding: '8px 0', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                background: mode === m ? 'var(--surface)' : 'transparent',
-                color: mode === m ? 'var(--primary)' : 'var(--muted)',
-                boxShadow: mode === m ? 'var(--shadow)' : 'none' }}>
+              className={`flex-1 py-2 rounded-[6px] border-none cursor-pointer text-[13px] font-semibold transition-all
+                ${mode === m
+                  ? 'bg-[var(--surface)] text-[var(--primary)] shadow-[var(--shadow)]'
+                  : 'bg-transparent text-[var(--muted)]'
+                }`}>
               {m === 'login' ? 'Iniciar sesión' : 'Registrarse'}
             </button>
           ))}
@@ -64,25 +65,26 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit}>
           {mode === 'register' && (
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Nombre completo</label>
-              <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Juan Pérez" required style={inputStyle} />
+            <div className="mb-3.5">
+              <label className="label-base">Nombre completo</label>
+              <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Juan Pérez" required className="input-base" />
             </div>
           )}
-          <div style={{ marginBottom: 14 }}>
-            <label style={labelStyle}>Correo electrónico</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@empresa.cl" required style={inputStyle} />
+          <div className="mb-3.5">
+            <label className="label-base">Correo electrónico</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@empresa.cl" required className="input-base" />
           </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={labelStyle}>Contraseña</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" required minLength={6} style={inputStyle} />
+          <div className="mb-5">
+            <label className="label-base">Contraseña</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" required minLength={6} className="input-base" />
           </div>
 
-          {error && <div style={{ background: 'var(--red-bg)', color: 'var(--red)', fontSize: 13, padding: '10px 14px', borderRadius: 8, marginBottom: 14 }}>{error}</div>}
-          {msg   && <div style={{ background: 'var(--green-bg)', color: 'var(--green)', fontSize: 13, padding: '10px 14px', borderRadius: 8, marginBottom: 14 }}>{msg}</div>}
+          {error && <div className="bg-danger-bg text-danger text-[13px] px-[14px] py-[10px] rounded-lg mb-3.5">{error}</div>}
+          {msg   && <div className="bg-success-bg text-success text-[13px] px-[14px] py-[10px] rounded-lg mb-3.5">{msg}</div>}
 
           <button type="submit" disabled={loading}
-            style={{ width: '100%', padding: '11px 0', background: loading ? 'var(--subtle)' : 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: loading ? 'default' : 'pointer' }}>
+            className={`w-full py-[11px] text-white border-none rounded-lg text-[14px] font-bold transition-all
+              ${loading ? 'bg-[var(--subtle)] cursor-default' : 'bg-[var(--primary)] cursor-pointer'}`}>
             {loading ? 'Cargando...' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
           </button>
         </form>
@@ -90,6 +92,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 5 }
-const inputStyle: React.CSSProperties = { width: '100%', padding: '9px 12px', border: '1px solid var(--border2)', borderRadius: 8, fontSize: 13, color: 'var(--text)', background: 'var(--bg)', outline: 'none' }

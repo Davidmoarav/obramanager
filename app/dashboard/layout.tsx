@@ -9,9 +9,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!user) redirect('/auth/login')
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="flex min-h-screen">
       <Sidebar userEmail={user.email} />
-      <main style={{ flex: 1, overflowY: 'auto', padding: 28 }}>
+      <main className="flex-1 overflow-y-auto p-7">
         {children}
       </main>
     </div>

@@ -56,7 +56,7 @@ export default function ResumenBoletas({ onSaved }: Props) {
 
   return (
     <>
-      <Btn onClick={() => setOpen(true)} style={{ background: '#fff7e6', borderColor: '#f0d9a8', color: '#b07d1a', fontWeight: 700 }}>
+      <Btn onClick={() => setOpen(true)} className="!bg-[#fff7e6] !border-[#f0d9a8] !text-warning font-bold">
         🧾 Resumen boletas
       </Btn>
 

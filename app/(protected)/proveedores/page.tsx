@@ -41,16 +41,16 @@ export default function ProveedoresPage() {
 
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
+      <div className="flex justify-between items-center mb-[18px]">
         <SectionTitle>Proveedores</SectionTitle>
         <Btn variant="primary" onClick={() => { setForm({ ...EMPTY }); setModal('nuevo') }}>+ Agregar proveedor</Btn>
       </div>
 
-      <div style={{ background:'#fff', border:'1px solid #e4e9f0', borderRadius:12, padding:18 }}>
+      <div className="bg-white border border-[#e4e9f0] rounded-xl p-[18px]">
         {loading
-          ? <p style={{ color:'#6b7a8d', textAlign:'center', padding:40 }}>Cargando...</p>
+          ? <p className="text-muted text-center p-10">Cargando...</p>
           : items.length === 0
-          ? <p style={{ color:'#6b7a8d', textAlign:'center', padding:40 }}>Sin proveedores aún</p>
+          ? <p className="text-muted text-center p-10">Sin proveedores aún</p>
           : (
           <Table>
             <thead><tr><Th>Proveedor</Th><Th>Rubro</Th><Th>Contacto</Th><Th>Últimos 3 meses</Th><Th>Estado</Th><Th></Th></tr></thead>
@@ -58,20 +58,20 @@ export default function ProveedoresPage() {
               {items.map(p => (
                 <tr key={p.id}>
                   <Td>
-                    <div style={{ fontWeight:700 }}>{p.nombre}</div>
-                    <div style={{ fontSize:11, color:'#6b7a8d', fontFamily:'monospace' }}>{p.rut}</div>
+                    <div className="font-bold">{p.nombre}</div>
+                    <div className="text-[11px] text-muted font-mono">{p.rut}</div>
                   </Td>
-                  <Td style={{ color:'#6b7a8d' }}>{p.rubro}</Td>
+                  <Td className="text-muted">{p.rubro}</Td>
                   <Td>
-                    <div style={{ fontSize:12 }}>{p.contacto}</div>
-                    <div style={{ fontSize:11, color:'#1e6bb8' }}>{p.telefono}</div>
+                    <div className="text-[12px]">{p.contacto}</div>
+                    <div className="text-[11px] text-brand">{p.telefono}</div>
                   </Td>
-                  <Td style={{ fontWeight:700 }}>{fmt(p.monto3m)}</Td>
+                  <Td className="font-bold">{fmt(p.monto3m)}</Td>
                   <Td><Badge estado={p.estado} tipo="proveedor" /></Td>
                   <Td>
-                    <div style={{ display:'flex', gap:4 }}>
-                      <Btn onClick={() => { setForm({ ...p }); setModal('editar') }} style={{ fontSize:11, padding:'4px 8px' }}>Editar</Btn>
-                      <Btn variant="danger" onClick={() => del(p.id)} style={{ fontSize:11, padding:'4px 8px' }}>✕</Btn>
+                    <div className="flex gap-1">
+                      <Btn onClick={() => { setForm({ ...p }); setModal('editar') }} className="text-[11px] px-2 py-1">Editar</Btn>
+                      <Btn variant="danger" onClick={() => del(p.id)} className="text-[11px] px-2 py-1">✕</Btn>
                     </div>
                   </Td>
                 </tr>
@@ -83,7 +83,7 @@ export default function ProveedoresPage() {
 
       {modal && (
         <Modal title={modal==='nuevo'?'Nuevo proveedor':'Editar proveedor'} onClose={() => setModal(null)}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div className="grid grid-cols-2 gap-3">
             <FormInput label="Razón social"       value={form.nombre||''}   onChange={v=>upd('nombre',v)} required />
             <FormInput label="RUT"                value={form.rut||''}      onChange={v=>upd('rut',v)} />
             <FormInput label="Rubro"              value={form.rubro||''}    onChange={v=>upd('rubro',v)} />
@@ -93,7 +93,7 @@ export default function ProveedoresPage() {
             <FormSelect label="Estado" value={form.estado||'activo'} onChange={v=>upd('estado',v)}
               options={[{value:'activo',label:'Activo'},{value:'cotizacion',label:'En cotización'}]} />
           </div>
-          <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:8 }}>
+          <div className="flex gap-2 justify-end mt-2">
             <Btn onClick={() => setModal(null)}>Cancelar</Btn>
             <Btn variant="primary" onClick={save} disabled={saving}>{saving?'Guardando...':'Guardar'}</Btn>
           </div>

@@ -83,13 +83,13 @@ export default function CatalogoPartidasPage() {
   const totalHijos  = allItems.filter(i => i.parent_id).length
 
   return (
-    <div style={{ maxWidth: 860 }}>
+    <div className="max-w-[860px]">
       <div className="flex justify-between items-center mb-6">
         <SectionTitle>Catálogo de partidas</SectionTitle>
         <Btn variant="primary" onClick={openNewPadre}>+ Nueva partida</Btn>
       </div>
 
-      <p style={{ fontSize: 13, color: '#6b7a8d', marginBottom: 20 }}>
+      <p className="text-[13px] text-muted mb-5">
         Define tus partidas tipo con sus sub-partidas. Al crear una cotización o proyecto, podrás importarlas directamente sin volver a escribirlas.
       </p>
 
@@ -100,92 +100,79 @@ export default function CatalogoPartidasPage() {
       </div>
 
       {loading
-        ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 30 }}>Cargando catálogo...</p>
+        ? <p className="text-muted text-center p-[30px]">Cargando catálogo...</p>
         : padres.length === 0
-        ? <div style={{ background: '#f8fafc', border: '1px dashed #d1d9e6', borderRadius: 10, padding: 36, textAlign: 'center' }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>📋</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#1a2535', marginBottom: 6 }}>Tu catálogo está vacío</div>
-            <div style={{ fontSize: 12, color: '#6b7a8d', marginBottom: 14 }}>
+        ? <div className="bg-[#f8fafc] border border-dashed border-[#d1d9e6] rounded-[10px] p-9 text-center">
+            <div className="text-[28px] mb-2">📋</div>
+            <div className="text-sm font-semibold text-[#1a2535] mb-1.5">Tu catálogo está vacío</div>
+            <div className="text-[12px] text-muted mb-3.5">
               Agrega partidas comunes como "Obra Gruesa", "Instalaciones Eléctricas", "Terminaciones", etc.
               Luego podrás importarlas a cualquier cotización o proyecto con un clic.
             </div>
             <Btn variant="primary" onClick={openNewPadre}>+ Crear primera partida</Btn>
           </div>
         : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {padres.map((padre, idx) => {
               const isOpen = expanded.has(padre.id)
               return (
-                <div key={padre.id} style={{ border: '1px solid #e4e9f0', borderRadius: 10, overflow: 'hidden' }}>
+                <div key={padre.id} className="border border-[#e4e9f0] rounded-[10px] overflow-hidden">
 
                   {/* CABECERA PADRE */}
                   <div
                     onClick={() => toggle(padre.id)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '12px 16px', cursor: 'pointer',
-                      background: isOpen ? '#f4f7fb' : '#fff',
-                      borderLeft: '4px solid #1e6bb8',
-                    }}
+                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-l-4 border-brand ${isOpen ? 'bg-[#f4f7fb]' : 'bg-white'}`}
                   >
-                    <span style={{ fontSize: 12, color: '#6b7a8d', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>▶</span>
+                    <span className={`text-[12px] text-muted flex-shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`}>▶</span>
 
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1e6bb8', background: '#e8f1fb', padding: '2px 8px', borderRadius: 4, flexShrink: 0 }}>
+                    <span className="text-[11px] font-bold text-brand bg-[#e8f1fb] px-2 py-0.5 rounded flex-shrink-0">
                       {idx + 1}
                     </span>
 
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#1a2535' }}>{padre.descripcion}</div>
-                      <div style={{ display: 'flex', gap: 10, fontSize: 11, color: '#6b7a8d', marginTop: 2 }}>
+                    <div className="flex-1">
+                      <div className="text-sm font-bold text-[#1a2535]">{padre.descripcion}</div>
+                      <div className="flex gap-[10px] text-[11px] text-muted mt-0.5">
                         <span>{padre.unidad}</span>
                         {padre.precio_unitario_ref > 0 && <span>P.U ref: {fmt(padre.precio_unitario_ref)}</span>}
                         <span>{padre.children.length} sub-partida{padre.children.length !== 1 ? 's' : ''}</span>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => openEdit(padre)} style={miniBtn('#6b7a8d', '#f0f4f8')}>✎</button>
-                      <button onClick={() => del(padre.id)} style={miniBtn('#b0401a', '#fdecea')}>✕</button>
+                    <div className="flex gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => openEdit(padre)} className="w-6 h-6 rounded-[5px] border-0 bg-canvas text-muted text-[11px] font-bold cursor-pointer flex items-center justify-center">✎</button>
+                      <button onClick={() => del(padre.id)} className="w-6 h-6 rounded-[5px] border-0 bg-danger-bg text-danger text-[11px] font-bold cursor-pointer flex items-center justify-center">✕</button>
                     </div>
                   </div>
 
                   {/* SUB-PARTIDAS */}
                   {isOpen && (
-                    <div style={{ padding: '12px 16px 14px 36px', background: '#fafbfc', borderTop: '1px solid #e4e9f0' }}>
+                    <div className="px-4 pt-3 pb-3.5 pl-9 bg-[#fafbfc] border-t border-[#e4e9f0]">
                       {padre.children.length === 0 && (
-                        <p style={{ fontSize: 12, color: '#6b7a8d', textAlign: 'center', padding: '6px 0' }}>
+                        <p className="text-[12px] text-muted text-center py-1.5">
                           Sin sub-partidas definidas aún.
                         </p>
                       )}
 
                       {padre.children.map((hijo, hIdx) => (
-                        <div key={hijo.id} style={{
-                          display: 'flex', alignItems: 'center', gap: 10,
-                          padding: '8px 0',
-                          borderBottom: hIdx < padre.children.length - 1 ? '1px solid #e4e9f0' : 'none',
-                        }}>
-                          <span style={{ fontSize: 11, color: '#6b7a8d', fontWeight: 600, minWidth: 30 }}>
+                        <div key={hijo.id} className={`flex items-center gap-[10px] py-2 ${hIdx < padre.children.length - 1 ? 'border-b border-[#e4e9f0]' : ''}`}>
+                          <span className="text-[11px] text-muted font-semibold min-w-[30px]">
                             {idx + 1}.{hIdx + 1}
                           </span>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: '#1a2535' }}>{hijo.descripcion}</div>
-                            <div style={{ fontSize: 11, color: '#6b7a8d' }}>
+                          <div className="flex-1">
+                            <div className="text-[12px] font-semibold text-[#1a2535]">{hijo.descripcion}</div>
+                            <div className="text-[11px] text-muted">
                               {hijo.unidad}{hijo.precio_unitario_ref > 0 ? ` · P.U ref: ${fmt(hijo.precio_unitario_ref)}` : ''}
                             </div>
                           </div>
-                          <div style={{ display: 'flex', gap: 3 }}>
-                            <button onClick={() => openEdit(hijo)} style={miniBtn('#6b7a8d', '#f0f4f8')}>✎</button>
-                            <button onClick={() => del(hijo.id)} style={miniBtn('#b0401a', '#fdecea')}>✕</button>
+                          <div className="flex gap-[3px]">
+                            <button onClick={() => openEdit(hijo)} className="w-6 h-6 rounded-[5px] border-0 bg-canvas text-muted text-[11px] font-bold cursor-pointer flex items-center justify-center">✎</button>
+                            <button onClick={() => del(hijo.id)} className="w-6 h-6 rounded-[5px] border-0 bg-danger-bg text-danger text-[11px] font-bold cursor-pointer flex items-center justify-center">✕</button>
                           </div>
                         </div>
                       ))}
 
                       <button onClick={() => openNewHijo(padre.id, padre.children.length)}
-                        style={{
-                          width: '100%', padding: '8px 0', marginTop: 8,
-                          background: '#fff', border: '1px dashed #d1d9e6', borderRadius: 6,
-                          fontSize: 12, color: '#1e6bb8', fontWeight: 600, cursor: 'pointer',
-                        }}>
+                        className="w-full py-2 mt-2 bg-white border border-dashed border-[#d1d9e6] rounded-[6px] text-[12px] text-brand font-semibold cursor-pointer">
                         + Agregar sub-partida a "{padre.descripcion}"
                       </button>
                     </div>
@@ -205,8 +192,8 @@ export default function CatalogoPartidasPage() {
           }
           onClose={() => setModal(null)}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div style={{ gridColumn: '1/-1' }}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-full">
               <FormInput label="Descripción *" value={form.descripcion || ''} onChange={v => upd('descripcion', v)}
                 placeholder={modal.type === 'hijo' ? 'Ej: Excavación de fundaciones' : 'Ej: Obra Gruesa'} required />
             </div>
@@ -214,7 +201,7 @@ export default function CatalogoPartidasPage() {
             <FormInput label="Precio unitario referencial" value={form.precio_unitario_ref ?? 0} onChange={v => upd('precio_unitario_ref', v)} type="number"
               placeholder="Precio estimado (se puede ajustar al usar)" />
           </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+          <div className="flex gap-2 justify-end mt-3.5">
             <Btn onClick={() => setModal(null)}>Cancelar</Btn>
             <Btn variant="primary" onClick={save} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Btn>
           </div>
@@ -223,9 +210,3 @@ export default function CatalogoPartidasPage() {
     </div>
   )
 }
-
-const miniBtn = (color: string, bg: string): React.CSSProperties => ({
-  width: 24, height: 24, borderRadius: 5, border: 'none',
-  background: bg, color, fontSize: 11, fontWeight: 700,
-  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-})

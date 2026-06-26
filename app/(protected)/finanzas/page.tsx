@@ -69,7 +69,7 @@ export default function FinanzasPage() {
     }
   }, [ivaPeriodo])
 
-  if (loading) return <p style={{ color: '#6b7a8d', padding: 20 }}>Cargando...</p>
+  if (loading) return <p className="text-muted p-5">Cargando...</p>
 
   return (
     <div>
@@ -116,7 +116,7 @@ export default function FinanzasPage() {
             <div className="flex items-center gap-3">
               <span className="text-[13px] font-semibold text-ink">Período:</span>
               <select value={periodoSel} onChange={e => setPeriodoSel(e.target.value)}
-                className="input-base cursor-pointer" style={{ width: 'auto', minWidth: 160 }}>
+                className="input-base cursor-pointer min-w-[160px] w-auto">
                 {periodosDisponibles.map(per => (
                   <option key={per} value={per}>{labelPeriodo(per)}</option>
                 ))}
@@ -147,32 +147,31 @@ export default function FinanzasPage() {
           <div className="bg-white border border-line rounded-2xl p-6 shadow-card">
             <div className="text-sm font-bold text-ink mb-4">Historial por período (F29)</div>
             {iva.length === 0
-              ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 20, fontSize: 13 }}>
+              ? <p className="text-muted text-center p-5 text-[13px]">
                   No hay facturas registradas. Agrega facturas de venta y compra para calcular el IVA.
                 </p>
               : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <table className="w-full border-collapse text-[12px]">
                   <thead>
-                    <tr style={{ borderBottom: '2px solid #e4e9f0' }}>
-                      <th style={thS}>Período</th>
-                      <th style={thNum}>Ventas (neto)</th>
-                      <th style={thNum}>IVA Débito</th>
-                      <th style={thNum}>Compras (neto)</th>
-                      <th style={thNum}>IVA Crédito</th>
-                      <th style={thNum}>IVA a pagar</th>
+                    <tr className="border-b-2 border-[#e4e9f0]">
+                      <th className={thS}>Período</th>
+                      <th className={thNum}>Ventas (neto)</th>
+                      <th className={thNum}>IVA Débito</th>
+                      <th className={thNum}>Compras (neto)</th>
+                      <th className={thNum}>IVA Crédito</th>
+                      <th className={thNum}>IVA a pagar</th>
                     </tr>
                   </thead>
                   <tbody>
                     {iva.map(p => (
                       <tr key={p.periodo} onClick={() => setPeriodoSel(p.periodo)}
-                        style={{ borderBottom: '1px solid #f0f4f8', cursor: 'pointer',
-                          background: p.periodo === periodoSel ? '#e8f1fb' : 'transparent' }}>
-                        <td style={{ ...tdS, fontWeight: 700 }}>{labelPeriodo(p.periodo)}</td>
-                        <td style={tdNum}>{fmt(p.neto_ventas)}</td>
-                        <td style={{ ...tdNum, color: '#1e6bb8' }}>{fmt(p.iva_debito)}</td>
-                        <td style={tdNum}>{fmt(p.neto_compras)}</td>
-                        <td style={{ ...tdNum, color: '#1a7a4a' }}>{fmt(p.iva_credito)}</td>
-                        <td style={{ ...tdNum, fontWeight: 800, color: p.iva_a_pagar >= 0 ? '#b0401a' : '#1a7a4a' }}>
+                        className={`border-b border-canvas cursor-pointer ${p.periodo === periodoSel ? 'bg-[#e8f1fb]' : 'bg-transparent'}`}>
+                        <td className={`${tdS} font-bold`}>{labelPeriodo(p.periodo)}</td>
+                        <td className={tdNum}>{fmt(p.neto_ventas)}</td>
+                        <td className={`${tdNum} text-brand`}>{fmt(p.iva_debito)}</td>
+                        <td className={tdNum}>{fmt(p.neto_compras)}</td>
+                        <td className={`${tdNum} text-success`}>{fmt(p.iva_credito)}</td>
+                        <td className={`${tdNum} font-extrabold ${p.iva_a_pagar >= 0 ? 'text-danger' : 'text-success'}`}>
                           {fmt(p.iva_a_pagar)}
                         </td>
                       </tr>
@@ -180,7 +179,7 @@ export default function FinanzasPage() {
                   </tbody>
                 </table>
               )}
-            <p style={{ fontSize: 11, color: '#6b7a8d', marginTop: 12 }}>
+            <p className="text-[11px] text-muted mt-3">
               IVA a pagar = IVA Débito (ventas) − IVA Crédito (compras). Valor positivo = pagas al SII; negativo = remanente a favor.
             </p>
           </div>
@@ -190,67 +189,65 @@ export default function FinanzasPage() {
       {/* ══════ AVANCE PRESUPUESTARIO ══════ */}
       {tab === 'presupuesto' && (
         <div>
-          <p style={{ fontSize: 13, color: '#6b7a8d', marginBottom: 18 }}>
+          <p className="text-[13px] text-muted mb-[18px]">
             Compara el avance físico de cada obra con el presupuesto ejecutado a la fecha (suma del % de avance × valor de cada partida).
           </p>
 
           {presupuesto.length === 0
-            ? <div style={{ background: '#f8fafc', border: '1px dashed #d1d9e6', borderRadius: 10, padding: 30, textAlign: 'center', fontSize: 13, color: '#6b7a8d' }}>
+            ? <div className="bg-[#f8fafc] border border-dashed border-[#d1d9e6] rounded-[10px] p-[30px] text-center text-[13px] text-muted">
                 No hay proyectos con partidas cargadas. Agrega partidas de obra en cada proyecto para ver el avance presupuestario.
               </div>
             : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="flex flex-col gap-3.5">
                 {presupuesto.map(p => {
                   const desviacion = p.pct_presupuesto - p.avance_fisico
                   const alerta = desviacion > 10  // gasto va más rápido que avance físico
                   return (
-                    <div key={p.proyecto_id} style={{
-                      background: '#fff', border: '1px solid #e4e9f0', borderRadius: 12, padding: 18,
-                      borderLeft: `4px solid ${alerta ? '#b0401a' : '#1a7a4a'}`,
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                    <div key={p.proyecto_id}
+                      className={`bg-white border border-[#e4e9f0] rounded-xl p-[18px] border-l-4 ${alerta ? 'border-l-danger' : 'border-l-success'}`}>
+                      <div className="flex justify-between items-start mb-3.5">
                         <div>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: '#1a2535' }}>{p.nombre}</div>
-                          <div style={{ fontSize: 12, color: '#6b7a8d' }}>{p.cliente} · {p.n_partidas} partidas</div>
+                          <div className="text-[15px] font-bold text-[#1a2535]">{p.nombre}</div>
+                          <div className="text-[12px] text-muted">{p.cliente} · {p.n_partidas} partidas</div>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 11, color: '#6b7a8d' }}>Valor contrato</div>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: '#1a2535' }}>{fmtM(p.valor_contrato)}</div>
+                        <div className="text-right">
+                          <div className="text-[11px] text-muted">Valor contrato</div>
+                          <div className="text-[15px] font-bold text-[#1a2535]">{fmtM(p.valor_contrato)}</div>
                         </div>
                       </div>
 
                       {/* Doble barra: físico vs presupuesto */}
-                      <div style={{ marginBottom: 10 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
-                          <span style={{ color: '#6b7a8d' }}>Avance físico de obra</span>
-                          <span style={{ fontWeight: 700, color: '#1e6bb8' }}>{p.avance_fisico}%</span>
+                      <div className="mb-2.5">
+                        <div className="flex justify-between text-[11px] mb-[3px]">
+                          <span className="text-muted">Avance físico de obra</span>
+                          <span className="font-bold text-brand">{p.avance_fisico}%</span>
                         </div>
-                        <div style={{ height: 8, background: '#e8edf2', borderRadius: 4, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${p.avance_fisico}%`, background: '#1e6bb8', borderRadius: 4 }} />
-                        </div>
-                      </div>
-
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
-                          <span style={{ color: '#6b7a8d' }}>Presupuesto ejecutado</span>
-                          <span style={{ fontWeight: 700, color: alerta ? '#b0401a' : '#1a7a4a' }}>{p.pct_presupuesto}%</span>
-                        </div>
-                        <div style={{ height: 8, background: '#e8edf2', borderRadius: 4, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${p.pct_presupuesto}%`, background: alerta ? '#b0401a' : '#1a7a4a', borderRadius: 4 }} />
+                        <div className="h-2 bg-[#e8edf2] rounded overflow-hidden">
+                          <div className="h-full bg-brand rounded" style={{ width: `${p.avance_fisico}%` }} />
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: '1px solid #f0f4f8' }}>
-                        <div style={{ fontSize: 12, color: '#6b7a8d' }}>
-                          Ejecutado: <strong style={{ color: '#1a2535' }}>{fmt(p.ejecutado)}</strong> de {fmt(p.presupuesto_partidas)}
+                      <div className="mb-3">
+                        <div className="flex justify-between text-[11px] mb-[3px]">
+                          <span className="text-muted">Presupuesto ejecutado</span>
+                          <span className={`font-bold ${alerta ? 'text-danger' : 'text-success'}`}>{p.pct_presupuesto}%</span>
+                        </div>
+                        <div className="h-2 bg-[#e8edf2] rounded overflow-hidden">
+                          <div className={`h-full rounded ${alerta ? 'bg-danger' : 'bg-success'}`} style={{ width: `${p.pct_presupuesto}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-3 border-t border-canvas">
+                        <div className="text-[12px] text-muted">
+                          Ejecutado: <strong className="text-[#1a2535]">{fmt(p.ejecutado)}</strong> de {fmt(p.presupuesto_partidas)}
                         </div>
                         {alerta && (
-                          <span style={{ fontSize: 11, fontWeight: 700, color: '#b0401a', background: '#fdecea', padding: '3px 10px', borderRadius: 12 }}>
+                          <span className="text-[11px] font-bold text-danger bg-danger-bg px-2.5 py-[3px] rounded-xl">
                             ⚠ Gasto {desviacion}% sobre avance físico
                           </span>
                         )}
                         {!alerta && desviacion < -10 && (
-                          <span style={{ fontSize: 11, fontWeight: 700, color: '#1a7a4a', background: '#e6f4ed', padding: '3px 10px', borderRadius: 12 }}>
+                          <span className="text-[11px] font-bold text-success bg-success-bg px-2.5 py-[3px] rounded-xl">
                             ✓ Bajo presupuesto
                           </span>
                         )}
@@ -266,7 +263,7 @@ export default function FinanzasPage() {
   )
 }
 
-const thS: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', fontSize: 10, fontWeight: 700, color: '#6b7a8d', textTransform: 'uppercase', letterSpacing: 0.3 }
-const thNum: React.CSSProperties = { ...thS, textAlign: 'right' }
-const tdS: React.CSSProperties = { padding: '8px 10px', color: '#1a2535' }
-const tdNum: React.CSSProperties = { padding: '8px 10px', textAlign: 'right', color: '#1a2535', fontVariantNumeric: 'tabular-nums' }
+const thS = 'text-left px-2.5 py-2 text-[10px] font-bold text-muted uppercase tracking-[0.3px]'
+const thNum = `${thS} text-right`
+const tdS = 'px-2.5 py-2 text-[#1a2535]'
+const tdNum = 'px-2.5 py-2 text-right text-[#1a2535] tabular-nums'

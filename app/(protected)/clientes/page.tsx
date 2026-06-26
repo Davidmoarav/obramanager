@@ -112,25 +112,22 @@ export default function ClientesPage() {
       </div>
 
       {/* Buscador */}
-      <div style={{ marginBottom: 14 }}>
+      <div className="mb-3.5">
         <input
           type="text"
           placeholder="Buscar por razón social, RUT, contacto o email..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{
-            width: '100%', padding: '10px 14px', border: '1px solid #d1d9e6',
-            borderRadius: 8, fontSize: 13, background: '#fff', outline: 'none',
-          }}
+          className="w-full px-3.5 py-2.5 border border-[#d1d9e6] rounded-lg text-[13px] bg-white outline-none"
         />
       </div>
 
       {/* Tabla */}
       <div className="bg-white border border-line rounded-2xl p-5 shadow-card">
         {loading
-          ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 40 }}>Cargando...</p>
+          ? <p className="text-muted text-center p-10">Cargando...</p>
           : filtered.length === 0
-          ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 40 }}>
+          ? <p className="text-muted text-center p-10">
               {search ? 'Sin resultados para la búsqueda' : 'Aún no hay clientes. Crea el primero.'}
             </p>
           : (
@@ -142,22 +139,22 @@ export default function ClientesPage() {
                 {filtered.map(c => (
                   <tr key={c.id}>
                     <Td>
-                      <div style={{ fontWeight: 700, color: '#1a2535' }}>{c.razon_social}</div>
-                      {c.giro && <div style={{ fontSize: 11, color: '#6b7a8d', marginTop: 1 }}>{c.giro}</div>}
+                      <div className="font-bold text-[#1a2535]">{c.razon_social}</div>
+                      {c.giro && <div className="text-[11px] text-muted mt-[1px]">{c.giro}</div>}
                     </Td>
-                    <Td style={{ fontFamily: 'monospace', fontSize: 12, color: '#1e6bb8', fontWeight: 600 }}>
+                    <Td className="font-mono text-[12px] text-brand font-semibold">
                       {c.rut || '—'}
                     </Td>
-                    <Td style={{ color: '#6b7a8d' }}>{c.contacto || '—'}</Td>
+                    <Td className="text-muted">{c.contacto || '—'}</Td>
                     <Td>
-                      {c.email && <div style={{ fontSize: 12, color: '#1e6bb8' }}>{c.email}</div>}
-                      {c.telefono && <div style={{ fontSize: 12, color: '#6b7a8d' }}>{c.telefono}</div>}
+                      {c.email && <div className="text-[12px] text-brand">{c.email}</div>}
+                      {c.telefono && <div className="text-[12px] text-muted">{c.telefono}</div>}
                     </Td>
-                    <Td style={{ color: '#6b7a8d' }}>{c.ciudad || c.comuna || '—'}</Td>
+                    <Td className="text-muted">{c.ciudad || c.comuna || '—'}</Td>
                     <Td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <Btn onClick={() => { setForm({ ...c }); setRutError(null); setModal('editar') }} style={{ fontSize: 11, padding: '4px 8px' }}>Editar</Btn>
-                        <Btn variant="danger" onClick={() => del(c.id)} style={{ fontSize: 11, padding: '4px 8px' }}>✕</Btn>
+                      <div className="flex gap-1">
+                        <Btn onClick={() => { setForm({ ...c }); setRutError(null); setModal('editar') }} className="text-[11px] px-2 py-1">Editar</Btn>
+                        <Btn variant="danger" onClick={() => del(c.id)} className="text-[11px] px-2 py-1">✕</Btn>
                       </div>
                     </Td>
                   </tr>
@@ -170,29 +167,24 @@ export default function ClientesPage() {
       {/* ══════ MODAL ══════ */}
       {modal && (
         <Modal title={modal === 'nuevo' ? 'Nuevo cliente' : 'Editar cliente'} onClose={() => setModal(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div style={{ gridColumn: '1/-1' }}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
               <FormInput label="Razón social *" value={form.razon_social || ''} onChange={v => upd('razon_social', v)} required placeholder="Ej: Inmobiliaria Ejemplo SpA" />
             </div>
 
             {/* RUT con validación visual */}
             <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#6b7a8d', marginBottom: 4 }}>RUT</label>
+              <label className="block text-[12px] font-semibold text-muted mb-1">RUT</label>
               <input
                 value={form.rut || ''}
                 onChange={e => handleRutChange(e.target.value)}
                 onBlur={handleRutBlur}
                 placeholder="76.123.456-7"
-                style={{
-                  width: '100%', padding: '8px 11px',
-                  border: '1px solid ' + (rutError ? '#b0401a' : '#d1d9e6'),
-                  borderRadius: 7, fontSize: 13, fontFamily: 'monospace',
-                  background: '#fafbfc', boxSizing: 'border-box', outline: 'none',
-                }}
+                className={`w-full px-[11px] py-2 border rounded-[7px] text-[13px] font-mono bg-[#fafbfc] box-border outline-none ${rutError ? 'border-danger' : 'border-[#d1d9e6]'}`}
               />
-              {rutError && <div style={{ fontSize: 11, color: '#b0401a', marginTop: 4 }}>{rutError}</div>}
+              {rutError && <div className="text-[11px] text-danger mt-1">{rutError}</div>}
               {form.rut && !rutError && isValidRut(form.rut) && (
-                <div style={{ fontSize: 11, color: '#1a7a4a', marginTop: 4 }}>✓ RUT válido</div>
+                <div className="text-[11px] text-success mt-1">✓ RUT válido</div>
               )}
             </div>
 
@@ -201,18 +193,18 @@ export default function ClientesPage() {
             <FormInput label="Email"    value={form.email || ''}    onChange={v => upd('email', v)}    placeholder="contacto@cliente.cl" type="email" />
             <FormInput label="Teléfono" value={form.telefono || ''} onChange={v => upd('telefono', v)} placeholder="+56 9 1234 5678" />
 
-            <div style={{ gridColumn: '1/-1' }}>
+            <div className="col-span-2">
               <FormInput label="Dirección" value={form.direccion || ''} onChange={v => upd('direccion', v)} placeholder="Av. 1 Sur 123" />
             </div>
             <FormInput label="Comuna" value={form.comuna || ''} onChange={v => upd('comuna', v)} placeholder="Ej: Santiago" />
             <FormInput label="Ciudad" value={form.ciudad || ''} onChange={v => upd('ciudad', v)} placeholder="Ej: Santiago" />
 
-            <div style={{ gridColumn: '1/-1' }}>
+            <div className="col-span-2">
               <FormInput label="Notas" value={form.notas || ''} onChange={v => upd('notas', v)} placeholder="Cliente preferente, paga a 30 días, etc." />
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+          <div className="flex gap-2 justify-end mt-3.5">
             <Btn onClick={() => setModal(null)}>Cancelar</Btn>
             <Btn variant="primary" onClick={save} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Btn>
           </div>

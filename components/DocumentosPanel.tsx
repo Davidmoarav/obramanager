@@ -197,43 +197,51 @@ export default function DocumentosPanel({ proyectoId, proyectoNombre }: Props) {
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         onClick={() => fileRef.current?.click()}
-        style={{
-          border: `2px dashed ${dragging ? '#1e6bb8' : '#d1d9e6'}`,
-          background: dragging ? '#e8f1fb' : '#f8fafc',
-          borderRadius: 10,
-          padding: '24px 20px',
-          textAlign: 'center',
-          cursor: 'pointer',
-          marginBottom: 16,
-          transition: 'all 0.15s',
-        }}
+        className={`rounded-[10px] px-5 py-6 text-center cursor-pointer mb-4 transition-all duration-150 border-2 border-dashed ${
+          dragging
+            ? 'border-brand bg-[#e8f1fb]'
+            : 'border-[#d1d9e6] bg-[#f8fafc]'
+        }`}
       >
-        <input ref={fileRef} type="file" style={{ display: 'none' }}
+        <input ref={fileRef} type="file" className="hidden"
           accept=".pdf,.dwg,.dxf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.zip,.rar"
           onChange={e => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]); e.target.value = '' }}
         />
-        <div style={{ fontSize: 28, marginBottom: 6 }}>📎</div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#1a2535' }}>
+        <div className="text-[28px] mb-1.5">📎</div>
+        <div className="text-[13px] font-semibold text-[#1a2535]">
           {dragging ? 'Suelta el archivo aquí' : 'Arrastra un archivo o haz clic para subir'}
         </div>
-        <div style={{ fontSize: 11, color: '#6b7a8d', marginTop: 4 }}>
+        <div className="text-[11px] text-muted mt-1">
           PDF, DWG, imágenes, Word, Excel, ZIP — Máximo 20 MB
         </div>
       </div>
 
       {/* ─── FILTRO POR CATEGORÍA ─── */}
       {docs.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-          <button onClick={() => setFiltro('todos')}
-            style={pillStyle(filtro === 'todos')}>
+        <div className="flex gap-1.5 mb-3.5 flex-wrap">
+          <button
+            onClick={() => setFiltro('todos')}
+            className={`px-3 py-1 rounded-2xl border text-[11px] font-semibold cursor-pointer ${
+              filtro === 'todos'
+                ? 'border-brand bg-brand text-white'
+                : 'border-[#d1d9e6] bg-white text-muted'
+            }`}
+          >
             Todos ({docs.length})
           </button>
           {CATEGORIAS_DOC.map(c => {
             const count = docs.filter(d => d.categoria === c.value).length
             if (count === 0) return null
             return (
-              <button key={c.value} onClick={() => setFiltro(c.value)}
-                style={pillStyle(filtro === c.value)}>
+              <button
+                key={c.value}
+                onClick={() => setFiltro(c.value)}
+                className={`px-3 py-1 rounded-2xl border text-[11px] font-semibold cursor-pointer ${
+                  filtro === c.value
+                    ? 'border-brand bg-brand text-white'
+                    : 'border-[#d1d9e6] bg-white text-muted'
+                }`}
+              >
                 {c.icon} {c.label} ({count})
               </button>
             )
@@ -243,51 +251,54 @@ export default function DocumentosPanel({ proyectoId, proyectoNombre }: Props) {
 
       {/* ─── LISTA DE DOCUMENTOS ─── */}
       {loading
-        ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 20 }}>Cargando documentos...</p>
+        ? <p className="text-muted text-center p-5">Cargando documentos...</p>
         : filtered.length === 0
-        ? <p style={{ color: '#6b7a8d', textAlign: 'center', padding: 20, fontSize: 13 }}>
+        ? <p className="text-muted text-center p-5 text-[13px]">
             {docs.length === 0 ? 'Aún no hay documentos en este proyecto.' : 'Sin documentos en esta categoría.'}
           </p>
         : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {filtered.map(doc => (
-              <div key={doc.id} style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                background: '#fff', border: '1px solid #e4e9f0', borderRadius: 8,
-                padding: '10px 14px',
-              }}>
+              <div
+                key={doc.id}
+                className="flex items-center gap-3 bg-white border border-[#e4e9f0] rounded-lg px-3.5 py-2.5"
+              >
                 {/* Icono */}
-                <div style={{ fontSize: 24, flexShrink: 0 }}>
+                <div className="text-2xl shrink-0">
                   {fileIcon(doc.archivo_tipo)}
                 </div>
 
                 {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1a2535', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-semibold text-[#1a2535] overflow-hidden text-ellipsis whitespace-nowrap">
                     {doc.nombre}
                   </div>
-                  <div style={{ display: 'flex', gap: 8, fontSize: 11, color: '#6b7a8d', marginTop: 2 }}>
-                    <span style={{
-                      background: '#f0f4f8', padding: '1px 6px', borderRadius: 4, fontWeight: 600,
-                    }}>
+                  <div className="flex gap-2 text-[11px] text-muted mt-0.5">
+                    <span className="bg-canvas px-1.5 py-px rounded font-semibold">
                       {catMap[doc.categoria]?.icon} {catMap[doc.categoria]?.label || doc.categoria}
                     </span>
                     <span>{fmtSize(doc.archivo_size)}</span>
                     <span>{fmtFecha(doc.created_at)}</span>
                   </div>
                   {doc.descripcion && (
-                    <div style={{ fontSize: 11, color: '#6b7a8d', marginTop: 2 }}>{doc.descripcion}</div>
+                    <div className="text-[11px] text-muted mt-0.5">{doc.descripcion}</div>
                   )}
                 </div>
 
                 {/* Acciones */}
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button onClick={() => descargar(doc)} title="Descargar"
-                    style={actionBtnStyle('#1e6bb8', '#e8f1fb')}>
+                <div className="flex gap-1.5 shrink-0">
+                  <button
+                    onClick={() => descargar(doc)}
+                    title="Descargar"
+                    className="w-7 h-7 rounded-[6px] border-none bg-[#e8f1fb] text-brand text-[14px] font-bold cursor-pointer flex items-center justify-center"
+                  >
                     ↓
                   </button>
-                  <button onClick={() => eliminar(doc.id)} title="Eliminar"
-                    style={actionBtnStyle('#b0401a', '#fdecea')}>
+                  <button
+                    onClick={() => eliminar(doc.id)}
+                    title="Eliminar"
+                    className="w-7 h-7 rounded-[6px] border-none bg-danger-bg text-danger text-[14px] font-bold cursor-pointer flex items-center justify-center"
+                  >
                     ✕
                   </button>
                 </div>
@@ -299,11 +310,11 @@ export default function DocumentosPanel({ proyectoId, proyectoNombre }: Props) {
       {/* ─── MODAL DE UPLOAD (categoría + descripción) ─── */}
       {pendingFile && (
         <Modal title="Subir documento" onClose={() => { setPendingFile(null) }}>
-          <div style={{ background: '#f0f4f8', borderRadius: 8, padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22 }}>{fileIcon(pendingFile.type)}</span>
+          <div className="bg-canvas rounded-lg px-4 py-3 mb-3.5 flex items-center gap-2.5">
+            <span className="text-[22px]">{fileIcon(pendingFile.type)}</span>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#1a2535' }}>{pendingFile.name}</div>
-              <div style={{ fontSize: 11, color: '#6b7a8d' }}>{fmtSize(pendingFile.size)}</div>
+              <div className="text-[13px] font-semibold text-[#1a2535]">{pendingFile.name}</div>
+              <div className="text-[11px] text-muted">{fmtSize(pendingFile.size)}</div>
             </div>
           </div>
 
@@ -322,10 +333,10 @@ export default function DocumentosPanel({ proyectoId, proyectoNombre }: Props) {
           />
 
           {progress && (
-            <div style={{ fontSize: 12, color: '#1e6bb8', marginTop: 8 }}>{progress}</div>
+            <div className="text-[12px] text-brand mt-2">{progress}</div>
           )}
 
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+          <div className="flex gap-2 justify-end mt-3.5">
             <Btn onClick={() => setPendingFile(null)} disabled={uploading}>Cancelar</Btn>
             <Btn variant="primary" onClick={doUpload} disabled={uploading}>
               {uploading ? 'Subiendo...' : 'Subir documento'}
@@ -336,17 +347,3 @@ export default function DocumentosPanel({ proyectoId, proyectoNombre }: Props) {
     </div>
   )
 }
-
-const pillStyle = (active: boolean): React.CSSProperties => ({
-  padding: '4px 12px', borderRadius: 16, border: '1px solid',
-  fontSize: 11, fontWeight: 600, cursor: 'pointer',
-  borderColor: active ? '#1e6bb8' : '#d1d9e6',
-  background:  active ? '#1e6bb8' : '#fff',
-  color:       active ? '#fff'    : '#6b7a8d',
-})
-
-const actionBtnStyle = (color: string, bg: string): React.CSSProperties => ({
-  width: 28, height: 28, borderRadius: 6, border: 'none',
-  background: bg, color: color, fontSize: 14, fontWeight: 700,
-  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-})

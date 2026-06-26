@@ -260,10 +260,10 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
 
       {/* Resumen de ganancia esperada (planificación) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-        <ResumenCard label="Presupuesto costo" valor={fmtM(resumen.costo)} color="#b07d1a" sub="Lo planificado" />
-        <ResumenCard label="Precio venta" valor={fmtM(resumen.presupuesto)} color="#1e6bb8" sub="Lo que cobras (neto)" />
-        <ResumenCard label="Ganancia esperada" valor={fmtM(resumen.ganancia)} color="#1a7a4a" sub={`Margen ${resumen.margen_venta}%`} />
-        <ResumenCard label="Cobrado" valor={fmtM(totalCobradoConIva)} color="#534ab7" sub={`${pctCobrado}% del contrato`} />
+        <ResumenCard label="Presupuesto costo" valor={fmtM(resumen.costo)} colorCls="text-warning" sub="Lo planificado" />
+        <ResumenCard label="Precio venta" valor={fmtM(resumen.presupuesto)} colorCls="text-brand" sub="Lo que cobras (neto)" />
+        <ResumenCard label="Ganancia esperada" valor={fmtM(resumen.ganancia)} colorCls="text-success" sub={`Margen ${resumen.margen_venta}%`} />
+        <ResumenCard label="Cobrado" valor={fmtM(totalCobradoConIva)} colorCls="text-accent" sub={`${pctCobrado}% del contrato`} />
       </div>
 
       {/* Barra cobrado vs contrato */}
@@ -282,7 +282,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
         <div className="text-sm font-bold text-ink">
           Estados de pago ({eps.length})
         </div>
-        <Btn variant="primary" onClick={openNuevoEP} style={{ fontSize: 12, padding: '5px 12px' }}>
+        <Btn variant="primary" onClick={openNuevoEP} className="!text-[12px] !px-3 !py-[5px]">
           + Nuevo estado de pago
         </Btn>
       </div>
@@ -301,7 +301,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-ink">EP N°{ep.numero}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: s.bg, color: s.color }}>{s.label}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: s.bg, color: s.color }} >{s.label}</span>
                         {ep.factura_id && <span className="text-[10px] text-accent font-semibold">🧾 Facturado</span>}
                       </div>
                       <div className="text-[11px] text-muted mt-0.5">
@@ -326,20 +326,20 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
                   {/* Acciones por estado */}
                   <div className="flex gap-1.5 mt-2.5 flex-wrap">
                     {ep.estado === 'borrador' && (
-                      <Btn onClick={() => cambiarEstado(ep, 'presentado')} style={{ fontSize: 11, padding: '4px 10px' }}>Marcar presentado</Btn>
+                      <Btn onClick={() => cambiarEstado(ep, 'presentado')} className="!text-[11px] !px-[10px] !py-1">Marcar presentado</Btn>
                     )}
                     {ep.estado === 'presentado' && (
                       <>
-                        <Btn onClick={() => cambiarEstado(ep, 'aprobado')} style={{ fontSize: 11, padding: '4px 10px', background: '#e6f4ed', borderColor: '#b9e0c9', color: '#1a7a4a' }}>Aprobar</Btn>
-                        <Btn onClick={() => cambiarEstado(ep, 'rechazado')} style={{ fontSize: 11, padding: '4px 10px', background: '#fdecea', borderColor: '#f5c6c2', color: '#b0401a' }}>Rechazar</Btn>
+                        <Btn onClick={() => cambiarEstado(ep, 'aprobado')} className="!text-[11px] !px-[10px] !py-1 !bg-success-bg !border-[#b9e0c9] !text-success">Aprobar</Btn>
+                        <Btn onClick={() => cambiarEstado(ep, 'rechazado')} className="!text-[11px] !px-[10px] !py-1 !bg-danger-bg !border-[#f5c6c2] !text-danger">Rechazar</Btn>
                       </>
                     )}
                     {ep.estado === 'aprobado' && (
                       <>
                         {!ep.factura_id && (
-                          <Btn onClick={() => cambiarEstado(ep, 'aprobado', true)} style={{ fontSize: 11, padding: '4px 10px', background: '#eeedfe', borderColor: '#ccc5fc', color: '#534ab7', fontWeight: 700 }}>🧾 Generar factura</Btn>
+                          <Btn onClick={() => cambiarEstado(ep, 'aprobado', true)} className="!text-[11px] !px-[10px] !py-1 !bg-accent-bg !border-[#ccc5fc] !text-accent font-bold">🧾 Generar factura</Btn>
                         )}
-                        <Btn onClick={() => cambiarEstado(ep, 'pagado')} style={{ fontSize: 11, padding: '4px 10px', background: '#e6f4ed', borderColor: '#b9e0c9', color: '#1a7a4a' }}>Marcar pagado</Btn>
+                        <Btn onClick={() => cambiarEstado(ep, 'pagado')} className="!text-[11px] !px-[10px] !py-1 !bg-success-bg !border-[#b9e0c9] !text-success">Marcar pagado</Btn>
                       </>
                     )}
                     {ep.estado !== 'pagado' && (
@@ -395,8 +395,8 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
                 {/* Totales */}
                 <div className="bg-canvas rounded-card p-3.5 mb-3.5">
                   <Row label="Avance del período (neto)" valor={fmt(montoNeto)} />
-                  {retencionMonto > 0 && <Row label={`Retención ${retencion}%`} valor={`− ${fmt(retencionMonto)}`} color="#b0401a" />}
-                  {anticipo > 0 && <Row label="Amortización anticipo" valor={`− ${fmt(anticipo)}`} color="#b0401a" />}
+                  {retencionMonto > 0 && <Row label={`Retención ${retencion}%`} valor={`− ${fmt(retencionMonto)}`} danger />}
+                  {anticipo > 0 && <Row label="Amortización anticipo" valor={`− ${fmt(anticipo)}`} danger />}
                   <Row label="IVA (19%)" valor={fmt(ivaCalc)} />
                   <div className="border-t border-line2 mt-1.5 pt-1.5">
                     <Row label="Total a facturar" valor={fmt(totalCalc)} bold />
@@ -469,21 +469,21 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
   )
 }
 
-function ResumenCard({ label, valor, color, sub }: { label: string; valor: string; color: string; sub?: string }) {
+function ResumenCard({ label, valor, colorCls, sub }: { label: string; valor: string; colorCls: string; sub?: string }) {
   return (
     <div className="bg-white border border-line rounded-card px-3.5 py-3">
       <div className="text-[10px] text-muted uppercase tracking-wide font-bold">{label}</div>
-      <div className="text-[17px] font-extrabold mt-1" style={{ color }}>{valor}</div>
+      <div className={`text-[17px] font-extrabold mt-1 ${colorCls}`}>{valor}</div>
       {sub && <div className="text-[10px] text-muted mt-0.5">{sub}</div>}
     </div>
   )
 }
 
-function Row({ label, valor, color, bold }: { label: string; valor: string; color?: string; bold?: boolean }) {
+function Row({ label, valor, danger, bold }: { label: string; valor: string; danger?: boolean; bold?: boolean }) {
   return (
     <div className={`flex justify-between mb-0.5 ${bold ? 'text-[15px]' : 'text-[13px]'}`}>
-      <span style={{ color: color || '#6b7a8d', fontWeight: bold ? 700 : 400 }}>{label}</span>
-      <span style={{ color: color || '#1a2535', fontWeight: bold ? 800 : 600 }}>{valor}</span>
+      <span className={`${danger ? 'text-danger' : 'text-muted'} ${bold ? 'font-bold' : 'font-normal'}`}>{label}</span>
+      <span className={`${danger ? 'text-danger' : 'text-[#1a2535]'} ${bold ? 'font-extrabold' : 'font-semibold'}`}>{valor}</span>
     </div>
   )
 }
