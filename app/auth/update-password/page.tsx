@@ -14,15 +14,19 @@ export default function UpdatePasswordPage() {
   const [checking, setChecking]   = useState(true)
   const [error, setError]         = useState('')
 
-  // Verificar que hay sesión de recovery activa
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.replace('/auth/forgot')
-      } else {
-        setChecking(false)
-      }
-    })
+    const code = new URLSearchParams(window.location.search).get('code')
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        if (error) router.replace('/auth/forgot')
+        else setChecking(false)
+      })
+    } else {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) router.replace('/auth/forgot')
+        else setChecking(false)
+      })
+    }
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
