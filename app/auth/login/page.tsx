@@ -2,6 +2,7 @@
 // app/auth/login/page.tsx
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
@@ -75,7 +76,14 @@ export default function LoginPage() {
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@empresa.cl" required className="input-base" />
           </div>
           <div className="mb-5">
-            <label className="label-base">Contraseña</label>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="label-base !mb-0">Contraseña</label>
+              {mode === 'login' && (
+                <Link href="/auth/forgot" className="text-[12px] text-brand hover:underline">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              )}
+            </div>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" required minLength={6} className="input-base" />
           </div>
 

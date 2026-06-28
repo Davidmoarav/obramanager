@@ -28,7 +28,8 @@ export async function middleware(request: NextRequest) {
   if (!user && !isAuthPage && !isPublic) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
-  if (user && isAuthPage) {
+  const isUpdatePassword = request.nextUrl.pathname === '/auth/update-password'
+  if (user && isAuthPage && !isUpdatePassword) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
