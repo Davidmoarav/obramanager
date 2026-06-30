@@ -84,7 +84,9 @@ export default function LoginPage() {
                 </Link>
               )}
             </div>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" required minLength={6} className="input-base" />
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder={mode === 'register' ? 'Mínimo 8 caracteres' : 'Tu contraseña'}
+              required minLength={mode === 'register' ? 8 : undefined} className="input-base" />
           </div>
 
           {error && <div className="bg-danger-bg text-danger text-[13px] px-[14px] py-[10px] rounded-lg mb-3.5">{error}</div>}

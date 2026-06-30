@@ -8,25 +8,17 @@ export default function UpdatePasswordPage() {
   const router   = useRouter()
   const supabase = createClient()
 
-  const [password, setPassword]   = useState('')
-  const [confirm, setConfirm]     = useState('')
-  const [loading, setLoading]     = useState(false)
-  const [checking, setChecking]   = useState(true)
-  const [error, setError]         = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm]   = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [checking, setChecking] = useState(true)
+  const [error, setError]       = useState('')
 
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get('code')
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (error) router.replace('/auth/forgot')
-        else setChecking(false)
-      })
-    } else {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session) router.replace('/auth/forgot')
-        else setChecking(false)
-      })
-    }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) router.replace('/auth/forgot?error=link-invalido')
+      else setChecking(false)
+    })
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {

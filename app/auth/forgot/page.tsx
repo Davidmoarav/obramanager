@@ -1,24 +1,31 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
-export default function ForgotPasswordPage() {
+function ForgotForm() {
   const supabase = createClient()
+  const searchParams = useSearchParams()
 
-  const [email, setEmail]   = useState('')
+  const [email, setEmail]     = useState('')
   const [loading, setLoading] = useState(false)
-  const [sent, setSent]     = useState(false)
-  const [error, setError]   = useState('')
+  const [sent, setSent]       = useState(false)
+  const [error, setError]     = useState('')
+
+  useEffect(() => {
+    if (searchParams.get('error') === 'link-invalido') {
+      setError('El link de recuperación es inválido o ya expiró. Solicita uno nuevo.')
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(''); setLoading(true)
 
-    const origin = window.location.origin
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${origin}/auth/update-password`,
+      redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password`,
     })
 
     setLoading(false)
@@ -82,5 +89,13 @@ export default function ForgotPasswordPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense>
+      <ForgotForm />
+    </Suspense>
   )
 }
