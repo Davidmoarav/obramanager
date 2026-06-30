@@ -22,6 +22,12 @@ export default function FinanzasPage() {
   const [presupuesto, setPresupuesto] = useState<any[]>([])
   const [loading, setLoading]       = useState(true)
 
+  // ─── PPM (form local del período seleccionado) ──────────
+  const [ppmTasa, setPpmTasa]       = useState<string>('0')
+  const [ppmRegimen, setPpmRegimen] = useState<string>('pro_pyme_general')
+  const [ppmSaving, setPpmSaving]   = useState(false)
+  const [ppmSavedAt, setPpmSavedAt] = useState<number | null>(null)
+
   const load = useCallback(async () => {
     setLoading(true)
     const [f, e, i, p] = await Promise.all([
@@ -60,12 +66,35 @@ export default function FinanzasPage() {
     return iva.find((p: any) => p.periodo === periodoSel) || null
   }, [iva, periodoSel])
 
+  // Cuando cambia el período (o llegan datos nuevos), refleja la tasa/régimen guardados
+  useEffect(() => {
+    setPpmTasa(String(ivaPeriodo?.ppm_tasa ?? 0))
+    setPpmRegimen(ivaPeriodo?.ppm_regimen ?? 'pro_pyme_general')
+  }, [ivaPeriodo?.periodo, ivaPeriodo?.ppm_tasa, ivaPeriodo?.ppm_regimen])
+
+  const guardarPpm = useCallback(async () => {
+    setPpmSaving(true)
+    try {
+      await fetch('/api/ppm', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ periodo: periodoSel, regimen: ppmRegimen, tasa: Number(ppmTasa) || 0 }),
+      })
+      await load()
+      setPpmSavedAt(Date.now())
+    } finally {
+      setPpmSaving(false)
+    }
+  }, [periodoSel, ppmRegimen, ppmTasa, load])
+
   const ivaTotales = useMemo(() => {
-    if (!ivaPeriodo) return { debito: 0, credito: 0, pagar: 0 }
+    if (!ivaPeriodo) return { debito: 0, credito: 0, pagar: 0, ppm: 0, total: 0 }
     return {
       debito: ivaPeriodo.iva_debito,
       credito: ivaPeriodo.iva_credito,
       pagar: ivaPeriodo.iva_a_pagar,
+      ppm: ivaPeriodo.ppm ?? 0,
+      total: ivaPeriodo.total_a_pagar ?? ivaPeriodo.iva_a_pagar,
     }
   }, [ivaPeriodo])
 
@@ -125,10 +154,51 @@ export default function FinanzasPage() {
             <span className="text-[11px] text-muted">El conteo se reinicia cada mes</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <MetricCard label="IVA Débito (ventas)"  value={fmt(ivaTotales.debito)}  sub="IVA que cobraste"   subColor="#1e6bb8" />
             <MetricCard label="IVA Crédito (compras)" value={fmt(ivaTotales.credito)} sub="IVA que pagaste"    subColor="#1a7a4a" />
             <MetricCard label="IVA a pagar al SII"   value={fmt(ivaTotales.pagar)}   sub={ivaTotales.pagar >= 0 ? 'Por pagar' : 'A favor'} subColor={ivaTotales.pagar >= 0 ? '#b0401a' : '#1a7a4a'} />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <MetricCard label="PPM del período" value={fmt(ivaTotales.ppm)} sub={`Tasa ${ppmTasa || 0}% sobre ventas netas`} subColor="#7a4ab0" />
+            <MetricCard label="Total a pagar al SII" value={fmt(ivaTotales.total)} sub="IVA a pagar + PPM" subColor={ivaTotales.total >= 0 ? '#b0401a' : '#1a7a4a'} />
+          </div>
+
+          {/* Editor de tasa/régimen de PPM */}
+          <div className="bg-white border border-line rounded-xl p-4 mb-6 shadow-card">
+            <div className="text-[11px] font-bold text-muted uppercase tracking-wide mb-3">
+              Configuración de PPM — {labelPeriodo(periodoSel)}
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="label-base">Régimen tributario</label>
+                <select value={ppmRegimen} onChange={e => setPpmRegimen(e.target.value)}
+                  className="input-base cursor-pointer min-w-[220px]">
+                  <option value="pro_pyme_general">Pro-Pyme General (14 D N°3)</option>
+                  <option value="pro_pyme_transparente">Pro-Pyme Transparente (14 D N°8)</option>
+                  <option value="regimen_general">Régimen General (14 A)</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className="label-base">Tasa PPM (%)</label>
+                <input type="number" step="0.01" min="0" value={ppmTasa}
+                  onChange={e => setPpmTasa(e.target.value)}
+                  className="input-base w-[120px]" placeholder="Ej: 0.25" />
+              </div>
+              <Btn onClick={guardarPpm} disabled={ppmSaving}>
+                {ppmSaving ? 'Guardando...' : 'Guardar tasa'}
+              </Btn>
+              {ppmSavedAt && Date.now() - ppmSavedAt < 4000 && (
+                <span className="text-[12px] text-success font-semibold">Guardado ✓</span>
+              )}
+            </div>
+            <p className="text-[11px] text-muted mt-3">
+              La tasa de PPM es propia de cada contribuyente y la informa el SII (varía según historial de ventas/utilidades).
+              Ingrésala manualmente según lo que indique tu última Propuesta F29 o el portal del SII. El monto se calcula como
+              tasa% × ventas netas del período.
+            </p>
           </div>
 
           {/* Desglose de notas del período */}
@@ -160,6 +230,8 @@ export default function FinanzasPage() {
                       <th className={thNum}>Compras (neto)</th>
                       <th className={thNum}>IVA Crédito</th>
                       <th className={thNum}>IVA a pagar</th>
+                      <th className={thNum}>PPM</th>
+                      <th className={thNum}>Total a pagar</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -174,13 +246,18 @@ export default function FinanzasPage() {
                         <td className={`${tdNum} font-extrabold ${p.iva_a_pagar >= 0 ? 'text-danger' : 'text-success'}`}>
                           {fmt(p.iva_a_pagar)}
                         </td>
+                        <td className={tdNum}>{fmt(p.ppm ?? 0)}</td>
+                        <td className={`${tdNum} font-extrabold ${(p.total_a_pagar ?? p.iva_a_pagar) >= 0 ? 'text-danger' : 'text-success'}`}>
+                          {fmt(p.total_a_pagar ?? p.iva_a_pagar)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
             <p className="text-[11px] text-muted mt-3">
-              IVA a pagar = IVA Débito (ventas) − IVA Crédito (compras). Valor positivo = pagas al SII; negativo = remanente a favor.
+              IVA a pagar = IVA Débito (ventas) − IVA Crédito (compras). Total a pagar = IVA a pagar + PPM del período.
+              Valor positivo = pagas al SII; negativo = remanente a favor.
             </p>
           </div>
         </div>
