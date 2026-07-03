@@ -46,18 +46,26 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
   const [notas, setNotas]           = useState('')
   const [saving, setSaving]         = useState(false)
 
+  // Control de retenciones — devoluciones/liberaciones
+  const [devoluciones, setDevoluciones] = useState<any[]>([])
+  const [modalDev, setModalDev]     = useState(false)
+  const [devForm, setDevForm]       = useState<{ tipo: string; monto: number; fecha: string; glosa: string }>({ tipo: 'retencion', monto: 0, fecha: '', glosa: '' })
+  const [savingDev, setSavingDev]   = useState(false)
+
   const load = useCallback(async () => {
     setLoading(true)
-    const [epData, presData, gastosData, partData] = await Promise.all([
+    const [epData, presData, gastosData, partData, devData] = await Promise.all([
       fetch(`/api/estados-pago?proyecto_id=${proyectoId}`).then(r => r.json()),
       fetch('/api/presupuesto').then(r => r.json()).catch(() => []),
       fetch(`/api/gastos-obra?proyecto_id=${proyectoId}`).then(r => r.json()).catch(() => []),
       fetch(`/api/partidas-proyecto?proyecto_id=${proyectoId}`).then(r => r.json()).catch(() => []),
+      fetch(`/api/devoluciones?proyecto_id=${proyectoId}`).then(r => r.json()).catch(() => []),
     ])
     const epList = Array.isArray(epData) ? epData : []
     setEps(epList)
     setGastos(Array.isArray(gastosData) ? gastosData : [])
     setPartidas(Array.isArray(partData) ? partData.filter((x: any) => !x.parent_id) : [])
+    setDevoluciones(Array.isArray(devData) ? devData : [])
 
     // Resumen presupuestario de este proyecto
     const p = Array.isArray(presData) ? presData.find((x: any) => x.proyecto_id === proyectoId) : null
@@ -178,6 +186,43 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
       }),
     })
     await load(); setSaving(false); setModal(false)
+  }
+
+  // ─── Control de retenciones (acumulados + devoluciones + saldo) ──
+  const control = useMemo(() => {
+    const epsValidos = eps.filter(e => e.estado === 'aprobado' || e.estado === 'pagado')
+    const retDescontada = epsValidos.reduce((s, e) => s + (e.retencion_monto || 0), 0)
+    const antAmortizado = epsValidos.reduce((s, e) => s + (e.anticipo_desc || 0), 0)
+    const retDevuelta = devoluciones.filter(d => d.tipo === 'retencion').reduce((s, d) => s + (d.monto || 0), 0)
+    const antDevuelto = devoluciones.filter(d => d.tipo === 'anticipo').reduce((s, d) => s + (d.monto || 0), 0)
+    return {
+      retDescontada, retDevuelta, retSaldo: retDescontada - retDevuelta,
+      antAmortizado, antDevuelto, antSaldo: antAmortizado - antDevuelto,
+    }
+  }, [eps, devoluciones])
+
+  const abrirDev = (tipo: 'retencion' | 'anticipo') => {
+    setDevForm({ tipo, monto: 0, fecha: new Date().toISOString().split('T')[0], glosa: '' })
+    setModalDev(true)
+  }
+
+  const guardarDev = async () => {
+    if (devForm.monto <= 0) { alert('El monto debe ser mayor a cero'); return }
+    setSavingDev(true)
+    await fetch('/api/devoluciones', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proyecto_id: proyectoId, ...devForm }),
+    })
+    await load(); setSavingDev(false); setModalDev(false)
+  }
+
+  const eliminarDev = async (id: string) => {
+    if (!confirm('¿Eliminar esta devolución?')) return
+    await fetch('/api/devoluciones', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    await load()
   }
 
   const cambiarEstado = async (ep: EstadoPago, estado: string, generarFactura = false) => {
@@ -380,7 +425,80 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
           </div>
         )}
 
-      {/* ═══ MODAL NUEVO EP ═══ */}
+      {/* ═══ CONTROL DE RETENCIONES Y ANTICIPOS ═══ */}
+      {eps.length > 0 && (
+        <div className="mt-6 border-t border-line pt-5">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="text-[13px] font-bold text-ink">Control de retenciones y anticipos</h4>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Retención */}
+            <div className="border border-line rounded-card p-4">
+              <div className="flex justify-between items-center mb-2.5">
+                <span className="text-[12px] font-bold text-accent uppercase tracking-wide">Retención de garantía</span>
+                <button onClick={() => abrirDev('retencion')} className="text-[11px] font-bold px-2.5 py-1 bg-accent-bg text-accent rounded-md cursor-pointer border-none">+ Liberar</button>
+              </div>
+              <div className="flex flex-col gap-1.5 text-[12px]">
+                <div className="flex justify-between"><span className="text-muted">Retenido acumulado</span><span className="font-bold text-ink">{fmt(control.retDescontada)}</span></div>
+                <div className="flex justify-between"><span className="text-muted">Devuelto al contratista</span><span className="font-bold text-success">− {fmt(control.retDevuelta)}</span></div>
+                <div className="flex justify-between border-t border-line pt-1.5 mt-0.5"><span className="font-bold text-ink">Saldo por liberar</span><span className="font-extrabold text-danger">{fmt(control.retSaldo)}</span></div>
+              </div>
+            </div>
+
+            {/* Anticipo */}
+            <div className="border border-line rounded-card p-4">
+              <div className="flex justify-between items-center mb-2.5">
+                <span className="text-[12px] font-bold text-accent uppercase tracking-wide">Anticipo</span>
+                <button onClick={() => abrirDev('anticipo')} className="text-[11px] font-bold px-2.5 py-1 bg-accent-bg text-accent rounded-md cursor-pointer border-none">+ Devolver</button>
+              </div>
+              <div className="flex flex-col gap-1.5 text-[12px]">
+                <div className="flex justify-between"><span className="text-muted">Amortizado acumulado</span><span className="font-bold text-ink">{fmt(control.antAmortizado)}</span></div>
+                <div className="flex justify-between"><span className="text-muted">Devuelto adicional</span><span className="font-bold text-success">− {fmt(control.antDevuelto)}</span></div>
+                <div className="flex justify-between border-t border-line pt-1.5 mt-0.5"><span className="font-bold text-ink">Saldo</span><span className="font-extrabold text-brand">{fmt(control.antSaldo)}</span></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Historial de devoluciones */}
+          {devoluciones.length > 0 && (
+            <div className="mt-3 flex flex-col gap-1.5">
+              <span className="text-[11px] font-bold text-muted uppercase tracking-wide">Movimientos registrados</span>
+              {devoluciones.map(d => (
+                <div key={d.id} className="flex justify-between items-center text-[12px] bg-canvas rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${d.tipo === 'retencion' ? 'bg-accent-bg text-accent' : 'bg-brand-bg text-brand'}`}>
+                      {d.tipo === 'retencion' ? 'Retención' : 'Anticipo'}
+                    </span>
+                    <span className="text-muted">{d.fecha}</span>
+                    {d.glosa && <span className="text-muted">· {d.glosa}</span>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-ink">{fmt(d.monto)}</span>
+                    <button onClick={() => eliminarDev(d.id)} className="text-danger text-[11px] bg-transparent border-none cursor-pointer">✕</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══ MODAL DEVOLUCIÓN ═══ */}
+      {modalDev && (
+        <Modal title={devForm.tipo === 'retencion' ? 'Liberar retención de garantía' : 'Devolver anticipo'} onClose={() => setModalDev(false)}>
+          <div className="flex flex-col gap-3.5">
+            <FormInput label="Monto ($)" value={devForm.monto} onChange={v => setDevForm(f => ({ ...f, monto: Number(v) || 0 }))} type="number" />
+            <FormInput label="Fecha" value={devForm.fecha} onChange={v => setDevForm(f => ({ ...f, fecha: v }))} type="date" />
+            <FormInput label="Glosa (opcional)" value={devForm.glosa} onChange={v => setDevForm(f => ({ ...f, glosa: v }))} placeholder="Ej: Liberación 50% garantía tras recepción provisoria" />
+            <div className="flex gap-2 justify-end">
+              <Btn onClick={() => setModalDev(false)}>Cancelar</Btn>
+              <Btn variant="primary" onClick={guardarDev} disabled={savingDev}>{savingDev ? 'Guardando...' : 'Registrar'}</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {modal && sugerencia && (
         <Modal title={`Nuevo Estado de Pago N°${sugerencia.numero}`} onClose={() => setModal(false)}>
           {detalleEdit.length === 0

@@ -9,6 +9,7 @@ const EMPTY: Omit<Empleado,'id'|'created_at'|'user_id'> = { nombre:'', rut:'', c
 
 export default function RRHHPage() {
   const [items, setItems]   = useState<Empleado[]>([])
+  const [proyectos, setProyectos] = useState<any[]>([])
   const [modal, setModal]   = useState<'nuevo'|'editar'|null>(null)
   const [form, setForm]     = useState<any>({})
   const [saving, setSaving] = useState(false)
@@ -16,8 +17,12 @@ export default function RRHHPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/empleados')
-    setItems(await res.json())
+    const [emps, proys] = await Promise.all([
+      fetch('/api/empleados').then(r => r.json()),
+      fetch('/api/proyectos').then(r => r.json()).catch(() => []),
+    ])
+    setItems(Array.isArray(emps) ? emps : [])
+    setProyectos(Array.isArray(proys) ? proys : [])
     setLoading(false)
   }, [])
 
@@ -29,7 +34,7 @@ export default function RRHHPage() {
     if (!form.nombre) return
     setSaving(true)
     const method = modal === 'nuevo' ? 'POST' : 'PUT'
-    await fetch('/api/empleados', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, sueldo: Number(form.sueldo), horas_extra: Number(form.horas_extra) }) })
+    await fetch('/api/empleados', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, sueldo: Number(form.sueldo), horas_extra: Number(form.horas_extra), proyecto_id: form.proyecto_id || null }) })
     await load(); setSaving(false); setModal(null)
   }
 
@@ -127,6 +132,10 @@ export default function RRHHPage() {
             <FormSelect label="Estado" value={form.estado||'activo'} onChange={v=>upd('estado',v)}
               options={[{value:'activo',label:'Activo'},{value:'vacaciones',label:'Vacaciones'},{value:'inactivo',label:'Inactivo'}]} />
             <FormInput label="Fecha ingreso" value={form.inicio||''} onChange={v=>upd('inicio',v)} type="date" />
+            <div className="col-span-2">
+              <FormSelect label="Obra / proyecto asignado" value={form.proyecto_id || ''} onChange={v=>upd('proyecto_id', v)}
+                options={[{ value: '', label: '— Sin asignar —' }, ...proyectos.map((p: any) => ({ value: p.id, label: p.nombre }))]} />
+            </div>
           </div>
           <div className="flex gap-2 justify-end mt-2">
             <Btn onClick={() => setModal(null)}>Cancelar</Btn>

@@ -7,6 +7,8 @@ import type { Proyecto } from '@/types'
 import DocumentosPanel from '@/components/DocumentosPanel'
 import PartidasPanel from '@/components/PartidasPanel'
 import PresupuestoPanel from '@/components/PresupuestoPanel'
+import ManoObraPanel from '@/components/ManoObraPanel'
+import InformePanel from '@/components/InformePanel'
 
 const EMPTY: Omit<Proyecto, 'id'|'created_at'|'user_id'> = { nombre:'', cliente:'', descripcion:'', valor:0, avance:0, estado:'cotizacion', inicio:'', fin:'' }
 
@@ -20,17 +22,23 @@ export default function ProyectosPage() {
   const [items, setItems]     = useState<Proyecto[]>([])
   const [modal, setModal]     = useState<'nuevo'|'editar'|null>(null)
   const [gestion, setGestion] = useState<Proyecto | null>(null)
-  const [tab, setTab]         = useState<'obra' | 'presupuesto' | 'docs'>('obra')
+  const [tab, setTab]         = useState<'obra' | 'presupuesto' | 'mano_obra' | 'informe' | 'docs'>('obra')
   const [form, setForm]       = useState<any>({})
   const [filtro, setFiltro]   = useState('todos')
   const [saving, setSaving]   = useState(false)
   const [loading, setLoading] = useState(true)
+  const [kpis, setKpis]       = useState<Record<string, any>>({})
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/proyectos')
-    const data = await res.json()
-    setItems(Array.isArray(data) ? data : [])
+    const [res, kpiRes] = await Promise.all([
+      fetch('/api/proyectos').then(r => r.json()),
+      fetch('/api/informe').then(r => r.json()).catch(() => []),
+    ])
+    setItems(Array.isArray(res) ? res : [])
+    const map: Record<string, any> = {}
+    if (Array.isArray(kpiRes)) kpiRes.forEach((k: any) => { map[k.proyecto_id] = k })
+    setKpis(map)
     setLoading(false)
   }, [])
 
@@ -141,6 +149,24 @@ export default function ProyectosPage() {
                   <span className="text-[11px] text-subtle">valor contrato</span>
                 </div>
 
+                {/* Resumen KPI (informe ejecutivo) */}
+                {kpis[p.id] && (kpis[p.id].cobrado_pct > 0 || kpis[p.id].gasto_mo_pendiente > 0) && (
+                  <div className="grid grid-cols-3 gap-2 mb-4 pb-4 border-b border-line">
+                    <div>
+                      <div className="text-[10px] text-muted">Cobrado</div>
+                      <div className="text-[13px] font-bold text-success">{kpis[p.id].cobrado_pct}%</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-muted">Por facturar</div>
+                      <div className="text-[13px] font-bold text-brand">{fmtM(kpis[p.id].saldo_por_facturar)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-muted">M.O pendiente</div>
+                      <div className="text-[13px] font-bold text-danger">{fmtM(kpis[p.id].gasto_mo_pendiente)}</div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Acciones */}
                 <div className="flex gap-2">
                   <button onClick={() => openGestion(p)}
@@ -218,6 +244,8 @@ export default function ProyectosPage() {
               {[
                 { key: 'obra' as const,        label: '📋 Control de obra' },
                 { key: 'presupuesto' as const, label: '💵 Presupuesto y pagos' },
+                { key: 'mano_obra' as const,   label: '👷 Mano de obra' },
+                { key: 'informe' as const,     label: '📊 Informe ejecutivo' },
                 { key: 'docs' as const,        label: '📎 Documentos' },
               ].map(t => (
                 <button key={t.key} onClick={() => setTab(t.key)}
@@ -230,6 +258,8 @@ export default function ProyectosPage() {
 
             {tab === 'obra'        && <PartidasPanel proyectoId={gestion.id} markupGlobal={(gestion as any).markup_global ?? 20} onAvanceChange={load} />}
             {tab === 'presupuesto' && <PresupuestoPanel proyectoId={gestion.id} valorContrato={gestion.valor} proyectoNombre={gestion.nombre} proyectoCliente={gestion.cliente} proyectoDireccion={(gestion as any).direccion} />}
+            {tab === 'mano_obra'   && <ManoObraPanel proyectoId={gestion.id} proyectoNombre={gestion.nombre} />}
+            {tab === 'informe'     && <InformePanel proyectoId={gestion.id} proyectoNombre={gestion.nombre} />}
             {tab === 'docs'        && <DocumentosPanel proyectoId={gestion.id} proyectoNombre={gestion.nombre} />}
           </div>
         </div>
