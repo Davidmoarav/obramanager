@@ -18,13 +18,24 @@ export interface EstadoPago {
   numero: number
   periodo?: string
   fecha?: string
-  monto_neto: number
+  // ─── Cascada ───
+  avance_obra: number
+  utilidad_pct: number
+  utilidad_monto: number
+  gg_pct: number
+  gg_monto: number
+  bruto: number              // Valor EEPP
+  descuentos: number
+  anticipo_pct: number
+  anticipo_desc: number      // amortización anticipo
+  multas: number
   retencion_pct: number
   retencion_monto: number
-  anticipo_desc: number
-  monto_pagar: number
+  // ─── Compat / totales ───
+  monto_neto: number
+  monto_pagar: number        // total neto pre-IVA
   iva: number
-  total: number
+  total: number              // líquido a pagar
   estado: 'borrador' | 'presentado' | 'aprobado' | 'pagado' | 'rechazado'
   factura_id?: string | null
   notas?: string

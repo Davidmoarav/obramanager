@@ -46,7 +46,14 @@ export default function ProyectosPage() {
     if (!form.nombre || !form.cliente) return
     setSaving(true)
     const method = modal === 'nuevo' ? 'POST' : 'PUT'
-    await fetch('/api/proyectos', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, valor: Number(form.valor), avance: Number(form.avance) }) })
+    await fetch('/api/proyectos', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      ...form,
+      valor: Number(form.valor), avance: Number(form.avance),
+      utilidad_pct: Number((form as any).utilidad_pct) || 0,
+      gg_pct: Number((form as any).gg_pct) || 0,
+      anticipo_pct: Number((form as any).anticipo_pct) || 0,
+      retencion_pct: Number((form as any).retencion_pct) || 0,
+    }) })
     await load(); setSaving(false); setModal(null)
   }
 
@@ -182,6 +189,13 @@ export default function ProyectosPage() {
             <FormSelect label="Estado"      value={form.estado || 'cotizacion'} onChange={v => upd('estado', v)} options={ESTADOS} />
             <FormInput label="Avance %"     value={form.avance ?? 0}            onChange={v => upd('avance', v)}  type="number" />
             <div className="col-span-2"><FormInput label="Descripción" value={form.descripcion || ''} onChange={v => upd('descripcion', v)} /></div>
+
+            {/* Parámetros de estados de pago */}
+            <div className="col-span-2 mt-1 mb-0.5 text-[11px] font-bold text-muted uppercase tracking-wide">Parámetros de estados de pago</div>
+            <FormInput label="Utilidad %"        value={(form as any).utilidad_pct ?? 0}  onChange={v => upd('utilidad_pct' as any, v)}  type="number" />
+            <FormInput label="Gastos Generales %" value={(form as any).gg_pct ?? 0}        onChange={v => upd('gg_pct' as any, v)}        type="number" />
+            <FormInput label="Anticipo carátula %" value={(form as any).anticipo_pct ?? 0} onChange={v => upd('anticipo_pct' as any, v)}  type="number" />
+            <FormInput label="Retención %"        value={(form as any).retencion_pct ?? 0} onChange={v => upd('retencion_pct' as any, v)} type="number" />
           </div>
           <div className="flex gap-2 justify-end mt-3">
             <Btn onClick={() => setModal(null)}>Cancelar</Btn>
@@ -215,7 +229,7 @@ export default function ProyectosPage() {
             </div>
 
             {tab === 'obra'        && <PartidasPanel proyectoId={gestion.id} markupGlobal={(gestion as any).markup_global ?? 20} onAvanceChange={load} />}
-            {tab === 'presupuesto' && <PresupuestoPanel proyectoId={gestion.id} valorContrato={gestion.valor} />}
+            {tab === 'presupuesto' && <PresupuestoPanel proyectoId={gestion.id} valorContrato={gestion.valor} proyectoNombre={gestion.nombre} proyectoCliente={gestion.cliente} proyectoDireccion={(gestion as any).direccion} />}
             {tab === 'docs'        && <DocumentosPanel proyectoId={gestion.id} proyectoNombre={gestion.nombre} />}
           </div>
         </div>

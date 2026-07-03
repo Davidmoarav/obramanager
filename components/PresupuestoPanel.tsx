@@ -9,15 +9,19 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Btn, FormInput, Modal } from '@/components/ui'
 import { fmt, fmtM } from '@/lib/format'
 import { ESTADO_EP, type EstadoPago } from '@/types/estado-pago'
+import DescargarEPBtn from '@/components/DescargarEPBtn'
 
 interface Props {
   proyectoId: string
   valorContrato: number
+  proyectoNombre?: string
+  proyectoCliente?: string
+  proyectoDireccion?: string
 }
 
 const IVA = 0.19
 
-export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
+export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNombre = '', proyectoCliente = '', proyectoDireccion = '' }: Props) {
   const [eps, setEps]         = useState<EstadoPago[]>([])
   const [loading, setLoading] = useState(true)
   const [resumen, setResumen] = useState({ presupuesto: 0, ejecutado: 0, cobrado: 0, costo: 0, ganancia: 0, markup_real: 0, margen_venta: 0, costo_ejecutado: 0, ganancia_ejecutada: 0, gasto_real: 0, gasto_manual: 0, gasto_facturas: 0, desviacion: 0, ganancia_real: 0, pct_gastado: 0, gasto_por_partida: {} as Record<string, number> })
@@ -29,12 +33,16 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
   const [gastoForm, setGastoForm]   = useState<any>({})
   const [savingGasto, setSavingGasto] = useState(false)
 
-  // Modal nuevo EP
+  // Modal nuevo EP — cascada completa
   const [modal, setModal]       = useState(false)
   const [sugerencia, setSugerencia] = useState<any>(null)
   const [detalleEdit, setDetalleEdit] = useState<any[]>([])
-  const [retencion, setRetencion]   = useState(0)
-  const [anticipo, setAnticipo]     = useState(0)
+  const [utilidadPct, setUtilidadPct] = useState(0)
+  const [ggPct, setGgPct]           = useState(0)
+  const [descuentos, setDescuentos] = useState(0)
+  const [anticipoPct, setAnticipoPct] = useState(0)
+  const [multas, setMultas]         = useState(0)
+  const [retencionPct, setRetencionPct] = useState(0)
   const [notas, setNotas]           = useState('')
   const [saving, setSaving]         = useState(false)
 
@@ -113,14 +121,18 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
     subcontrato: '🔧 Subcontrato', fletes: '🚚 Fletes', otros: '📦 Otros',
   }
 
-  // ─── Abrir modal: pedir sugerencia de EP ─────────────────
+  // ─── Abrir modal: pedir sugerencia de EP (trae % del proyecto) ──
   const openNuevoEP = async () => {
     const res = await fetch(`/api/estados-pago?proyecto_id=${proyectoId}&sugerir=1`)
     const sug = await res.json()
     setSugerencia(sug)
     setDetalleEdit((sug.detalle || []).map((d: any) => ({ ...d })))
-    setRetencion(0)
-    setAnticipo(0)
+    setUtilidadPct(Number(sug.utilidad_pct) || 0)
+    setGgPct(Number(sug.gg_pct) || 0)
+    setAnticipoPct(Number(sug.anticipo_pct) || 0)
+    setRetencionPct(Number(sug.retencion_pct) || 0)
+    setDescuentos(0)
+    setMultas(0)
     setNotas('')
     setModal(true)
   }
@@ -130,17 +142,22 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
     setDetalleEdit(prev => prev.map((d, i) => i === idx ? { ...d, monto } : d))
   }
 
-  const montoNeto = useMemo(
+  // ─── Cascada en vivo (idéntica al servidor) ──────────────
+  const avanceObra = useMemo(
     () => detalleEdit.reduce((s, d) => s + (Number(d.monto) || 0), 0),
     [detalleEdit]
   )
-  const retencionMonto = Math.round(montoNeto * retencion / 100)
-  const montoPagar = montoNeto - retencionMonto - anticipo
-  const ivaCalc = Math.round(montoPagar * IVA)
-  const totalCalc = montoPagar + ivaCalc
+  const utilidadMonto  = Math.round(avanceObra * utilidadPct / 100)
+  const ggMonto        = Math.round(avanceObra * ggPct / 100)
+  const bruto          = avanceObra + utilidadMonto + ggMonto
+  const anticipoDesc   = Math.round(bruto * anticipoPct / 100)
+  const retencionMonto = Math.round(bruto * retencionPct / 100)
+  const totalNeto      = bruto - descuentos - anticipoDesc - multas - retencionMonto
+  const ivaCalc        = Math.round(totalNeto * IVA)
+  const totalCalc      = totalNeto + ivaCalc
 
   const guardarEP = async () => {
-    if (montoNeto <= 0) { alert('El monto del estado de pago debe ser mayor a cero'); return }
+    if (avanceObra <= 0) { alert('El avance de obra del período debe ser mayor a cero'); return }
     setSaving(true)
     await fetch('/api/estados-pago', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -149,9 +166,13 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
         numero: sugerencia.numero,
         periodo: new Date().toISOString().slice(0, 7),
         fecha: new Date().toISOString().split('T')[0],
-        monto_neto: montoNeto,
-        retencion_pct: retencion,
-        anticipo_desc: anticipo,
+        avance_obra: avanceObra,
+        utilidad_pct: utilidadPct,
+        gg_pct: ggPct,
+        descuentos,
+        anticipo_pct: anticipoPct,
+        multas,
+        retencion_pct: retencionPct,
         notas,
         detalle: detalleEdit,
       }),
@@ -311,15 +332,22 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
                     <div className="text-right">
                       <div className="text-base font-extrabold text-ink">{fmt(ep.total)}</div>
                       <div className="text-[10px] text-muted">Neto {fmt(ep.monto_pagar)} + IVA</div>
+                      <div className="mt-1">
+                        <DescargarEPBtn ep={ep} proyecto={{ nombre: proyectoNombre, cliente: proyectoCliente, direccion: proyectoDireccion }} />
+                      </div>
                     </div>
                   </div>
 
                   {/* Desglose */}
-                  {(ep.retencion_monto > 0 || ep.anticipo_desc > 0) && (
-                    <div className="flex gap-3.5 text-[11px] text-muted mt-2 pt-2 border-t border-[#f0f4f8]">
-                      <span>Avance: {fmt(ep.monto_neto)}</span>
-                      {ep.retencion_monto > 0 && <span className="text-danger">− Retención {ep.retencion_pct}%: {fmt(ep.retencion_monto)}</span>}
-                      {ep.anticipo_desc > 0 && <span className="text-danger">− Anticipo: {fmt(ep.anticipo_desc)}</span>}
+                  {(ep.bruto > 0 || ep.retencion_monto > 0 || ep.anticipo_desc > 0) && (
+                    <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[11px] text-muted mt-2 pt-2 border-t border-[#f0f4f8]">
+                      <span>Avance: {fmt(ep.avance_obra ?? ep.monto_neto)}</span>
+                      {ep.utilidad_monto > 0 && <span className="text-success">+ Util. {ep.utilidad_pct}%: {fmt(ep.utilidad_monto)}</span>}
+                      {ep.gg_monto > 0 && <span className="text-success">+ GG {ep.gg_pct}%: {fmt(ep.gg_monto)}</span>}
+                      {ep.descuentos > 0 && <span className="text-danger">− Desc.: {fmt(ep.descuentos)}</span>}
+                      {ep.anticipo_desc > 0 && <span className="text-danger">− Anticipo {ep.anticipo_pct}%: {fmt(ep.anticipo_desc)}</span>}
+                      {ep.multas > 0 && <span className="text-danger">− Multas: {fmt(ep.multas)}</span>}
+                      {ep.retencion_monto > 0 && <span className="text-danger">− Ret. {ep.retencion_pct}%: {fmt(ep.retencion_monto)}</span>}
                     </div>
                   )}
 
@@ -386,20 +414,40 @@ export default function PresupuestoPanel({ proyectoId, valorContrato }: Props) {
                   ))}
                 </div>
 
-                {/* Deducciones */}
-                <div className="grid grid-cols-2 gap-3 mb-3.5">
-                  <FormInput label="Retención garantía (%)" value={retencion} onChange={v => setRetencion(Number(v) || 0)} type="number" />
-                  <FormInput label="Amortización anticipo ($)" value={anticipo} onChange={v => setAnticipo(Number(v) || 0)} type="number" />
+                {/* Márgenes automáticos */}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <FormInput label="Utilidad (%)" value={utilidadPct} onChange={v => setUtilidadPct(Number(v) || 0)} type="number" />
+                  <FormInput label="Gastos Generales (%)" value={ggPct} onChange={v => setGgPct(Number(v) || 0)} type="number" />
                 </div>
 
-                {/* Totales */}
+                {/* Deducciones */}
+                <div className="grid grid-cols-2 gap-3 mb-1.5">
+                  <FormInput label="Descuentos ($)" value={descuentos} onChange={v => setDescuentos(Number(v) || 0)} type="number" />
+                  <FormInput label="Anticipo carátula (%)" value={anticipoPct} onChange={v => setAnticipoPct(Number(v) || 0)} type="number" />
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-3.5">
+                  <FormInput label="Multas ($)" value={multas} onChange={v => setMultas(Number(v) || 0)} type="number" />
+                  <FormInput label="Retención (%)" value={retencionPct} onChange={v => setRetencionPct(Number(v) || 0)} type="number" />
+                </div>
+
+                {/* Cascada completa */}
                 <div className="bg-canvas rounded-card p-3.5 mb-3.5">
-                  <Row label="Avance del período (neto)" valor={fmt(montoNeto)} />
-                  {retencionMonto > 0 && <Row label={`Retención ${retencion}%`} valor={`− ${fmt(retencionMonto)}`} danger />}
-                  {anticipo > 0 && <Row label="Amortización anticipo" valor={`− ${fmt(anticipo)}`} danger />}
+                  <Row label="Avance de obra del período" valor={fmt(avanceObra)} />
+                  {utilidadMonto > 0 && <Row label={`Utilidad ${utilidadPct}%`} valor={`+ ${fmt(utilidadMonto)}`} />}
+                  {ggMonto > 0 && <Row label={`Gastos Generales ${ggPct}%`} valor={`+ ${fmt(ggMonto)}`} />}
+                  <div className="border-t border-line2 mt-1.5 pt-1.5">
+                    <Row label="Valor EEPP (bruto)" valor={fmt(bruto)} bold />
+                  </div>
+                  {descuentos > 0 && <Row label="Descuentos" valor={`− ${fmt(descuentos)}`} danger />}
+                  {anticipoDesc > 0 && <Row label={`Anticipo carátula ${anticipoPct}%`} valor={`− ${fmt(anticipoDesc)}`} danger />}
+                  {multas > 0 && <Row label="Multas" valor={`− ${fmt(multas)}`} danger />}
+                  {retencionMonto > 0 && <Row label={`Retención ${retencionPct}%`} valor={`− ${fmt(retencionMonto)}`} danger />}
+                  <div className="border-t border-line2 mt-1.5 pt-1.5">
+                    <Row label="Total neto" valor={fmt(totalNeto)} />
+                  </div>
                   <Row label="IVA (19%)" valor={fmt(ivaCalc)} />
                   <div className="border-t border-line2 mt-1.5 pt-1.5">
-                    <Row label="Total a facturar" valor={fmt(totalCalc)} bold />
+                    <Row label="Líquido a pagar" valor={fmt(totalCalc)} bold />
                   </div>
                 </div>
 

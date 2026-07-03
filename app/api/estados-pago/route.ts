@@ -32,6 +32,18 @@ export async function GET(req: NextRequest) {
 
 // ─── Sugerir EP: avance actual menos lo ya cobrado en EPs previos ──
 async function sugerirEP(supabase: any, proyectoId: string, userId: string) {
+  // 0. Config de % del proyecto (utilidad, GG, anticipo, retención)
+  const { data: proy } = await supabase
+    .from('proyectos')
+    .select('utilidad_pct, gg_pct, anticipo_pct, retencion_pct')
+    .eq('id', proyectoId)
+    .maybeSingle()
+
+  const utilidadPct = Number(proy?.utilidad_pct) || 0
+  const ggPct       = Number(proy?.gg_pct) || 0
+  const anticipoPct = Number(proy?.anticipo_pct) || 0
+  const retencionPct = Number(proy?.retencion_pct) || 0
+
   // 1. Partidas padre del proyecto (con su avance actual)
   const { data: partidas } = await supabase
     .from('partidas_proyecto')
@@ -79,6 +91,17 @@ async function sugerirEP(supabase: any, proyectoId: string, userId: string) {
 
   const montoNeto = detalle.reduce((s: number, d: any) => s + d.monto, 0)
 
+  // ─── Cascada automática ───────────────────────────────
+  const avanceObra    = montoNeto
+  const utilidadMonto = Math.round(avanceObra * utilidadPct / 100)
+  const ggMonto       = Math.round(avanceObra * ggPct / 100)
+  const bruto         = avanceObra + utilidadMonto + ggMonto     // "Valor EEPP"
+  const anticipoDesc  = Math.round(bruto * anticipoPct / 100)     // amortización carátula
+  const retencionMonto = Math.round(bruto * retencionPct / 100)
+  const totalNeto     = bruto - anticipoDesc - retencionMonto
+  const iva           = Math.round(totalNeto * IVA)
+  const total         = totalNeto + iva
+
   // Número del próximo EP
   const { data: ultimoEp } = await supabase
     .from('estados_pago')
@@ -94,12 +117,21 @@ async function sugerirEP(supabase: any, proyectoId: string, userId: string) {
   return NextResponse.json({
     sugerencia: true,
     numero,
+    // cascada
+    avance_obra: avanceObra,
+    utilidad_pct: utilidadPct, utilidad_monto: utilidadMonto,
+    gg_pct: ggPct, gg_monto: ggMonto,
+    bruto,
+    anticipo_pct: anticipoPct, anticipo_desc: anticipoDesc,
+    retencion_pct: retencionPct, retencion_monto: retencionMonto,
+    descuentos: 0, multas: 0,
+    total_neto: totalNeto, iva, total,
     monto_neto: montoNeto,
     detalle: detalle.filter((d: any) => d.avance_periodo > 0),
   })
 }
 
-// ─── POST: crear un EP ──
+// ─── POST: crear un EP con cascada completa ──
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
@@ -107,24 +139,39 @@ export async function POST(req: Request) {
 
   const body = await req.json()
   const {
-    proyecto_id, numero, periodo, fecha, monto_neto,
-    retencion_pct = 0, anticipo_desc = 0, notas, detalle = [],
+    proyecto_id, numero, periodo, fecha,
+    avance_obra = 0,
+    utilidad_pct = 0, gg_pct = 0,
+    descuentos = 0, anticipo_pct = 0, multas = 0, retencion_pct = 0,
+    notas, detalle = [],
   } = body
 
-  const retencionMonto = Math.round(monto_neto * retencion_pct / 100)
-  const montoPagar = monto_neto - retencionMonto - anticipo_desc
-  const iva = Math.round(montoPagar * IVA)
-  const total = montoPagar + iva
+  // Recalcular la cascada en el servidor (no confiar en montos del cliente)
+  const utilidadMonto  = Math.round(avance_obra * utilidad_pct / 100)
+  const ggMonto        = Math.round(avance_obra * gg_pct / 100)
+  const bruto          = avance_obra + utilidadMonto + ggMonto
+  const anticipoDesc   = Math.round(bruto * anticipo_pct / 100)
+  const retencionMonto = Math.round(bruto * retencion_pct / 100)
+  const totalNeto      = bruto - descuentos - anticipoDesc - multas - retencionMonto
+  const iva            = Math.round(totalNeto * IVA)
+  const total          = totalNeto + iva
 
-  // Crear EP
   const { data: ep, error: e1 } = await supabase
     .from('estados_pago')
     .insert({
       proyecto_id, numero, periodo,
       fecha: fecha || new Date().toISOString().split('T')[0],
-      monto_neto,
+      monto_neto: avance_obra,          // compat: avance de obra del período
+      avance_obra,
+      utilidad_pct, utilidad_monto: utilidadMonto,
+      gg_pct, gg_monto: ggMonto,
+      bruto,
+      descuentos,
+      anticipo_pct, anticipo_desc: anticipoDesc,
+      multas,
       retencion_pct, retencion_monto: retencionMonto,
-      anticipo_desc, monto_pagar: montoPagar, iva, total,
+      monto_pagar: totalNeto,           // compat: total neto pre-IVA
+      iva, total,
       estado: 'borrador',
       notas: notas || null,
       user_id: user.id,
@@ -134,7 +181,7 @@ export async function POST(req: Request) {
 
   if (e1) return NextResponse.json({ error: e1.message }, { status: 500 })
 
-  // Guardar detalle
+  // Guardar detalle de avance por partida
   if (detalle.length > 0) {
     const filas = detalle.map((d: any) => ({
       estado_pago_id: ep.id,
