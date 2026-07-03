@@ -10,6 +10,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from('clientes')
     .select('*')
+    .eq('user_id', user.id)
     .order('razon_social', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

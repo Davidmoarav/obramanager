@@ -10,6 +10,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from('catalogo_partidas')
     .select('*')
+    .eq('user_id', user.id)
     .order('orden', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

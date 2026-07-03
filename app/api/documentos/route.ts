@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from('documentos')
     .select('*')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
   if (proyectoId) {

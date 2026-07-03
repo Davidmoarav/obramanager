@@ -11,19 +11,20 @@ export async function GET() {
   const { data, error } = await supabase
     .from('cotizaciones')
     .select('*, partidas:partidas_cotizacion(*)')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const result = (data ?? []).map((c) => ({
     ...c,
-    partidas: (c.partidas ?? []).sort((a, b) => a.orden - b.orden),
+    partidas: (c.partidas ?? []).sort((a: { orden: number }, b: { orden: number }) => a.orden - b.orden),
   }))
   return NextResponse.json(result)
 }
 
-function filasPartidas(cotizacionId, partidas) {
-  return partidas.map((p, i) => ({
+function filasPartidas(cotizacionId: string, partidas: Record<string, unknown>[]) {
+  return partidas.map((p: Record<string, unknown>, i: number) => ({
     cotizacion_id:   cotizacionId,
     orden:           p.orden ?? i,
     descripcion:     p.descripcion,
@@ -35,7 +36,7 @@ function filasPartidas(cotizacionId, partidas) {
 }
 
 // ─── POST ─────────────────────────────────────────────────
-export async function POST(req) {
+export async function POST(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -60,7 +61,7 @@ export async function POST(req) {
 }
 
 // ─── PUT ──────────────────────────────────────────────────
-export async function PUT(req) {
+export async function PUT(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -88,7 +89,7 @@ export async function PUT(req) {
 }
 
 // ─── DELETE ───────────────────────────────────────────────
-export async function DELETE(req) {
+export async function DELETE(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
