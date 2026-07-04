@@ -1,5 +1,4 @@
 'use client'
-// components/Sidebar.tsx — versión Tailwind
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -23,7 +22,11 @@ const MENU = [
 
 const sections = [...new Set(MENU.map(m => m.section))]
 
-export default function Sidebar({ userEmail }: { userEmail?: string }) {
+export default function Sidebar({ userEmail, open = false, onClose }: {
+  userEmail?: string
+  open?: boolean
+  onClose?: () => void
+}) {
   const pathname = usePathname()
   const router   = useRouter()
   const supabase = createClient()
@@ -43,15 +46,27 @@ export default function Sidebar({ userEmail }: { userEmail?: string }) {
   }
 
   return (
-    <aside className="w-[210px] shrink-0 bg-white border-r border-line flex flex-col h-screen sticky top-0">
+    <aside className={[
+      'w-[210px] shrink-0 bg-white border-r border-line flex flex-col',
+      // Móvil: overlay deslizable
+      'fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-in-out',
+      open ? 'translate-x-0' : '-translate-x-full',
+      // Desktop: flujo normal, siempre visible
+      'lg:relative lg:inset-auto lg:z-auto lg:translate-x-0 lg:h-screen lg:sticky lg:top-0',
+    ].join(' ')}>
+
       {/* Logo */}
       <div className="px-4 pt-[18px] pb-4 border-b border-line">
         <div className="flex items-center gap-2.5">
           <img src="/logo.png" alt="Cubica Manager" className="w-[34px] h-[34px] rounded-lg object-contain" />
-          <div>
+          <div className="flex-1 min-w-0">
             <div className="text-sm font-extrabold text-ink tracking-tight">Cubica Manager</div>
-            <div className="text-[10px] text-muted mt-px">{empresa || 'Sistema de gestión'}</div>
+            <div className="text-[10px] text-muted mt-px truncate">{empresa || 'Sistema de gestión'}</div>
           </div>
+          <button onClick={onClose} aria-label="Cerrar menú"
+            className="lg:hidden text-muted hover:text-ink transition text-xl leading-none p-1 -mr-1">
+            ✕
+          </button>
         </div>
       </div>
 
@@ -81,7 +96,7 @@ export default function Sidebar({ userEmail }: { userEmail?: string }) {
       <div className="px-4 py-3 border-t border-line">
         {userEmail && <div className="text-[11px] text-muted mb-2 overflow-hidden text-ellipsis whitespace-nowrap">{userEmail}</div>}
         <button onClick={logout}
-          className="w-full py-1.5 bg-canvas border border-line rounded-lg text-xs font-semibold text-muted cursor-pointer hover:bg-line transition">
+          className="w-full py-2 bg-canvas border border-line rounded-lg text-xs font-semibold text-muted cursor-pointer hover:bg-line transition">
           Cerrar sesión
         </button>
       </div>

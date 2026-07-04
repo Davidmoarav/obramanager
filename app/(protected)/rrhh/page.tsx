@@ -56,7 +56,7 @@ export default function RRHHPage() {
         <Btn variant="primary" onClick={() => { setForm({ ...EMPTY }); setModal('nuevo') }}>+ Agregar trabajador</Btn>
       </div>
 
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <MetricCard label="Total personal"  value={items.length} />
         <MetricCard label="Nómina mensual"  value={fmtM(totalNomina)} />
         <MetricCard label="Horas extra"     value={`${totalHE} h`} sub="Este mes" subColor="#b07d1a" />
@@ -66,7 +66,7 @@ export default function RRHHPage() {
       {loading
         ? <p className="text-muted text-center p-10">Cargando...</p>
         : (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Lista */}
           <div className="bg-white border border-[#e4e9f0] rounded-xl p-[18px]">
             <div className="text-sm font-bold mb-3.5 text-[#1a2535]">Personal</div>
@@ -121,7 +121,7 @@ export default function RRHHPage() {
 
       {modal && (
         <Modal title={modal==='nuevo'?'Nuevo trabajador':'Editar trabajador'} onClose={() => setModal(null)}>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="col-span-2"><FormInput label="Nombre completo" value={form.nombre||''} onChange={v=>upd('nombre',v)} required /></div>
             <FormInput label="RUT"                value={form.rut||''}          onChange={v=>upd('rut',v)} />
             <FormInput label="Cargo"              value={form.cargo||''}        onChange={v=>upd('cargo',v)} />

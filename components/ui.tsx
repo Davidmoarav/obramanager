@@ -117,7 +117,7 @@ export function FormSelect({ label, value, onChange, options }: {
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 bg-black/35 z-[100] flex items-center justify-center p-5">
-      <div className="bg-white rounded-card p-7 max-w-[540px] w-full shadow-pop max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-card p-5 sm:p-7 max-w-[540px] w-full shadow-pop max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-5">
           <h3 className="text-base font-bold text-ink m-0">{title}</h3>
           <button onClick={onClose} className="bg-transparent border-none text-2xl cursor-pointer text-muted leading-none hover:text-ink transition">×</button>

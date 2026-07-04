@@ -1,7 +1,7 @@
 // app/(protected)/layout.tsx
 import { createServerSupabase } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
-import Sidebar from '@/components/Sidebar'
+import AppShell from '@/components/AppShell'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabase()
@@ -9,11 +9,8 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   if (!user) redirect('/auth/login')
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar userEmail={user.email} />
-      <main className="flex-1 overflow-y-auto p-7">
-        {children}
-      </main>
-    </div>
+    <AppShell userEmail={user.email}>
+      {children}
+    </AppShell>
   )
 }
