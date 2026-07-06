@@ -6,6 +6,7 @@
 // Sin sección de conclusiones redactadas.
 
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
+import type { EmpresaConfig } from '@/types/empresa'
 
 const NAVY = '#0F2B53'
 const GOLD = '#F5B800'
@@ -28,7 +29,7 @@ const labelMes = (m: string) => {
 interface Props {
   data: any
   proximo?: any
-  empresa?: any
+  empresa?: EmpresaConfig | null
   logoUrl?: string | null
 }
 
@@ -92,7 +93,7 @@ function KPI({ label, value, sub }: { label: string; value: string; sub?: string
 export function InformePDF({ data, proximo, empresa, logoUrl }: Props) {
   const k = data.kpis
   const proy = data.proyecto || {}
-  const razon = empresa?.razon_social || 'Casa del EIFS SpA'
+  const razon = empresa?.razon_social || 'Empresa'
   const eps = (data.estados_pago || []).filter((e: any) => ['presentado', 'aprobado', 'pagado'].includes(e.estado))
   const pmo = data.proyeccion_mo || []
 
@@ -109,6 +110,11 @@ export function InformePDF({ data, proximo, empresa, logoUrl }: Props) {
             <View style={st.titleBar} />
             <Text style={st.meta}>Fecha de corte: {fmtFecha()}</Text>
             <Text style={st.meta}>{razon}</Text>
+            {empresa?.rut && <Text style={st.meta}>RUT: {empresa.rut}</Text>}
+            {empresa?.direccion && <Text style={st.meta}>{empresa.direccion}</Text>}
+            {(empresa?.comuna || empresa?.ciudad) && (
+              <Text style={st.meta}>{[empresa.comuna, empresa.ciudad].filter(Boolean).join(', ')}</Text>
+            )}
           </View>
         </View>
 

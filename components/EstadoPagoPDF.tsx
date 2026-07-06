@@ -138,7 +138,7 @@ export function EstadoPagoPDF({ ep, proyecto, empresa, logoUrl, detalle = [] }: 
   const sumAnterior = filas.reduce((s, f) => s + f.pagoAnterior, 0)
   const sumActual = filas.reduce((s, f) => s + f.pagoActual, 0)
 
-  const razon = empresa?.razon_social || 'Casa del EIFS SpA'
+  const razon = empresa?.razon_social || 'Empresa'
 
   return (
     <Document>
