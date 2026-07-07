@@ -71,6 +71,25 @@ export async function GET() {
       if (g.partida_id) gastoPorPartida[g.partida_id] = (gastoPorPartida[g.partida_id] || 0) + (Number(g.monto) || 0)
     }
 
+    // ─── DETALLE POR PARTIDA: presupuesto de costo vs gastado real ───
+    // El gastado de una partida padre incluye los gastos ligados a ella y a sus subpartidas.
+    const detallePartidas = padres.map(padre => {
+      const cant = Number(padre.cantidad) || 0
+      const presPart = cant * (Number(padre.costo_unitario) || 0)
+      let gastadoPart = gastoPorPartida[padre.id] || 0
+      for (const h of hijos.filter(h => h.parent_id === padre.id)) {
+        gastadoPart += gastoPorPartida[h.id] || 0
+      }
+      const pct = presPart > 0 ? Math.round((gastadoPart / presPart) * 100) : 0
+      return {
+        id: padre.id,
+        descripcion: padre.descripcion,
+        presupuesto_costo: Math.round(presPart),
+        gastado: Math.round(gastadoPart),
+        pct_gastado: pct,
+      }
+    }).sort((a, b) => b.gastado - a.gastado)   // los más tocados primero
+
     const gananciaEsperada = presupuestoVenta - presupuestoCosto
     const desviacion = presupuestoCosto - gastoReal       // + = vas bajo presupuesto
     const gananciaReal = ventaEjecutada - gastoReal       // utilidad real a la fecha
@@ -101,6 +120,7 @@ export async function GET() {
       gasto_manual: Math.round(gastoManual),
       gasto_facturas: Math.round(gastoFacturas),
       gasto_por_partida: gastoPorPartida,
+      detalle_partidas: detallePartidas,
       desviacion: Math.round(desviacion),
       ganancia_real: Math.round(gananciaReal),
       pct_gastado: pctGastado,

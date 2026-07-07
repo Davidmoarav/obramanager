@@ -35,11 +35,21 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [importing, setImporting] = useState(false)
 
+  // Materiales (rendimientos) por partida
+  const [materiales, setMateriales] = useState<any[]>([])
+  const [modalMat, setModalMat]     = useState<{ partida: PartidaProyecto } | null>(null)
+  const [matForm, setMatForm]       = useState<any>({})
+  const [matEditId, setMatEditId]   = useState<string | null>(null)
+  const [savingMat, setSavingMat]   = useState(false)
+
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch(`/api/partidas-proyecto?proyecto_id=${proyectoId}`)
-    const data = await res.json()
+    const [data, mats] = await Promise.all([
+      fetch(`/api/partidas-proyecto?proyecto_id=${proyectoId}`).then(r => r.json()).catch(() => []),
+      fetch(`/api/partida-materiales?proyecto_id=${proyectoId}`).then(r => r.json()).catch(() => []),
+    ])
     setAllItems(Array.isArray(data) ? data : [])
+    setMateriales(Array.isArray(mats) ? mats : [])
     setLoading(false)
   }, [proyectoId])
 
@@ -134,6 +144,51 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
     setModal({ type: 'hijo', parentId })
   }
   const openEdit = (p: PartidaProyecto) => { setForm({ ...p }); setModal({ type: 'editar' }) }
+
+  // ═══ MATERIALES (rendimientos) ═══
+  const materialesDe = (partidaId: string) => materiales.filter(m => m.partida_id === partidaId)
+
+  const openNewMat = (padre: PartidaProyecto) => {
+    setMatEditId(null)
+    setMatForm({ material: '', unidad: 'un', rendimiento: '', precio_unitario: '' })
+    setModalMat({ partida: padre })
+  }
+  const openEditMat = (padre: PartidaProyecto, m: any) => {
+    setMatEditId(m.id)
+    setMatForm({ material: m.material, unidad: m.unidad, rendimiento: m.rendimiento, precio_unitario: m.precio_unitario })
+    setModalMat({ partida: padre })
+  }
+  const saveMat = async () => {
+    if (!modalMat) return
+    if (!matForm.material) { alert('El nombre del material es obligatorio'); return }
+    setSavingMat(true)
+    const method = matEditId ? 'PUT' : 'POST'
+    const base = {
+      material: matForm.material,
+      unidad: matForm.unidad || 'un',
+      rendimiento: Number(matForm.rendimiento) || 0,
+      precio_unitario: Number(matForm.precio_unitario) || 0,
+    }
+    const payload = matEditId ? { id: matEditId, ...base } : { partida_id: modalMat.partida.id, ...base }
+    const res = await fetch('/api/partida-materiales', {
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    })
+    setSavingMat(false)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      alert('No se pudo guardar el material: ' + (err.error || 'error desconocido') +
+        '\n\nSi menciona "partida_materiales", ejecuta el SQL 14_partida_materiales.sql en Supabase.')
+      return
+    }
+    await load(); setModalMat(null)
+  }
+  const delMat = async (id: string) => {
+    if (!confirm('¿Eliminar este material?')) return
+    await fetch('/api/partida-materiales', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }),
+    })
+    await load()
+  }
 
   // ═══ IMPORTAR DEL CATÁLOGO ═══
   const openImport = async () => {
@@ -299,6 +354,46 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
                       >
                         + Agregar sub-partida
                       </button>
+
+                      {/* Materiales / rendimientos */}
+                      <div className="mt-3.5 pt-3 border-t border-[#e4e9f0]">
+                        <div className="text-[10px] font-bold text-muted uppercase tracking-wide mb-1.5">Materiales (rendimientos)</div>
+                        {materialesDe(padre.id).length === 0
+                          ? <p className="text-[11px] text-muted py-0.5">Sin materiales. Agrega el consumo por {padre.unidad} para calcular compras.</p>
+                          : <div className="flex flex-col gap-1.5">
+                              {materialesDe(padre.id).map(m => {
+                                const necesario = (Number(padre.cantidad) || 0) * (Number(m.rendimiento) || 0)
+                                const costo = necesario * (Number(m.precio_unitario) || 0)
+                                return (
+                                  <div key={m.id} className="flex items-center gap-2 py-1.5 px-2.5 bg-white border border-[#e4e9f0] rounded-[6px]">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-[12px] font-semibold text-[#1a2535]">{m.material}</div>
+                                      <div className="text-[10px] text-muted">
+                                        {m.rendimiento} {m.unidad}/{padre.unidad}
+                                        {m.precio_unitario > 0 && ` · ${fmt(m.precio_unitario)}/${m.unidad}`}
+                                      </div>
+                                    </div>
+                                    <div className="text-right flex-shrink-0 mr-1">
+                                      <div className="text-[12px] font-bold text-brand tabular-nums">
+                                        {necesario.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {m.unidad}
+                                      </div>
+                                      {costo > 0 && <div className="text-[10px] text-muted">{fmt(Math.round(costo))}</div>}
+                                    </div>
+                                    <div className="flex gap-[3px] flex-shrink-0">
+                                      <button onClick={() => openEditMat(padre, m)} className="w-6 h-6 rounded-[5px] border-none bg-canvas text-muted text-[11px] font-bold cursor-pointer flex items-center justify-center">✎</button>
+                                      <button onClick={() => delMat(m.id)} className="w-6 h-6 rounded-[5px] border-none bg-danger-bg text-danger text-[11px] font-bold cursor-pointer flex items-center justify-center">✕</button>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>}
+                        <button
+                          onClick={() => openNewMat(padre)}
+                          className="w-full py-2 mt-2 bg-white border border-dashed border-[#d1d9e6] rounded-[6px] text-[12px] text-brand font-semibold cursor-pointer"
+                        >
+                          + Agregar material
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -348,6 +443,33 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
           <div className="flex gap-2 justify-end mt-3.5">
             <Btn onClick={() => setModal(null)}>Cancelar</Btn>
             <Btn variant="primary" onClick={save} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {/* MODAL MATERIAL (rendimiento) */}
+      {modalMat && (
+        <Modal title={`${matEditId ? 'Editar' : 'Nuevo'} material · ${modalMat.partida.descripcion}`} onClose={() => setModalMat(null)}>
+          <div className="flex flex-col gap-3">
+            <FormInput label="Material *" value={matForm.material || ''} onChange={v => setMatForm((f: any) => ({ ...f, material: v }))} placeholder="Ej: Adhesivo EIFS" />
+            <div className="grid grid-cols-2 gap-3">
+              <FormSelect label="Unidad del material" value={matForm.unidad || 'un'} onChange={v => setMatForm((f: any) => ({ ...f, unidad: v }))} options={UNIDADES} />
+              <FormInput label={`Rendimiento (por ${modalMat.partida.unidad})`} type="number" value={matForm.rendimiento ?? ''} onChange={v => setMatForm((f: any) => ({ ...f, rendimiento: v }))} placeholder="4" />
+            </div>
+            <FormInput label="Precio unitario del material ($, opcional)" type="number" value={matForm.precio_unitario ?? ''} onChange={v => setMatForm((f: any) => ({ ...f, precio_unitario: v }))} placeholder="0" />
+            <div className="bg-canvas border border-line rounded-lg px-3 py-2.5 text-[12px] text-muted">
+              Necesario para {modalMat.partida.cantidad} {modalMat.partida.unidad}:{' '}
+              <strong className="text-brand">
+                {((Number(modalMat.partida.cantidad) || 0) * (Number(matForm.rendimiento) || 0)).toLocaleString('es-CL', { maximumFractionDigits: 2 })} {matForm.unidad || 'un'}
+              </strong>
+              {Number(matForm.precio_unitario) > 0 && (
+                <> · <strong className="text-brand">{fmt(Math.round((Number(modalMat.partida.cantidad) || 0) * (Number(matForm.rendimiento) || 0) * (Number(matForm.precio_unitario) || 0)))}</strong></>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end mt-3.5">
+            <Btn onClick={() => setModalMat(null)}>Cancelar</Btn>
+            <Btn variant="primary" onClick={saveMat} disabled={savingMat}>{savingMat ? 'Guardando...' : 'Guardar'}</Btn>
           </div>
         </Modal>
       )}

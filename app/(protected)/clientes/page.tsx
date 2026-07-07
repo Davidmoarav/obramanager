@@ -4,7 +4,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Btn, FormInput, MetricCard, Modal, SectionTitle, Table, Td, Th } from '@/components/ui'
 import { formatRut, isValidRut, cleanRut } from '@/lib/rut'
+import { fmt } from '@/lib/format'
 import type { Cliente } from '@/types/cliente'
+import type { Proyecto } from '@/types'
 
 const EMPTY: any = {
   razon_social: '', rut: '', giro: '', contacto: '', email: '', telefono: '',
@@ -19,12 +21,17 @@ export default function ClientesPage() {
   const [saving, setSaving]   = useState(false)
   const [loading, setLoading] = useState(true)
   const [rutError, setRutError] = useState<string | null>(null)
+  const [proyectos, setProyectos]       = useState<Proyecto[]>([])
+  const [verProyectos, setVerProyectos] = useState<Cliente | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res  = await fetch('/api/clientes')
-    const data = await res.json()
-    setItems(Array.isArray(data) ? data : [])
+    const [cData, pData] = await Promise.all([
+      fetch('/api/clientes').then(r => r.json()).catch(() => []),
+      fetch('/api/proyectos').then(r => r.json()).catch(() => []),
+    ])
+    setItems(Array.isArray(cData) ? cData : [])
+    setProyectos(Array.isArray(pData) ? pData : [])
     setLoading(false)
   }, [])
 
@@ -95,6 +102,14 @@ export default function ClientesPage() {
     )
   }, [items, search])
 
+  // Proyectos de un cliente: por FK cliente_id, o por nombre para proyectos antiguos sin FK
+  const proyectosDe = useCallback((c: Cliente) =>
+    proyectos.filter(p =>
+      p.cliente_id
+        ? p.cliente_id === c.id
+        : (p.cliente || '').trim().toLowerCase() === (c.razon_social || '').trim().toLowerCase()
+    ), [proyectos])
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -133,7 +148,7 @@ export default function ClientesPage() {
           : (
             <Table>
               <thead><tr>
-                <Th>Razón social</Th><Th>RUT</Th><Th>Contacto</Th><Th>Email / Teléfono</Th><Th>Ciudad</Th><Th></Th>
+                <Th>Razón social</Th><Th>RUT</Th><Th>Contacto</Th><Th>Email / Teléfono</Th><Th>Ciudad</Th><Th>Proyectos</Th><Th></Th>
               </tr></thead>
               <tbody>
                 {filtered.map(c => (
@@ -151,6 +166,16 @@ export default function ClientesPage() {
                       {c.telefono && <div className="text-[12px] text-muted">{c.telefono}</div>}
                     </Td>
                     <Td className="text-muted">{c.ciudad || c.comuna || '—'}</Td>
+                    <Td>
+                      {proyectosDe(c).length > 0
+                        ? <button
+                            onClick={() => setVerProyectos(c)}
+                            className="px-2.5 py-1 rounded-md border border-line text-brand text-[12px] font-bold hover:bg-canvas"
+                          >
+                            {proyectosDe(c).length} {proyectosDe(c).length === 1 ? 'proyecto' : 'proyectos'}
+                          </button>
+                        : <span className="text-muted text-[12px]">—</span>}
+                    </Td>
                     <Td>
                       <div className="flex gap-1">
                         <Btn onClick={() => { setForm({ ...c }); setRutError(null); setModal('editar') }} className="px-2.5 py-1.5">Editar</Btn>
@@ -207,6 +232,28 @@ export default function ClientesPage() {
           <div className="flex gap-2 justify-end mt-3.5">
             <Btn onClick={() => setModal(null)}>Cancelar</Btn>
             <Btn variant="primary" onClick={save} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {/* ══════ MODAL: proyectos del cliente ══════ */}
+      {verProyectos && (
+        <Modal title={`Proyectos de ${verProyectos.razon_social}`} onClose={() => setVerProyectos(null)}>
+          <div className="flex flex-col gap-2">
+            {proyectosDe(verProyectos).length === 0
+              ? <p className="text-muted text-[13px] text-center p-4">Este cliente no tiene proyectos asociados.</p>
+              : proyectosDe(verProyectos).map(p => (
+                <div key={p.id} className="flex items-center justify-between py-2.5 px-3 bg-canvas rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-[#1a2535] text-[13px] truncate">{p.nombre}</div>
+                    <div className="text-[11px] text-muted mt-[1px]">{fmt(p.valor)} · Avance {p.avance || 0}%</div>
+                  </div>
+                  <span className={`ml-3 px-2 py-0.5 rounded-full border border-line text-[10px] font-bold capitalize whitespace-nowrap ${
+                    p.estado === 'activo' ? 'text-success'
+                    : p.estado === 'terminado' ? 'text-muted'
+                    : 'text-warning'}`}>{p.estado}</span>
+                </div>
+              ))}
           </div>
         </Modal>
       )}

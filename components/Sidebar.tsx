@@ -16,6 +16,7 @@ const MENU = [
   { href: '/remuneraciones',    label: 'Remuneraciones',    icon: '💰', section: 'Contabilidad' },
   { href: '/catalogo-partidas', label: 'Catálogo partidas', icon: '📋', section: 'Admin' },
   { href: '/proveedores',       label: 'Proveedores',       icon: '◦', section: 'Admin' },
+  { href: '/ordenes-compra',    label: 'Órdenes de compra', icon: '🛒', section: 'Admin' },
   { href: '/contratos',         label: 'Contratos',         icon: '◫', section: 'Admin' },
   { href: '/configuracion',     label: 'Configuración',     icon: '⚙', section: 'Admin' },
 ]

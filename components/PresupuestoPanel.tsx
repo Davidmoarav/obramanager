@@ -24,7 +24,7 @@ const IVA = 0.19
 export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNombre = '', proyectoCliente = '', proyectoDireccion = '' }: Props) {
   const [eps, setEps]         = useState<EstadoPago[]>([])
   const [loading, setLoading] = useState(true)
-  const [resumen, setResumen] = useState({ presupuesto: 0, ejecutado: 0, cobrado: 0, costo: 0, ganancia: 0, markup_real: 0, margen_venta: 0, costo_ejecutado: 0, ganancia_ejecutada: 0, gasto_real: 0, gasto_manual: 0, gasto_facturas: 0, desviacion: 0, ganancia_real: 0, pct_gastado: 0, gasto_por_partida: {} as Record<string, number> })
+  const [resumen, setResumen] = useState({ presupuesto: 0, ejecutado: 0, cobrado: 0, costo: 0, ganancia: 0, markup_real: 0, margen_venta: 0, costo_ejecutado: 0, ganancia_ejecutada: 0, gasto_real: 0, gasto_manual: 0, gasto_facturas: 0, desviacion: 0, ganancia_real: 0, pct_gastado: 0, gasto_por_partida: {} as Record<string, number>, detalle_partidas: [] as any[] })
 
   // Gastos reales de la obra
   const [gastos, setGastos]     = useState<any[]>([])
@@ -89,6 +89,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
       ganancia_real: p?.ganancia_real || 0,
       pct_gastado: p?.pct_gastado || 0,
       gasto_por_partida: p?.gasto_por_partida || {},
+      detalle_partidas: p?.detalle_partidas || [],
     })
     setLoading(false)
   }, [proyectoId])
@@ -297,6 +298,36 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
           </div>
         )}
       </div>
+
+      {/* Consumo del presupuesto por partida */}
+      {resumen.detalle_partidas.some((d: any) => d.presupuesto_costo > 0 || d.gastado > 0) && (
+        <div className="bg-white border border-line rounded-xl p-4 mb-5">
+          <div className="text-[12px] font-bold text-ink mb-3">Consumo por partida</div>
+          <div className="flex flex-col gap-2.5">
+            {resumen.detalle_partidas
+              .filter((d: any) => d.presupuesto_costo > 0 || d.gastado > 0)
+              .map((d: any) => {
+                const sobre = d.pct_gastado > 100
+                return (
+                  <div key={d.id}>
+                    <div className="flex items-center justify-between text-[12px] mb-1">
+                      <span className="font-semibold text-ink truncate mr-3">{d.descripcion}</span>
+                      <span className="text-muted tabular-nums whitespace-nowrap">
+                        {fmt(d.gastado)} / {fmt(d.presupuesto_costo)}
+                        <span className={`ml-2 font-bold ${sobre ? 'text-danger' : 'text-muted'}`}>{d.pct_gastado}%</span>
+                      </span>
+                    </div>
+                    <div className="h-2 bg-[#e8edf2] rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-500 ${sobre ? 'bg-danger' : 'bg-warning'}`}
+                        style={{ width: `${Math.min(100, d.pct_gastado)}%` }} />
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+          <div className="text-[10px] text-muted mt-3">Gastado real vs presupuesto de costo. En rojo, las partidas que superan lo presupuestado.</div>
+        </div>
+      )}
 
       {/* Lista de gastos registrados */}
       {gastos.length > 0 && (
