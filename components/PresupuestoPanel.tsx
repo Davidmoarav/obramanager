@@ -43,6 +43,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
   const [anticipoPct, setAnticipoPct] = useState(0)
   const [multas, setMultas]         = useState(0)
   const [retencionPct, setRetencionPct] = useState(0)
+  const [subTab, setSubTab] = useState<'presupuesto' | 'estados' | 'retenciones'>('presupuesto')
   const [notas, setNotas]           = useState('')
   const [saving, setSaving]         = useState(false)
 
@@ -252,6 +253,21 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
 
   return (
     <div>
+      {/* Sub-pestañas */}
+      <div className="flex gap-1 mb-5 border-b border-line">
+        {[
+          { k: 'presupuesto', label: 'Presupuesto' },
+          { k: 'estados',     label: 'Estados de pago' },
+          { k: 'retenciones', label: 'Retenciones' },
+        ].map(t => (
+          <button key={t.k} onClick={() => setSubTab(t.k as any)}
+            className={`px-3.5 py-2 text-[13px] font-semibold -mb-px border-b-2 transition ${subTab === t.k ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'presupuesto' && (<>
       {/* Presupuesto vs Gasto REAL */}
       <div className="bg-canvas border border-line rounded-xl p-4 mb-5">
         <div className="flex items-center justify-between mb-3">
@@ -373,7 +389,9 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
           <div className="h-full bg-success rounded-full transition-all duration-500" style={{ width: `${pctCobrado}%` }} />
         </div>
       </div>
+      </>)}
 
+      {subTab === 'estados' && (<>
       {/* ─── ESTADOS DE PAGO ─── */}
       <div className="flex justify-between items-center mb-3">
         <div className="text-sm font-bold text-ink">
@@ -455,7 +473,12 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
             })}
           </div>
         )}
+      </>)}
 
+      {subTab === 'retenciones' && (<>
+      {eps.length === 0 && (
+        <p className="text-center py-8 text-muted text-[13px]">Aún no hay estados de pago. Créalos en la pestaña “Estados de pago” para gestionar retenciones y anticipos.</p>
+      )}
       {/* ═══ CONTROL DE RETENCIONES Y ANTICIPOS ═══ */}
       {eps.length > 0 && (
         <div className="mt-6 border-t border-line pt-5">
@@ -514,6 +537,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
           )}
         </div>
       )}
+      </>)}
 
       {/* ═══ MODAL DEVOLUCIÓN ═══ */}
       {modalDev && (

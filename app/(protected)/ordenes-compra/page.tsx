@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/fetcher'
+import DescargarOCBtn from '@/components/DescargarOCBtn'
 import { Btn, FormSelect, MetricCard, Modal, SectionTitle, Table, Td, Th } from '@/components/ui'
 import { fmt } from '@/lib/format'
 import { UNIDADES } from '@/types/cotizaciones'
@@ -193,6 +194,7 @@ export default function OrdenesCompraPage() {
                         >
                           {ESTADOS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                         </select>
+                        <DescargarOCBtn orden={o} proveedores={proveedores} />
                         <Btn onClick={() => openEditar(o)} className="px-2.5 py-1.5">Editar</Btn>
                         <Btn variant="danger" onClick={() => del(o.id)} className="px-2.5 py-1.5">✕</Btn>
                       </div>

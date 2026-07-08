@@ -24,10 +24,47 @@ interface FilaSII {
   emision: string | null
   periodo: string | null
   doc_tipo: string
+  ref_detectada?: string   // folio de factura referenciada (col "NCE o NDE sobre Fact")
 }
 
 interface Props {
   onImported?: () => void
+}
+
+// Buscador de facturas existentes (filtra por folio o proveedor/cliente)
+function BuscadorFactura({ facturas, value, onChange }: { facturas: any[]; value: string; onChange: (folio: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ]       = useState('')
+  const sel = facturas.find(f => String(f.numero) === String(value))
+  const filtradas = (q
+    ? facturas.filter(f => String(f.numero).includes(q.trim()) || (f.cliente || '').toLowerCase().includes(q.trim().toLowerCase()))
+    : facturas
+  ).slice(0, 40)
+
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className="input-base !mb-0 !py-1 w-[200px] text-left truncate cursor-pointer">
+        {sel ? `N° ${sel.numero} · ${sel.cliente}` : (value ? `N° ${value} (no cargada)` : 'Buscar factura…')}
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 right-0 w-[260px] bg-white border border-line rounded-lg shadow-lg max-h-[220px] overflow-y-auto">
+          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Folio o proveedor…"
+            className="w-full px-2.5 py-2 text-[12px] border-b border-line outline-none sticky top-0 bg-white" />
+          {filtradas.length === 0
+            ? <div className="px-2.5 py-3 text-[11px] text-muted text-center">Sin facturas que coincidan</div>
+            : filtradas.map(f => (
+              <button type="button" key={f.id} onClick={() => { onChange(String(f.numero)); setOpen(false); setQ('') }}
+                className="w-full text-left px-2.5 py-2 text-[11px] hover:bg-canvas border-b border-[#f0f4f8] leading-tight">
+                <span className="font-bold text-ink">N° {f.numero}</span>
+                <span className="text-muted"> · {f.emision || '—'}</span><br />
+                <span className="truncate">{f.cliente}</span>
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function ImportadorSII({ onImported }: Props) {
@@ -40,6 +77,10 @@ export default function ImportadorSII({ onImported }: Props) {
   const [error, setError]     = useState('')
   // Cuando el archivo es SOLO notas (sin columna Tipo Doc), forzar el tipo
   const [docForzado, setDocForzado] = useState<'auto' | 'nota_credito' | 'nota_debito'>('auto')
+  // Paso de asociación de notas a su factura
+  const [asociar, setAsociar] = useState(false)
+  const [refs, setRefs]       = useState<Record<number, string>>({})
+  const [facturasRef, setFacturasRef] = useState<any[]>([])   // facturas existentes para el buscador
 
   // Parsea fecha SII (DD-MM-AA o DD-MM-AAAA) → YYYY-MM-DD
   const parseFecha = (s: string): string | null => {
@@ -93,6 +134,7 @@ export default function ImportadorSII({ onImported }: Props) {
         const iIva    = idx(['montoivarecuperable', 'ivarecuperable', 'montoiva', 'iva'])
         const iTotal  = idx(['montototal', 'total'])
         const iTipoDoc= idx(['tipodoc', 'tipodte', 'tipodocumento'])
+        const iRef    = idx(['nceondesobrefact', 'ndesobrefact', 'sobrefactdecompra', 'sobrefact', 'facturareferencia', 'referencia'])
 
         if (iNeto < 0 || iTotal < 0) {
           setError('No se reconocen las columnas del archivo. ¿Es un RCV del SII?')
@@ -121,6 +163,7 @@ export default function ImportadorSII({ onImported }: Props) {
             emision,
             periodo: emision ? emision.slice(0, 7) : null,
             doc_tipo: TIPO_DOC_SII[codTipo] || 'factura',
+            ref_detectada: iRef >= 0 ? (c[iRef] || '').trim() : '',
           })
         }
 
@@ -141,24 +184,55 @@ export default function ImportadorSII({ onImported }: Props) {
     nd: acc.nd + (f.doc_tipo === 'nota_debito' ? 1 : 0),
   }), { neto: 0, iva: 0, total: 0, nc: 0, nd: 0 })
 
-  const confirmar = async () => {
+  const aplicarTipo = (f: FilaSII) => docForzado === 'auto' ? f : { ...f, doc_tipo: docForzado }
+  const esNota = (dt: string) => dt === 'nota_credito' || dt === 'nota_debito'
+
+  // Paso 1: al confirmar la previsualización. Si hay notas, va al paso de asociación.
+  const revisar = async () => {
+    setError('')
+    const final = filas.map(aplicarTipo)
+    const hayNotas = final.some(f => esNota(f.doc_tipo))
+    if (hayNotas) {
+      const seed: Record<number, string> = {}
+      final.forEach((f, i) => {
+        if (esNota(f.doc_tipo)) {
+          const r = (f.ref_detectada || '').replace(/[^\d]/g, '')
+          seed[i] = r && r !== '0' ? r : ''   // ignorar "0" (sin referencia)
+        }
+      })
+      // Cargar facturas del mismo tipo para el buscador (solo facturas, no notas)
+      const fx = await fetch('/api/facturas').then(r => r.json()).catch(() => [])
+      const soloFacturas = (Array.isArray(fx) ? fx : [])
+        .filter((f: any) => f.tipo === tipo && (f.doc_tipo === 'factura' || !f.doc_tipo))
+        .sort((a: any, b: any) => (b.emision || '').localeCompare(a.emision || ''))
+      setFacturasRef(soloFacturas)
+      setRefs(seed)
+      setAsociar(true)
+    } else {
+      guardar()
+    }
+  }
+
+  // Paso 2: guardar (con la factura referenciada por cada nota).
+  const guardar = async () => {
     setImporting(true); setError('')
-    // Si el usuario forzó un tipo (archivo solo de notas), aplicarlo a todas
-    const filasFinal = docForzado === 'auto'
-      ? filas
-      : filas.map(f => ({ ...f, doc_tipo: docForzado }))
+    const payload = filas.map(aplicarTipo).map((f, i) => ({
+      ...f,
+      factura_ref: esNota(f.doc_tipo) ? (refs[i]?.trim() || null) : null,
+    }))
     const res = await fetch('/api/importar-sii', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filas: filasFinal, tipo }),
+      body: JSON.stringify({ filas: payload, tipo }),
     })
     const data = await res.json()
     setImporting(false)
     if (!res.ok) { setError(data.error || 'Error al importar'); return }
+    setAsociar(false)
     setResultado(data)
     onImported?.()
   }
 
-  const reset = () => { setFilas([]); setNombreArchivo(''); setResultado(null); setError(''); setDocForzado('auto') }
+  const reset = () => { setFilas([]); setNombreArchivo(''); setResultado(null); setError(''); setDocForzado('auto'); setAsociar(false); setRefs({}); setFacturasRef([]) }
 
   return (
     <>
@@ -169,6 +243,49 @@ export default function ImportadorSII({ onImported }: Props) {
       {open && (
         <Modal title="Importar Registro de Compras/Ventas (SII)" onClose={() => { setOpen(false); reset() }}>
           {!resultado ? (
+            asociar ? (
+              /* ─── PASO: asociar notas a su factura ─── */
+              <>
+                <p className="text-[13px] text-muted mb-4">
+                  Estas notas de crédito/débito deben asociarse a su factura. El SII trae la referencia cuando existe; confírmala o corrígela antes de guardar.
+                </p>
+                <div className="max-h-[320px] overflow-y-auto border border-line rounded-lg mb-4">
+                  <table className="w-full text-[12px]">
+                    <thead className="bg-canvas sticky top-0">
+                      <tr>
+                        <th className="text-left px-2 py-1.5 text-muted font-semibold">Nota</th>
+                        <th className="text-left px-2 py-1.5 text-muted font-semibold">Proveedor/Cliente</th>
+                        <th className="text-right px-2 py-1.5 text-muted font-semibold">Monto</th>
+                        <th className="text-left px-2 py-1.5 text-muted font-semibold">N° factura asociada</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filas.map(aplicarTipo).map((f, i) => ({ f, i })).filter(x => esNota(x.f.doc_tipo)).map(({ f, i }) => (
+                        <tr key={i} className="border-t border-[#f0f4f8]">
+                          <td className="px-2 py-1.5 whitespace-nowrap">
+                            {f.numero} <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${f.doc_tipo === 'nota_credito' ? 'bg-danger-bg text-danger' : 'bg-brand-bg text-brand'}`}>{f.doc_tipo === 'nota_credito' ? 'NC' : 'ND'}</span>
+                          </td>
+                          <td className="px-2 py-1.5 truncate max-w-[130px]">{f.contraparte}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums">{fmt(f.total)}</td>
+                          <td className="px-2 py-1.5">
+                            <BuscadorFactura
+                              facturas={facturasRef}
+                              value={refs[i] ?? ''}
+                              onChange={folio => setRefs(r => ({ ...r, [i]: folio }))}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {error && <div className="bg-danger-bg border border-[#f5c6c2] text-danger px-3 py-2.5 rounded-lg text-[12px] mb-4">{error}</div>}
+                <div className="flex gap-2 justify-end">
+                  <Btn onClick={() => setAsociar(false)}>Volver</Btn>
+                  <Btn variant="primary" onClick={guardar} disabled={importing}>{importing ? 'Guardando…' : 'Asociar y guardar'}</Btn>
+                </div>
+              </>
+            ) : (
             <>
               <p className="text-[13px] text-muted mb-4">
                 Sube el archivo CSV que descargaste del SII (Registro de Compras y Ventas). El sistema detecta las columnas automáticamente.
@@ -255,13 +372,14 @@ export default function ImportadorSII({ onImported }: Props) {
 
                   <div className="flex gap-2 justify-end">
                     <Btn onClick={reset}>Cambiar archivo</Btn>
-                    <Btn variant="primary" onClick={confirmar} disabled={importing}>
-                      {importing ? 'Importando…' : `Importar ${filas.length} documentos`}
+                    <Btn variant="primary" onClick={revisar} disabled={importing}>
+                      {importing ? 'Importando…' : (filas.map(aplicarTipo).some(f => esNota(f.doc_tipo)) ? 'Continuar → asociar notas' : `Importar ${filas.length} documentos`)}
                     </Btn>
                   </div>
                 </>
               )}
             </>
+            )
           ) : (
             /* Resultado */
             <div className="text-center py-4">

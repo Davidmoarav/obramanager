@@ -7,16 +7,21 @@ import { createClient } from '@/lib/supabase'
 
 const MENU = [
   { href: '/dashboard',         label: 'Dashboard',         icon: '⊞', section: 'Principal' },
-  { href: '/finanzas',          label: 'Finanzas',          icon: '◈', section: 'Operaciones' },
-  { href: '/cotizaciones',      label: 'Cotizaciones',      icon: '◐', section: 'Operaciones' },
-  { href: '/facturacion',       label: 'Facturación',       icon: '◻', section: 'Operaciones' },
-  { href: '/proyectos',         label: 'Proyectos',         icon: '◧', section: 'Operaciones' },
-  { href: '/clientes',          label: 'Clientes',          icon: '◍', section: 'Operaciones' },
-  { href: '/rrhh',              label: 'RRHH',              icon: '◉', section: 'Operaciones' },
-  { href: '/remuneraciones',    label: 'Remuneraciones',    icon: '💰', section: 'Contabilidad' },
-  { href: '/catalogo-partidas', label: 'Catálogo partidas', icon: '📋', section: 'Admin' },
-  { href: '/proveedores',       label: 'Proveedores',       icon: '◦', section: 'Admin' },
-  { href: '/ordenes-compra',    label: 'Órdenes de compra', icon: '🛒', section: 'Admin' },
+
+  { href: '/cotizaciones',      label: 'Cotizaciones',      icon: '◐', section: 'Comercial' },
+  { href: '/clientes',          label: 'Clientes',          icon: '◍', section: 'Comercial' },
+
+  { href: '/proyectos',         label: 'Proyectos',         icon: '◧', section: 'Obra' },
+  { href: '/catalogo-partidas', label: 'Catálogo partidas', icon: '📋', section: 'Obra' },
+  { href: '/ordenes-compra',    label: 'Órdenes de compra', icon: '🛒', section: 'Obra' },
+  { href: '/proveedores',       label: 'Proveedores',       icon: '◦', section: 'Obra' },
+
+  { href: '/finanzas',          label: 'Finanzas',          icon: '◈', section: 'Finanzas' },
+  { href: '/facturacion',       label: 'Facturación',       icon: '◻', section: 'Finanzas' },
+
+  { href: '/rrhh',              label: 'RRHH',              icon: '◉', section: 'Personal' },
+  { href: '/remuneraciones',    label: 'Remuneraciones',    icon: '💰', section: 'Personal' },
+
   { href: '/contratos',         label: 'Contratos',         icon: '◫', section: 'Admin' },
   { href: '/configuracion',     label: 'Configuración',     icon: '⚙', section: 'Admin' },
 ]

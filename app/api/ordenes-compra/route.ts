@@ -92,6 +92,28 @@ function calcTotales(lineasIn: any[]) {
   return { lineas, neto, iva, total }
 }
 
+// Sincroniza el gasto asociado a una OC: crea/actualiza al "recibir", lo elimina si no.
+async function syncGastoOC(supabase: any, userId: string, oc: any) {
+  const { data: existing } = await supabase
+    .from('gastos_obra').select('id').eq('orden_compra_id', oc.id).eq('user_id', userId).maybeSingle()
+
+  if (oc?.estado === 'recibida' && oc?.proyecto_id) {
+    const row = {
+      proyecto_id: oc.proyecto_id,
+      partida_id: null,
+      fecha: oc.fecha || new Date().toISOString().split('T')[0],
+      descripcion: `OC #${oc.numero}${oc.proveedor ? ' · ' + oc.proveedor : ''}`,
+      monto: Number(oc.neto) || 0,
+      orden_compra_id: oc.id,
+      user_id: userId,
+    }
+    if (existing) await supabase.from('gastos_obra').update(row).eq('id', existing.id).eq('user_id', userId)
+    else await supabase.from('gastos_obra').insert(row)
+  } else if (existing) {
+    await supabase.from('gastos_obra').delete().eq('id', existing.id).eq('user_id', userId)
+  }
+}
+
 // ─── POST: crear OC ───────────────────────────────────────
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
@@ -130,6 +152,7 @@ export async function POST(req: Request) {
     if (eL) return NextResponse.json({ error: eL.message }, { status: 500 })
   }
 
+  await syncGastoOC(supabase, user.id, oc)
   return NextResponse.json({ ...oc, lineas })
 }
 
@@ -167,6 +190,7 @@ export async function PUT(req: Request) {
   const { data, error } = await supabase
     .from('ordenes_compra').update(update).eq('id', body.id).eq('user_id', user.id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  await syncGastoOC(supabase, user.id, data)
   return NextResponse.json(data)
 }
 
@@ -177,6 +201,8 @@ export async function DELETE(req: Request) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { id } = await req.json()
+  // Quita el gasto asociado (si la OC estaba recibida) antes de borrarla
+  await supabase.from('gastos_obra').delete().eq('orden_compra_id', id).eq('user_id', user.id)
   const { error } = await supabase.from('ordenes_compra').delete().eq('id', id).eq('user_id', user.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

@@ -30,6 +30,7 @@ export async function POST(req: Request) {
       cliente:   f.contraparte || 'Sin nombre',
       tipo,
       doc_tipo:  f.doc_tipo || 'factura',
+      factura_ref: f.factura_ref || null,   // folio de la factura que referencia la nota
       neto:      Number(f.neto) || 0,
       iva:       Number(f.iva) || 0,
       monto:     Number(f.total) || 0,

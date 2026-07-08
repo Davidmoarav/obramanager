@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/fetcher'
 import Link from 'next/link'
-import { Btn, FormInput, FormSelect, MetricCard, SectionTitle, Table, Td, Th } from '@/components/ui'
+import { Btn, FormInput, FormSelect, MetricCard, Modal, SectionTitle, Table, Td, Th } from '@/components/ui'
 import { fmt, fmtM } from '@/lib/format'
 import { UNIDADES, type Cotizacion, type PartidaCotizacion } from '@/types/cotizaciones'
 import type { Cliente } from '@/types/cliente'
@@ -287,7 +287,7 @@ export default function CotizacionesPage() {
 
       {/* ══════ MODAL ══════ */}
       {modal && (
-        <ModalAncho
+        <Modal wide
           title={modal === 'nuevo' ? 'Nueva cotización' : modal === 'ver' ? 'Cotización convertida (solo lectura)' : 'Editar cotización'}
           onClose={() => setModal(null)}
         >
@@ -463,7 +463,7 @@ export default function CotizacionesPage() {
               <Btn variant="primary" onClick={save} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Btn>
             )}
           </div>
-        </ModalAncho>
+        </Modal>
       )}
 
       {/* ═══════ MODAL IMPORTAR DEL CATÁLOGO ═══════ */}
@@ -524,20 +524,6 @@ export default function CotizacionesPage() {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-function ModalAncho({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 bg-black/35 z-[100] flex items-center justify-center p-5">
-      <div className="bg-white rounded-[14px] p-7 max-w-[760px] w-full shadow-[0_8px_32px_rgba(0,0,0,0.18)] max-h-[92vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-5">
-          <h3 className="text-[16px] font-bold text-[#1a2535] m-0">{title}</h3>
-          <button onClick={onClose} className="bg-transparent border-none text-[22px] cursor-pointer text-muted leading-none">×</button>
-        </div>
-        {children}
-      </div>
     </div>
   )
 }
