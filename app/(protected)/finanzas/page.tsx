@@ -18,10 +18,10 @@ export default function FinanzasPage() {
   const [tab, setTab] = useState<'resumen' | 'iva' | 'presupuesto'>('resumen')
   const [periodoSel, setPeriodoSel] = useState<string>(new Date().toISOString().slice(0, 7))
 
-  const { data: facturas = [], isLoading, mutate: mutFacturas } = useSWR<any[]>('/api/facturas', fetcher)
+  const { data: facturasResumen, isLoading, mutate: mutFacturas } = useSWR<any>('/api/facturas?resumen=1', fetcher)
   const { data: empleados = [], mutate: mutEmpleados } = useSWR<any[]>('/api/empleados', fetcher)
   const { data: iva = [], mutate: mutIva } = useSWR<any[]>('/api/iva', fetcher)
-  const { data: presupuesto = [], mutate: mutPresupuesto } = useSWR<any[]>('/api/presupuesto', fetcher)
+  const { data: presupuesto = [], isLoading: presLoading, mutate: mutPresupuesto } = useSWR<any[]>(tab === 'presupuesto' ? '/api/presupuesto' : null, fetcher)
   const refresh = () => { mutFacturas(); mutEmpleados(); mutIva(); mutPresupuesto() }
 
   // ─── PPM (form local del período seleccionado) ──────────
@@ -33,13 +33,10 @@ export default function FinanzasPage() {
 
   // ─── Resumen ─────────────────────────────────────────────
   const resumen = useMemo(() => {
-    const f = facturas.filter(x => x.tipo !== 'compra')
-    const cobrado   = f.filter(x => x.estado === 'pagada').reduce((s, x) => s + (x.monto || 0), 0)
-    const pendiente = f.filter(x => x.estado === 'pendiente').reduce((s, x) => s + (x.monto || 0), 0)
-    const vencido   = f.filter(x => x.estado === 'vencida').reduce((s, x) => s + (x.monto || 0), 0)
-    const nomina    = empleados.reduce((s, x) => s + (x.sueldo || 0) + (x.horas_extra || 0) * 14000, 0)
-    return { cobrado, pendiente, vencido, nomina }
-  }, [facturas, empleados])
+    const v = facturasResumen?.ventas || {}
+    const nomina = empleados.reduce((s, x) => s + (x.sueldo || 0) + (x.horas_extra || 0) * 14000, 0)
+    return { cobrado: v.cobrado || 0, pendiente: v.pendiente || 0, vencido: v.vencido || 0, nomina }
+  }, [facturasResumen, empleados])
 
   // ─── IVA del período seleccionado ───────────────────────
   const periodosDisponibles = useMemo(() => {
@@ -258,7 +255,9 @@ export default function FinanzasPage() {
             Compara el avance físico de cada obra con el presupuesto ejecutado a la fecha (suma del % de avance × valor de cada partida).
           </p>
 
-          {presupuesto.length === 0
+          {presLoading
+            ? <div className="text-muted text-center p-10 text-[13px]">Cargando avance de las obras…</div>
+            : presupuesto.length === 0
             ? <div className="bg-[#f8fafc] border border-dashed border-[#d1d9e6] rounded-[10px] p-[30px] text-center text-[13px] text-muted">
                 No hay proyectos con partidas cargadas. Agrega partidas de obra en cada proyecto para ver el avance presupuestario.
               </div>

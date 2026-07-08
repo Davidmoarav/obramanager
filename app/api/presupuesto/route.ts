@@ -30,7 +30,7 @@ export async function GET(req: Request) {
   const [{ data: partidas }, { data: gastos }, { data: facturas }] = await Promise.all([
     supabase.from('partidas_proyecto').select('*').eq('user_id', user.id).in('proyecto_id', proyIds),
     supabase.from('gastos_obra').select('*').eq('user_id', user.id).in('proyecto_id', proyIds),
-    supabase.from('facturas').select('*').eq('user_id', user.id).in('proyecto', proyNombres.length ? proyNombres : ['__no_match__']),
+    supabase.from('facturas').select('proyecto, neto, tipo, doc_tipo').eq('user_id', user.id).eq('tipo', 'compra').in('proyecto', proyNombres.length ? proyNombres : ['__no_match__']),
   ])
 
   const arrPart = partidas ?? []
