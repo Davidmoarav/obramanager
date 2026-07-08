@@ -14,17 +14,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'No hay filas para importar' }, { status: 400 })
   }
 
-  // Evitar duplicados: traer folios ya existentes de este tipo
+  // Evitar duplicados: traer folios ya existentes de este tipo.
+  // La clave incluye doc_tipo porque una nota y una factura pueden compartir folio.
   const { data: existentes } = await supabase
     .from('facturas')
-    .select('numero, periodo')
+    .select('numero, periodo, doc_tipo')
     .eq('user_id', user.id)
     .eq('tipo', tipo)
 
-  const yaExiste = new Set((existentes ?? []).map((f: any) => `${f.numero}__${f.periodo}`))
+  const claveDe = (f: any) => `${f.numero}__${f.periodo}__${f.doc_tipo || 'factura'}`
+  const yaExiste = new Set((existentes ?? []).map(claveDe))
 
   const filasInsertar = filas
-    .filter((f: any) => !yaExiste.has(`${f.numero}__${f.periodo}`))
+    .filter((f: any) => !yaExiste.has(claveDe(f)))
     .map((f: any) => ({
       numero:    f.numero || null,
       cliente:   f.contraparte || 'Sin nombre',
