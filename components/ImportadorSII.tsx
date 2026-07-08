@@ -4,7 +4,9 @@
 // detecta columnas por nombre, identifica tipo de documento y previsualiza.
 
 import { useState } from 'react'
+import useSWR from 'swr'
 import { Btn, Modal } from '@/components/ui'
+import { fetcher } from '@/lib/fetcher'
 import { fmt } from '@/lib/format'
 
 // Mapeo de código de tipo de documento SII → nuestro doc_tipo
@@ -32,29 +34,31 @@ interface Props {
 }
 
 // Buscador de facturas existentes (filtra por folio o proveedor/cliente)
-function BuscadorFactura({ facturas, value, onChange }: { facturas: any[]; value: string; onChange: (folio: string) => void }) {
+function BuscadorFactura({ tipo, value, label, onChange }: { tipo: string; value: string; label?: string; onChange: (factura: any) => void }) {
   const [open, setOpen] = useState(false)
   const [q, setQ]       = useState('')
-  const sel = facturas.find(f => String(f.numero) === String(value))
-  const filtradas = (q
-    ? facturas.filter(f => String(f.numero).includes(q.trim()) || (f.cliente || '').toLowerCase().includes(q.trim().toLowerCase()))
-    : facturas
-  ).slice(0, 40)
+  // Búsqueda server-side (no precarga todas las facturas)
+  const { data: resultados = [] } = useSWR<any[]>(
+    open && q.trim().length >= 1 ? `/api/facturas?tipo=${tipo}&doc_tipo=factura&buscar=${encodeURIComponent(q.trim())}` : null,
+    fetcher,
+  )
 
   return (
     <div className="relative">
       <button type="button" onClick={() => setOpen(o => !o)}
         className="input-base !mb-0 !py-1 w-[200px] text-left truncate cursor-pointer">
-        {sel ? `N° ${sel.numero} · ${sel.cliente}` : (value ? `N° ${value} (no cargada)` : 'Buscar factura…')}
+        {value ? `N° ${label || '—'}` : 'Buscar factura…'}
       </button>
       {open && (
         <div className="absolute z-50 mt-1 right-0 w-[260px] bg-white border border-line rounded-lg shadow-lg max-h-[220px] overflow-y-auto">
           <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Folio o proveedor…"
             className="w-full px-2.5 py-2 text-[12px] border-b border-line outline-none sticky top-0 bg-white" />
-          {filtradas.length === 0
+          {q.trim().length < 1
+            ? <div className="px-2.5 py-3 text-[11px] text-muted text-center">Escribe para buscar…</div>
+            : resultados.length === 0
             ? <div className="px-2.5 py-3 text-[11px] text-muted text-center">Sin facturas que coincidan</div>
-            : filtradas.map(f => (
-              <button type="button" key={f.id} onClick={() => { onChange(String(f.numero)); setOpen(false); setQ('') }}
+            : resultados.map(f => (
+              <button type="button" key={f.id} onClick={() => { onChange(f); setOpen(false); setQ('') }}
                 className="w-full text-left px-2.5 py-2 text-[11px] hover:bg-canvas border-b border-[#f0f4f8] leading-tight">
                 <span className="font-bold text-ink">N° {f.numero}</span>
                 <span className="text-muted"> · {f.emision || '—'}</span><br />
@@ -79,8 +83,8 @@ export default function ImportadorSII({ onImported }: Props) {
   const [docForzado, setDocForzado] = useState<'auto' | 'nota_credito' | 'nota_debito'>('auto')
   // Paso de asociación de notas a su factura
   const [asociar, setAsociar] = useState(false)
-  const [refs, setRefs]       = useState<Record<number, string>>({})
-  const [facturasRef, setFacturasRef] = useState<any[]>([])   // facturas existentes para el buscador
+  const [refs, setRefs]       = useState<Record<number, string>>({})   // index -> id de factura (UUID)
+  const [refLabels, setRefLabels] = useState<Record<number, string>>({})   // index -> folio (display)
 
   // Parsea fecha SII (DD-MM-AA o DD-MM-AAAA) → YYYY-MM-DD
   const parseFecha = (s: string): string | null => {
@@ -193,20 +197,35 @@ export default function ImportadorSII({ onImported }: Props) {
     const final = filas.map(aplicarTipo)
     const hayNotas = final.some(f => esNota(f.doc_tipo))
     if (hayNotas) {
-      const seed: Record<number, string> = {}
+      // Folios de factura referenciados que trae el SII (col 23)
+      const foliosDetectados: Record<number, string> = {}
       final.forEach((f, i) => {
         if (esNota(f.doc_tipo)) {
           const r = (f.ref_detectada || '').replace(/[^\d]/g, '')
-          seed[i] = r && r !== '0' ? r : ''   // ignorar "0" (sin referencia)
+          if (r && r !== '0') foliosDetectados[i] = r
         }
       })
-      // Cargar facturas del mismo tipo para el buscador (solo facturas, no notas)
-      const fx = await fetch('/api/facturas').then(r => r.json()).catch(() => [])
-      const soloFacturas = (Array.isArray(fx) ? fx : [])
-        .filter((f: any) => f.tipo === tipo && (f.doc_tipo === 'factura' || !f.doc_tipo))
-        .sort((a: any, b: any) => (b.emision || '').localeCompare(a.emision || ''))
-      setFacturasRef(soloFacturas)
-      setRefs(seed)
+
+      // Resolver esos folios a facturas existentes (folio -> {id, numero})
+      const listaFolios = Array.from(new Set(Object.values(foliosDetectados)))
+      const idPorFolio: Record<string, string> = {}
+      if (listaFolios.length > 0) {
+        const fx = await fetch(`/api/facturas?tipo=${tipo}&doc_tipo=factura&folios=${listaFolios.join(',')}`)
+          .then(r => r.json()).catch(() => [])
+        for (const f of Array.isArray(fx) ? fx : []) idPorFolio[String(f.numero)] = f.id
+      }
+
+      const seedRefs: Record<number, string> = {}
+      const seedLabels: Record<number, string> = {}
+      for (const [iStr, folio] of Object.entries(foliosDetectados)) {
+        const i = Number(iStr)
+        if (idPorFolio[folio]) {           // la factura referenciada ya está cargada
+          seedRefs[i] = idPorFolio[folio]
+          seedLabels[i] = folio
+        }
+      }
+      setRefs(seedRefs)
+      setRefLabels(seedLabels)
       setAsociar(true)
     } else {
       guardar()
@@ -215,10 +234,18 @@ export default function ImportadorSII({ onImported }: Props) {
 
   // Paso 2: guardar (con la factura referenciada por cada nota).
   const guardar = async () => {
-    setImporting(true); setError('')
-    const payload = filas.map(aplicarTipo).map((f, i) => ({
+    setError('')
+    // Toda nota debe quedar asociada a una factura existente (factura_ref es un id real)
+    const final = filas.map(aplicarTipo)
+    const sinAsociar = final.some((f, i) => esNota(f.doc_tipo) && !refs[i])
+    if (sinAsociar) {
+      setError('Cada nota de crédito/débito debe asociarse a una factura. Busca y selecciona la factura de las que quedaron vacías (deben estar cargadas en el sistema).')
+      return
+    }
+    setImporting(true)
+    const payload = final.map((f, i) => ({
       ...f,
-      factura_ref: esNota(f.doc_tipo) ? (refs[i]?.trim() || null) : null,
+      factura_ref: esNota(f.doc_tipo) ? (refs[i] || null) : null,
     }))
     const res = await fetch('/api/importar-sii', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -232,7 +259,7 @@ export default function ImportadorSII({ onImported }: Props) {
     onImported?.()
   }
 
-  const reset = () => { setFilas([]); setNombreArchivo(''); setResultado(null); setError(''); setDocForzado('auto'); setAsociar(false); setRefs({}); setFacturasRef([]) }
+  const reset = () => { setFilas([]); setNombreArchivo(''); setResultado(null); setError(''); setDocForzado('auto'); setAsociar(false); setRefs({}); setRefLabels({}) }
 
   return (
     <>
@@ -269,9 +296,10 @@ export default function ImportadorSII({ onImported }: Props) {
                           <td className="px-2 py-1.5 text-right tabular-nums">{fmt(f.total)}</td>
                           <td className="px-2 py-1.5">
                             <BuscadorFactura
-                              facturas={facturasRef}
+                              tipo={tipo}
                               value={refs[i] ?? ''}
-                              onChange={folio => setRefs(r => ({ ...r, [i]: folio }))}
+                              label={refLabels[i]}
+                              onChange={f => { setRefs(r => ({ ...r, [i]: f.id })); setRefLabels(l => ({ ...l, [i]: String(f.numero) })) }}
                             />
                           </td>
                         </tr>

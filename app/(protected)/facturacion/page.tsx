@@ -11,7 +11,8 @@ import ResumenBoletas from '@/components/ResumenBoletas'
 const EMPTY: any = { numero:'', cliente:'', proyecto:'', tipo:'venta', doc_tipo:'factura', factura_ref:'', neto:0, iva:0, monto:0, emision:'', vencimiento:'', estado:'pendiente' }
 
 export default function FacturacionPage() {
-  const { data: items = [], isLoading, mutate } = useSWR<any[]>('/api/facturas', fetcher)
+  const [periodoSel, setPeriodoSel] = useState(new Date().toISOString().slice(0, 7))
+  const { data: items = [], isLoading, mutate } = useSWR<any[]>(`/api/facturas?periodo=${periodoSel}`, fetcher)
   const { data: clientes = [] } = useSWR<any[]>('/api/clientes', fetcher)
   const { data: proveedores = [] } = useSWR<any[]>('/api/proveedores', fetcher)
   const { data: proyectos = [] } = useSWR<any[]>('/api/proyectos', fetcher)
@@ -22,6 +23,12 @@ export default function FacturacionPage() {
   const [busqueda, setBusqueda]       = useState('')
   const [orden, setOrden]             = useState('fecha_desc')
   const [buscarFactura, setBuscarFactura]           = useState('')
+  const [refFolio, setRefFolio]                     = useState('')   // folio de la factura referenciada (solo display)
+  // Búsqueda server-side de facturas para referenciar desde una nota (cross-período)
+  const { data: facturasBuscadas = [] } = useSWR<any[]>(
+    buscarFactura.trim().length >= 1 ? `/api/facturas?doc_tipo=factura&buscar=${encodeURIComponent(buscarFactura.trim())}` : null,
+    fetcher,
+  )
   const [mostrarOtroCliente, setMostrarOtroCliente] = useState(false)
   const [saving, setSaving]   = useState(false)
 
@@ -35,18 +42,19 @@ export default function FacturacionPage() {
   }
 
   const onSelectFacturaRef = (facturaId: string) => {
-    const fac = items.find(f => f.id === facturaId)
-    if (!fac) { setForm((f: any) => ({ ...f, factura_ref: '' })); return }
+    const fac = facturasBuscadas.find(f => f.id === facturaId)
+    if (!fac) { setForm((f: any) => ({ ...f, factura_ref: '' })); setRefFolio(''); return }
+    setRefFolio(fac.numero || '')
     setForm((f: any) => ({
       ...f,
-      factura_ref: facturaId,
+      factura_ref: fac.id,
       tipo: fac.tipo || 'venta',
       cliente: fac.cliente,
       proyecto: fac.proyecto || '',
     }))
   }
 
-  const cerrarModal = () => { setModal(false); setBuscarFactura(''); setMostrarOtroCliente(false) }
+  const cerrarModal = () => { setModal(false); setBuscarFactura(''); setRefFolio(''); setMostrarOtroCliente(false) }
 
   const save = async () => {
     if (!form.cliente || form.cliente === '__otro__') { alert('Selecciona o escribe el nombre'); return }
@@ -121,15 +129,8 @@ export default function FacturacionPage() {
   const pendiente    = ventas.filter(f => f.estado === 'pendiente').reduce((s, f) => s + (f.monto || 0), 0)
   const totalCompras = compras.reduce((s, f) => s + (f.monto || 0), 0)
 
-  const facturasParaNota = items
-    .filter(f => (f.doc_tipo || 'factura') === 'factura')
-    .filter(f => {
-      if (!buscarFactura.trim()) return true
-      const q = buscarFactura.toLowerCase().trim()
-      return (f.cliente || '').toLowerCase().includes(q) ||
-             (f.numero  || '').toLowerCase().includes(q)
-    })
-    .slice(0, 50)
+  // Resultados del buscador server-side (ya vienen filtrados por doc_tipo=factura + término)
+  const facturasParaNota = facturasBuscadas
 
   return (
     <div>
@@ -156,6 +157,14 @@ export default function FacturacionPage() {
         <MetricCard label="Ventas cobradas"  value={fmtM(cobrado)}      sub="Facturas pagadas"        subColor="#1a7a4a" />
         <MetricCard label="Por cobrar"       value={fmtM(pendiente)}    sub="Ventas pendientes"       subColor="#b07d1a" />
         <MetricCard label="Compras (gastos)" value={fmtM(totalCompras)} sub="Facturas de proveedores" subColor="#1e6bb8" />
+      </div>
+
+      {/* Selector de período */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <label className="text-[13px] font-semibold text-ink">Período:</label>
+        <input type="month" value={periodoSel} onChange={e => setPeriodoSel(e.target.value)}
+          className="input-base !mb-0 !py-1.5 w-[170px]" />
+        <span className="text-[12px] text-muted">Se muestran las facturas de este mes. Los totales de arriba también son del mes.</span>
       </div>
 
       {/* Filtro tipo */}
@@ -294,14 +303,9 @@ export default function FacturacionPage() {
               {form.factura_ref ? (
                 <div className="flex items-center justify-between bg-white border border-brand rounded-lg px-3 py-2 mb-2">
                   <div className="text-[13px]">
-                    {(() => {
-                      const fac = items.find(f => f.id === form.factura_ref)
-                      return fac
-                        ? <span><strong>{fac.numero || 's/n'}</strong> · {fac.cliente} · {fmt(fac.monto)}</span>
-                        : 'Factura seleccionada'
-                    })()}
+                    Factura {refFolio ? <>N° <strong>{refFolio}</strong></> : 'asociada'}{form.cliente ? <> · {form.cliente}</> : null}
                   </div>
-                  <button onClick={() => { setForm((f: any) => ({ ...f, factura_ref: '' })); setBuscarFactura('') }}
+                  <button onClick={() => { setForm((f: any) => ({ ...f, factura_ref: '' })); setRefFolio(''); setBuscarFactura('') }}
                     className="text-[12px] text-danger font-semibold ml-2">Cambiar</button>
                 </div>
               ) : (
@@ -315,7 +319,7 @@ export default function FacturacionPage() {
                   <div className="max-h-[180px] overflow-y-auto border border-line rounded-lg bg-white">
                     {facturasParaNota.length === 0
                       ? <div className="text-center text-[12px] text-muted py-4">
-                          {buscarFactura ? 'Sin resultados' : 'No hay facturas registradas'}
+                          {buscarFactura.trim() ? 'Sin resultados' : 'Escribe para buscar una factura…'}
                         </div>
                       : facturasParaNota.map(f => (
                         <button key={f.id} onClick={() => onSelectFacturaRef(f.id)}
@@ -325,9 +329,6 @@ export default function FacturacionPage() {
                         </button>
                       ))}
                   </div>
-                  {items.filter(f => (f.doc_tipo || 'factura') === 'factura').length > 50 && (
-                    <p className="text-[10px] text-muted mt-1">Mostrando primeras 50. Usa el buscador para encontrar una específica.</p>
-                  )}
                 </>
               )}
 
