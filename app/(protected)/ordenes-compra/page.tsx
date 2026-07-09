@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/fetcher'
 import DescargarOCBtn from '@/components/DescargarOCBtn'
+import SelectorCatalogo from '@/components/SelectorCatalogo'
 import { Btn, FormSelect, MetricCard, Modal, SectionTitle, Table, Td, Th } from '@/components/ui'
 import { fmt } from '@/lib/format'
 import { UNIDADES } from '@/types/cotizaciones'
@@ -88,6 +89,13 @@ export default function OrdenesCompraPage() {
   const updLinea = (k: string, campo: string, val: any) =>
     setLineas(prev => prev.map(l => l._k === k ? { ...l, [campo]: val } : l))
   const addLinea = () => setLineas(prev => [...prev, nuevaLinea()])
+  const addDelCatalogo = (p: any) => setLineas(prev => [...prev, {
+    _k: crypto.randomUUID(),
+    material: p.descripcion,
+    unidad: p.unidad || 'un',
+    cantidad: 1,
+    precio_unitario: Number(p.precio) || 0,
+  }])
   const delLinea = (k: string) => setLineas(prev => prev.filter(l => l._k !== k))
 
   const generarDesdeProyecto = async () => {
@@ -245,6 +253,9 @@ export default function OrdenesCompraPage() {
               {sugiriendo ? 'Generando…' : '⚡ Generar desde proyecto'}
             </Btn>
           </div>
+
+          {/* Agregar desde el catálogo del proveedor */}
+          <SelectorCatalogo proveedorId={form.proveedor_id || ''} onPick={addDelCatalogo} />
 
           {/* Líneas */}
           <div className="border border-line rounded-lg overflow-hidden mb-3">
