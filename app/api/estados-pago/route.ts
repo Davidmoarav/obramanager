@@ -37,6 +37,7 @@ async function sugerirEP(supabase: any, proyectoId: string, userId: string) {
     .from('proyectos')
     .select('utilidad_pct, gg_pct, anticipo_pct, retencion_pct')
     .eq('id', proyectoId)
+    .eq('user_id', userId)
     .maybeSingle()
 
   const utilidadPct = Number(proy?.utilidad_pct) || 0
@@ -49,6 +50,7 @@ async function sugerirEP(supabase: any, proyectoId: string, userId: string) {
     .from('partidas_proyecto')
     .select('*')
     .eq('proyecto_id', proyectoId)
+    .eq('user_id', userId)
 
   const todas  = partidas ?? []
   const padres = todas.filter((p: any) => !p.parent_id)
@@ -224,7 +226,7 @@ export async function PUT(req: Request) {
   if (generar_factura && !ep.factura_id) {
     // Datos del proyecto para la factura
     const { data: proy } = await supabase
-      .from('proyectos').select('nombre, cliente').eq('id', ep.proyecto_id).single()
+      .from('proyectos').select('nombre, cliente').eq('id', ep.proyecto_id).eq('user_id', user.id).single()
 
     const { data: factura } = await supabase
       .from('facturas')

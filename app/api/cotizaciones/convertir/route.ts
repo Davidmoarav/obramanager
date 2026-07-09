@@ -59,6 +59,7 @@ export async function POST(req: Request) {
       .from('catalogo_partidas')
       .select('*')
       .in('parent_id', catalogoIds)
+      .eq('user_id', user.id)
     subPartidasCatalogo = subs ?? []
   }
 
@@ -126,8 +127,8 @@ export async function POST(req: Request) {
       .single()
 
     if (ep || !nuevoPadre) {
-      await supabase.from('partidas_proyecto').delete().eq('proyecto_id', proyecto.id)
-      await supabase.from('proyectos').delete().eq('id', proyecto.id)
+      await supabase.from('partidas_proyecto').delete().eq('proyecto_id', proyecto.id).eq('user_id', user.id)
+      await supabase.from('proyectos').delete().eq('id', proyecto.id).eq('user_id', user.id)
       return NextResponse.json({ error: 'Error al copiar partida: ' + (ep?.message || '') }, { status: 500 })
     }
     mapaIds[p.id] = nuevoPadre.id
@@ -162,8 +163,8 @@ export async function POST(req: Request) {
         .insert(filasHijos)
 
       if (eh) {
-        await supabase.from('partidas_proyecto').delete().eq('proyecto_id', proyecto.id)
-        await supabase.from('proyectos').delete().eq('id', proyecto.id)
+        await supabase.from('partidas_proyecto').delete().eq('proyecto_id', proyecto.id).eq('user_id', user.id)
+        await supabase.from('proyectos').delete().eq('id', proyecto.id).eq('user_id', user.id)
         return NextResponse.json({ error: 'Error al copiar sub-partidas: ' + eh.message }, { status: 500 })
       }
       totalCopiadas += filasHijos.length
@@ -178,8 +179,8 @@ export async function POST(req: Request) {
     .eq('user_id', user.id)
 
   if (e4) {
-    await supabase.from('partidas_proyecto').delete().eq('proyecto_id', proyecto.id)
-    await supabase.from('proyectos').delete().eq('id', proyecto.id)
+    await supabase.from('partidas_proyecto').delete().eq('proyecto_id', proyecto.id).eq('user_id', user.id)
+    await supabase.from('proyectos').delete().eq('id', proyecto.id).eq('user_id', user.id)
     return NextResponse.json({ error: 'Error al actualizar cotización: ' + e4.message }, { status: 500 })
   }
 

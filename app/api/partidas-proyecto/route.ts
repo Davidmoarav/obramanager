@@ -9,6 +9,7 @@ async function recalcTodo(supabase: any, proyectoId: string, userId: string) {
     .from('partidas_proyecto')
     .select('*')
     .eq('proyecto_id', proyectoId)
+    .eq('user_id', userId)
 
   if (!todas || todas.length === 0) {
     await supabase.from('proyectos').update({ avance: 0 }).eq('id', proyectoId).eq('user_id', userId)
@@ -28,6 +29,7 @@ async function recalcTodo(supabase: any, proyectoId: string, userId: string) {
         .from('partidas_proyecto')
         .update({ avance: avancePadre })
         .eq('id', padre.id)
+        .eq('user_id', userId)
       padre.avance = avancePadre  // actualizar en memoria para el cálculo del proyecto
     }
     // Si el padre no tiene hijos, su avance se mantiene tal cual
@@ -70,6 +72,7 @@ export async function GET(req: NextRequest) {
     .from('partidas_proyecto')
     .select('*')
     .eq('proyecto_id', proyectoId)
+    .eq('user_id', user.id)
     .order('orden', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
