@@ -79,6 +79,24 @@ export interface FacturaIVA {
 }
 
 // ─── Cálculo de liquidación (función pura, reutilizable) ──
+// Impuesto Único de Segunda Categoría (tabla mensual, tramos en UTM)
+export function impuestoUnico(baseTributable: number, utm: number): number {
+  if (baseTributable <= 0 || utm <= 0) return 0
+  const baseUTM = baseTributable / utm
+  const tramos = [
+    { hasta: 13.5,     factor: 0,     rebaja: 0 },
+    { hasta: 30,       factor: 0.04,  rebaja: 0.54 },
+    { hasta: 50,       factor: 0.08,  rebaja: 1.74 },
+    { hasta: 70,       factor: 0.135, rebaja: 4.49 },
+    { hasta: 90,       factor: 0.23,  rebaja: 11.14 },
+    { hasta: 120,      factor: 0.304, rebaja: 17.80 },
+    { hasta: 310,      factor: 0.35,  rebaja: 23.32 },
+    { hasta: Infinity, factor: 0.40,  rebaja: 38.82 },
+  ]
+  const t = tramos.find(x => baseUTM <= x.hasta)!
+  return Math.max(0, Math.round((baseUTM * t.factor - t.rebaja) * utm))
+}
+
 export function calcularLiquidacion(
   emp: EmpleadoPrevisional,
   params: ParametrosRemuneracion
@@ -95,39 +113,46 @@ export function calcularLiquidacion(
   const baseGrat = sueldoBase + horasExtraMonto + bonoImponible
   const gratificacion = Math.min(Math.round(baseGrat * 0.25), params.gratificacion_tope)
 
-  // Total imponible (con tope)
+  // Renta imponible: bruta (para haber e impuesto) vs con tope (para cotizaciones)
   const topeImponible = Math.round(params.tope_imponible_uf * params.uf_valor)
-  const totalImponibleSinTope = sueldoBase + horasExtraMonto + bonoImponible + gratificacion
-  const totalImponible = Math.min(totalImponibleSinTope, topeImponible)
+  const imponibleBruto = sueldoBase + horasExtraMonto + bonoImponible + gratificacion
+  const totalImponible = Math.min(imponibleBruto, topeImponible)   // base de AFP/salud/AFC
 
-  // Descuentos previsionales
+  // Descuentos previsionales (sobre la base con tope)
   const afpPct = emp.afp_pct_custom ?? params.afp_pct
   const afpComision = params.afp_comision_pct
   const descAfp = Math.round(totalImponible * (afpPct + afpComision) / 100)
 
-  // Salud
+  // Salud (Isapre: mayor entre plan y 7% legal; Fonasa: %)
   let descSalud = 0
   if (emp.salud_sistema === 'Isapre' && (emp.salud_uf || 0) > 0) {
-    descSalud = Math.round((emp.salud_uf || 0) * params.uf_valor)
+    const plan = Math.round((emp.salud_uf || 0) * params.uf_valor)
+    const minLegal = Math.round(totalImponible * params.salud_pct / 100)
+    descSalud = Math.max(plan, minLegal)
   } else {
     const saludPct = emp.salud_pct_custom ?? params.salud_pct
     descSalud = Math.round(totalImponible * saludPct / 100)
   }
 
-  // AFC (seguro cesantía) - solo si contrato indefinido
+  // AFC (seguro cesantía) - trabajador solo si contrato indefinido
   const descAfc = emp.contrato_tipo === 'indefinido'
     ? Math.round(totalImponible * params.afc_trabajador_pct / 100)
     : 0
 
+  // Impuesto Único: base = renta bruta imponible − cotizaciones previsionales
+  const baseTributable = Math.max(0, imponibleBruto - descAfp - descSalud - descAfc)
+  const descImpuesto = impuestoUnico(baseTributable, params.utm_valor)
+
   const otrosDescuentos = Number(emp.otros_descuentos) || 0
 
-  const totalDescuentos = descAfp + descSalud + descAfc + otrosDescuentos
+  const totalDescuentos = descAfp + descSalud + descAfc + descImpuesto + otrosDescuentos
 
   // No imponibles
   const colacion = Number(emp.colacion) || 0
   const movilizacion = Number(emp.movilizacion) || 0
 
-  const totalHaberes = totalImponible + colacion + movilizacion
+  // Haberes brutos (renta real, sin tope) + no imponibles
+  const totalHaberes = imponibleBruto + colacion + movilizacion
   const liquidoPagar = totalHaberes - totalDescuentos
 
   return {
@@ -142,6 +167,7 @@ export function calcularLiquidacion(
     desc_afp: descAfp,
     desc_salud: descSalud,
     desc_afc: descAfc,
+    desc_impuesto: descImpuesto,
     otros_descuentos: otrosDescuentos,
     total_descuentos: totalDescuentos,
     liquido_pagar: liquidoPagar,

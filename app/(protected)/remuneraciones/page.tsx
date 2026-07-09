@@ -155,6 +155,7 @@ export default function RemuneracionesPage() {
                   <th className={thNum}>AFP</th>
                   <th className={thNum}>Salud</th>
                   <th className={thNum}>AFC</th>
+                  <th className={thNum}>Impuesto</th>
                   <th className={thNum}>Otros</th>
                   <th className={thNum}>Líquido</th>
                   <th className={thS}></th>
@@ -171,6 +172,7 @@ export default function RemuneracionesPage() {
                     <td className={`${tdNum} text-danger`}>{fmt(calc.desc_afp)}</td>
                     <td className={`${tdNum} text-danger`}>{fmt(calc.desc_salud)}</td>
                     <td className={`${tdNum} text-danger`}>{fmt(calc.desc_afc)}</td>
+                    <td className={`${tdNum} text-danger`}>{fmt(calc.desc_impuesto)}</td>
                     <td className={`${tdNum} text-danger`}>{fmt(calc.otros_descuentos)}</td>
                     <td className={`${tdNum} font-extrabold text-success`}>{fmt(calc.liquido_pagar)}</td>
                     <td className={tdS}>
