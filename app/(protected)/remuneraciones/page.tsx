@@ -24,6 +24,7 @@ export default function RemuneracionesPage() {
   const [tab, setTab] = useState<'liquidaciones' | 'parametros' | 'empleados'>('liquidaciones')
   const { data: paramsData = null, mutate: mutateParams } = useSWR<ParametrosRemuneracion | null>('/api/parametros-rem', fetcher)
   const { data: empData = [], isLoading, mutate: mutateEmp } = useSWR<EmpleadoPrevisional[]>('/api/empleados', fetcher)
+  const { data: proyectos = [] } = useSWR<any[]>('/api/proyectos', fetcher)
   const [params, setParams] = useState<ParametrosRemuneracion | null>(null)
   const empleados = useMemo(() => (empData as any[]).filter((e: any) => e.estado !== 'inactivo'), [empData])
   useEffect(() => { if (paramsData !== undefined) setParams(prev => prev ?? paramsData) }, [paramsData])
@@ -286,6 +287,11 @@ export default function RemuneracionesPage() {
 
             <div className="col-span-full">
               <FormInput label="Otros descuentos ($, anticipos/préstamos)" value={empForm.otros_descuentos ?? 0} onChange={v => updEmp('otros_descuentos', Number(v))} type="number" />
+            </div>
+
+            <div className="col-span-full">
+              <FormSelect label="Obra asignada (su sueldo cuenta como gasto de esa obra)" value={empForm.proyecto_id || ''} onChange={v => updEmp('proyecto_id', v || null)}
+                options={[{ value: '', label: 'Sin asignar (no imputa a obra)' }, ...proyectos.map((p: any) => ({ value: p.id, label: p.nombre }))]} />
             </div>
           </div>
           <div className="flex gap-2 justify-end mt-3.5">
