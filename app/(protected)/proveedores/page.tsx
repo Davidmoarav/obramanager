@@ -5,6 +5,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/fetcher'
 import { Badge, Btn, FormInput, FormSelect, Modal, SectionTitle, Table, Td, Th, fmt } from '@/components/ui'
+import CatalogoProveedor from '@/components/CatalogoProveedor'
 import type { Proveedor } from '@/types'
 
 const EMPTY: Omit<Proveedor,'id'|'created_at'|'user_id'> = { nombre:'', rut:'', rubro:'', contacto:'', telefono:'', monto3m:0, estado:'activo' }
@@ -14,6 +15,7 @@ export default function ProveedoresPage() {
   const [modal, setModal]   = useState<'nuevo'|'editar'|null>(null)
   const [form, setForm]     = useState<any>({})
   const [saving, setSaving] = useState(false)
+  const [catalogo, setCatalogo] = useState<Proveedor | null>(null)
 
   const upd = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
 
@@ -62,6 +64,7 @@ export default function ProveedoresPage() {
                   <Td><Badge estado={p.estado} tipo="proveedor" /></Td>
                   <Td>
                     <div className="flex gap-1">
+                      <Btn onClick={() => setCatalogo(p)} className="text-[11px] px-2 py-1">Catálogo</Btn>
                       <Btn onClick={() => { setForm({ ...p }); setModal('editar') }} className="text-[11px] px-2 py-1">Editar</Btn>
                       <Btn variant="danger" onClick={() => del(p.id)} className="text-[11px] px-2 py-1">✕</Btn>
                     </div>
@@ -91,6 +94,7 @@ export default function ProveedoresPage() {
           </div>
         </Modal>
       )}
+      {catalogo && <CatalogoProveedor proveedor={catalogo} onClose={() => setCatalogo(null)} />}
     </div>
   )
 }
