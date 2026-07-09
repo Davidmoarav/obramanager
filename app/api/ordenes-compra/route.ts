@@ -121,7 +121,7 @@ async function syncGastoOC(supabase: any, userId: string, oc: any) {
   const { data: existing } = await supabase
     .from('gastos_obra').select('id').eq('orden_compra_id', oc.id).eq('user_id', userId).maybeSingle()
 
-  if (oc?.estado === 'recibida' && oc?.proyecto_id) {
+  if (oc?.estado === 'recibida' && oc?.proyecto_id && !oc?.factura_id) {
     const row = {
       proyecto_id: oc.proyecto_id,
       partida_id: null,
@@ -197,6 +197,7 @@ export async function PUT(req: Request) {
   if (body.fecha        !== undefined) update.fecha        = body.fecha
   if (body.estado       !== undefined) update.estado       = body.estado
   if (body.notas        !== undefined) update.notas        = body.notas ?? null
+  if (body.factura_id   !== undefined) update.factura_id   = body.factura_id || null
 
   // Si vienen líneas, se reemplazan y se recalculan los totales
   if (Array.isArray(body.lineas)) {
@@ -214,6 +215,14 @@ export async function PUT(req: Request) {
   const { data, error } = await supabase
     .from('ordenes_compra').update(update).eq('id', body.id).eq('user_id', user.id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Al asociar una factura, atribuirla al proyecto de la OC (así cuenta en su gasto)
+  if (data?.factura_id && data?.proyecto) {
+    await supabase.from('facturas')
+      .update({ proyecto: data.proyecto })
+      .eq('id', data.factura_id).eq('user_id', user.id)
+  }
+
   await syncGastoOC(supabase, user.id, data)
   return NextResponse.json(data)
 }

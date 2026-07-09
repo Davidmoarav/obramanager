@@ -8,6 +8,7 @@ import useSWR from 'swr'
 import { fetcher } from '@/lib/fetcher'
 import DescargarOCBtn from '@/components/DescargarOCBtn'
 import SelectorCatalogo from '@/components/SelectorCatalogo'
+import SelectorFactura from '@/components/SelectorFactura'
 import { Btn, FormSelect, MetricCard, Modal, SectionTitle, Table, Td, Th } from '@/components/ui'
 import { fmt } from '@/lib/format'
 import { UNIDADES } from '@/types/cotizaciones'
@@ -80,6 +81,7 @@ export default function OrdenesCompraPage() {
     setForm({
       proveedor_id: full.proveedor_id || '', proyecto_id: full.proyecto_id || '',
       fecha: full.fecha, estado: full.estado, notas: full.notas || '',
+      factura_id: full.factura_id || '', _facturaFolio: '',
     })
     setLineas((full.lineas || []).map((l: any) => ({ ...l, _k: crypto.randomUUID() })))
     setModal('editar')
@@ -126,6 +128,7 @@ export default function OrdenesCompraPage() {
       proyecto_id:  form.proyecto_id || null,
       proyecto:     proy?.nombre || null,
       fecha: form.fecha, estado: form.estado, notas: form.notas,
+      factura_id: form.factura_id || null,
       lineas: validas.map(l => ({
         material: l.material, unidad: l.unidad || 'un',
         cantidad: Number(l.cantidad) || 0, precio_unitario: Number(l.precio_unitario) || 0,
@@ -201,7 +204,7 @@ export default function OrdenesCompraPage() {
                     <Td className="font-semibold text-[#1a2535]">{o.proveedor || '—'}</Td>
                     <Td className="text-muted">{o.proyecto || '—'}</Td>
                     <Td className="font-bold tabular-nums">{fmt(o.total)}</Td>
-                    <Td><BadgeOC estado={o.estado} /></Td>
+                    <Td><BadgeOC estado={o.estado} />{o.factura_id ? <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-success-bg text-success">facturada</span> : null}</Td>
                     <Td>
                       <div className="flex gap-1 items-center">
                         <select
@@ -305,6 +308,20 @@ export default function OrdenesCompraPage() {
               <input value={form.notas || ''} onChange={e => setForm((f: any) => ({ ...f, notas: e.target.value }))} className="input-base" placeholder="Opcional" />
             </div>
           </div>
+
+          {/* Factura de compra (opción A: al asociarla, el gasto de la OC se reemplaza por el de la factura) */}
+          {editId && (
+            <div className="mb-3">
+              <label className="label-base">Factura de compra asociada</label>
+              <SelectorFactura
+                value={form.factura_id || ''}
+                label={form._facturaFolio || ''}
+                onPick={f => setForm((prev: any) => ({ ...prev, factura_id: f.id, _facturaFolio: String(f.numero) }))}
+                onClear={() => setForm((prev: any) => ({ ...prev, factura_id: '', _facturaFolio: '' }))}
+              />
+              <p className="text-[11px] text-muted mt-1">Cuando llegue la factura del proveedor, asóciala aquí: el gasto de esta OC deja de contar y cuenta la factura (evita el doble conteo).</p>
+            </div>
+          )}
 
           <div className="flex gap-2 justify-end mt-2">
             <Btn onClick={() => setModal(null)}>Cancelar</Btn>
