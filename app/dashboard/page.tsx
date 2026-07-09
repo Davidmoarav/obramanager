@@ -5,19 +5,23 @@ import { fmt, fmtM } from '@/lib/format'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
 
   const [{ data: proyectos }, { data: empleados }, { data: facturas }] = await Promise.all([
-    supabase.from('proyectos').select('*').order('created_at', { ascending: false }),
-    supabase.from('empleados').select('*'),
-    supabase.from('facturas').select('*').order('created_at', { ascending: false }),
+    supabase.from('proyectos').select('id, nombre, cliente, avance, valor, estado, created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
+    supabase.from('empleados').select('id, tipo').eq('user_id', user.id),
+    supabase.from('facturas').select('id, numero, cliente, tipo, estado, monto, created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
   ])
 
   const p = proyectos ?? []
   const e = empleados ?? []
   const f = facturas  ?? []
 
-  const cobrado   = f.filter((x:any) => x.estado === 'pagada').reduce((s:number, x:any) => s + x.monto, 0)
-  const pendiente = f.filter((x:any) => x.estado !== 'pagada').reduce((s:number, x:any) => s + x.monto, 0)
+  // Ingresos = solo facturas de VENTA (las de compra no son ingresos)
+  const ventas    = f.filter((x:any) => (x.tipo || 'venta') !== 'compra')
+  const cobrado   = ventas.filter((x:any) => x.estado === 'pagada').reduce((s:number, x:any) => s + (x.monto || 0), 0)
+  const pendiente = ventas.filter((x:any) => x.estado !== 'pagada').reduce((s:number, x:any) => s + (x.monto || 0), 0)
   const activos   = p.filter((x:any) => x.estado === 'activo').length
 
   const estadosP = [
