@@ -93,16 +93,17 @@ async function sugerirEP(supabase: any, proyectoId: string, userId: string) {
 
   const montoNeto = detalle.reduce((s: number, d: any) => s + d.monto, 0)
 
-  // ─── Cascada automática ───────────────────────────────
-  const avanceObra    = montoNeto
-  const utilidadMonto = Math.round(avanceObra * utilidadPct / 100)
-  const ggMonto       = Math.round(avanceObra * ggPct / 100)
-  const bruto         = avanceObra + utilidadMonto + ggMonto     // "Valor EEPP"
-  const anticipoDesc  = Math.round(bruto * anticipoPct / 100)     // amortización carátula
-  const retencionMonto = Math.round(bruto * retencionPct / 100)
-  const totalNeto     = bruto - anticipoDesc - retencionMonto
-  const iva           = Math.round(totalNeto * IVA)
-  const total         = totalNeto + iva
+  // ─── Cascada (suma alzada) ─────────────────────────────
+  // El avance ya viene a precio de contrato (con margen incluido en la partida).
+  // NO se re-suma utilidad/GG: eso duplicaría el margen. Solo se descuentan
+  // amortización de anticipo, retención y (en edición) multas/descuentos.
+  const avanceObra     = montoNeto
+  const bruto          = avanceObra                                // Valor EEPP
+  const anticipoDesc   = Math.round(bruto * anticipoPct / 100)     // amortización de anticipo
+  const retencionMonto = Math.round(bruto * retencionPct / 100)    // retención de garantía
+  const totalNeto      = bruto - anticipoDesc - retencionMonto     // multas/descuentos se restan al editar
+  const iva            = Math.round(totalNeto * IVA)
+  const total          = totalNeto + iva
 
   // Número del próximo EP
   const { data: ultimoEp } = await supabase
@@ -121,8 +122,8 @@ async function sugerirEP(supabase: any, proyectoId: string, userId: string) {
     numero,
     // cascada
     avance_obra: avanceObra,
-    utilidad_pct: utilidadPct, utilidad_monto: utilidadMonto,
-    gg_pct: ggPct, gg_monto: ggMonto,
+    utilidad_pct: 0, utilidad_monto: 0,
+    gg_pct: 0, gg_monto: 0,
     bruto,
     anticipo_pct: anticipoPct, anticipo_desc: anticipoDesc,
     retencion_pct: retencionPct, retencion_monto: retencionMonto,

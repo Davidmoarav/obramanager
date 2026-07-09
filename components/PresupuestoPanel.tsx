@@ -152,14 +152,12 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
     setDetalleEdit(prev => prev.map((d, i) => i === idx ? { ...d, monto } : d))
   }
 
-  // ─── Cascada en vivo (idéntica al servidor) ──────────────
+  // ─── Cascada en vivo (suma alzada: el margen ya está en el precio de la partida) ──
   const avanceObra = useMemo(
     () => detalleEdit.reduce((s, d) => s + (Number(d.monto) || 0), 0),
     [detalleEdit]
   )
-  const utilidadMonto  = Math.round(avanceObra * utilidadPct / 100)
-  const ggMonto        = Math.round(avanceObra * ggPct / 100)
-  const bruto          = avanceObra + utilidadMonto + ggMonto
+  const bruto          = avanceObra                                // Valor EEPP (a precio de contrato)
   const anticipoDesc   = Math.round(bruto * anticipoPct / 100)
   const retencionMonto = Math.round(bruto * retencionPct / 100)
   const totalNeto      = bruto - descuentos - anticipoDesc - multas - retencionMonto
@@ -177,8 +175,8 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
         periodo: new Date().toISOString().slice(0, 7),
         fecha: new Date().toISOString().split('T')[0],
         avance_obra: avanceObra,
-        utilidad_pct: utilidadPct,
-        gg_pct: ggPct,
+        utilidad_pct: 0,
+        gg_pct: 0,
         descuentos,
         anticipo_pct: anticipoPct,
         multas,
@@ -587,12 +585,6 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
                   ))}
                 </div>
 
-                {/* Márgenes automáticos */}
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <FormInput label="Utilidad (%)" value={utilidadPct} onChange={v => setUtilidadPct(Number(v) || 0)} type="number" />
-                  <FormInput label="Gastos Generales (%)" value={ggPct} onChange={v => setGgPct(Number(v) || 0)} type="number" />
-                </div>
-
                 {/* Deducciones */}
                 <div className="grid grid-cols-2 gap-3 mb-1.5">
                   <FormInput label="Descuentos ($)" value={descuentos} onChange={v => setDescuentos(Number(v) || 0)} type="number" />
@@ -605,12 +597,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
 
                 {/* Cascada completa */}
                 <div className="bg-canvas rounded-card p-3.5 mb-3.5">
-                  <Row label="Avance de obra del período" valor={fmt(avanceObra)} />
-                  {utilidadMonto > 0 && <Row label={`Utilidad ${utilidadPct}%`} valor={`+ ${fmt(utilidadMonto)}`} />}
-                  {ggMonto > 0 && <Row label={`Gastos Generales ${ggPct}%`} valor={`+ ${fmt(ggMonto)}`} />}
-                  <div className="border-t border-line2 mt-1.5 pt-1.5">
-                    <Row label="Valor EEPP (bruto)" valor={fmt(bruto)} bold />
-                  </div>
+                  <Row label="Valor EEPP — avance del período" valor={fmt(bruto)} bold />
                   {descuentos > 0 && <Row label="Descuentos" valor={`− ${fmt(descuentos)}`} danger />}
                   {anticipoDesc > 0 && <Row label={`Anticipo carátula ${anticipoPct}%`} valor={`− ${fmt(anticipoDesc)}`} danger />}
                   {multas > 0 && <Row label="Multas" valor={`− ${fmt(multas)}`} danger />}
