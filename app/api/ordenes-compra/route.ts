@@ -22,19 +22,22 @@ export async function GET(req: NextRequest) {
 
   // ── Sugerencia: materiales agregados del proyecto ──
   if (sugerir && proyectoId) {
-    const [{ data: partidas }, { data: mats }] = await Promise.all([
-      supabase.from('partidas_proyecto').select('id, cantidad').eq('proyecto_id', proyectoId).eq('user_id', user.id),
-      // materiales de las partidas de este proyecto
-      supabase.from('partida_materiales').select('*').eq('user_id', user.id),
-    ])
+    const { data: partidas } = await supabase
+      .from('partidas_proyecto').select('id, cantidad').eq('proyecto_id', proyectoId).eq('user_id', user.id)
     const cantPorPartida: Record<string, number> = {}
     for (const p of partidas ?? []) cantPorPartida[p.id] = Number(p.cantidad) || 0
-    const idsProyecto = new Set(Object.keys(cantPorPartida))
+    const partIds = Object.keys(cantPorPartida)
+
+    // Solo los materiales de las partidas de este proyecto (no todos los del usuario)
+    const { data: mats } = partIds.length
+      ? await supabase.from('partida_materiales')
+          .select('material, unidad, rendimiento, precio_unitario, partida_id')
+          .in('partida_id', partIds).eq('user_id', user.id)
+      : { data: [] as any[] }
 
     // Agrupar por material + unidad
     const grupos: Record<string, { material: string; unidad: string; cantidad: number; precio_unitario: number }> = {}
     for (const m of mats ?? []) {
-      if (!idsProyecto.has(m.partida_id)) continue
       const necesario = (cantPorPartida[m.partida_id] || 0) * (Number(m.rendimiento) || 0)
       if (necesario <= 0) continue
       const key = `${(m.material || '').trim().toLowerCase()}|${m.unidad || 'un'}`
@@ -66,9 +69,30 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ...oc, lineas: lineas ?? [] })
   }
 
-  // ── Lista de OCs ──
-  const { data, error } = await supabase
-    .from('ordenes_compra').select('*').eq('user_id', user.id).order('numero', { ascending: false })
+  // ── Resumen agregado para las métricas (usa el total guardado) ──
+  if (sp.get('resumen')) {
+    const { data, error } = await supabase
+      .from('ordenes_compra').select('estado, total').eq('user_id', user.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    const rows = data ?? []
+    return NextResponse.json({
+      total_count: rows.length,
+      borrador:    rows.filter((o: any) => o.estado === 'borrador').length,
+      recibidas:   rows.filter((o: any) => o.estado === 'recibida').length,
+      monto_total: rows.filter((o: any) => o.estado !== 'anulada').reduce((s: number, o: any) => s + (Number(o.total) || 0), 0),
+    })
+  }
+
+  // ── Lista de OCs (paginada / con búsqueda server-side) ──
+  const buscar = sp.get('buscar')
+  const limit = Math.min(Number(sp.get('limit')) || 60, 500)
+  let q = supabase.from('ordenes_compra').select('*').eq('user_id', user.id)
+  if (buscar) {
+    const term = buscar.trim().replace(/[,()%*\\]/g, '')
+    if (term) q = q.or(`proveedor.ilike.%${term}%,proyecto.ilike.%${term}%`)
+  }
+  q = q.order('numero', { ascending: false }).limit(buscar ? 40 : limit)
+  const { data, error } = await q
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data ?? [])
 }

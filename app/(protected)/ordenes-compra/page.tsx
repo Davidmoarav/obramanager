@@ -34,7 +34,13 @@ function BadgeOC({ estado }: { estado: string }) {
 const nuevaLinea = () => ({ _k: crypto.randomUUID(), material: '', unidad: 'un', cantidad: 1, precio_unitario: 0 })
 
 export default function OrdenesCompraPage() {
-  const { data: items = [], isLoading, mutate } = useSWR<any[]>('/api/ordenes-compra', fetcher)
+  const [busqueda, setBusqueda] = useState('')
+  const [limite, setLimite]     = useState(60)
+  const buscando = busqueda.trim().length >= 1
+  const { data: items = [], isLoading, mutate } = useSWR<any[]>(
+    buscando ? `/api/ordenes-compra?buscar=${encodeURIComponent(busqueda.trim())}` : `/api/ordenes-compra?limit=${limite}`,
+    fetcher)
+  const { data: resumen, mutate: mutResumen } = useSWR<any>('/api/ordenes-compra?resumen=1', fetcher)
   const { data: proveedores = [] } = useSWR<any[]>('/api/proveedores', fetcher)
   const { data: proyectos = [] } = useSWR<any[]>('/api/proyectos', fetcher)
 
@@ -58,10 +64,6 @@ export default function OrdenesCompraPage() {
     const iva = Math.round(neto * IVA)
     return { neto, iva, total: neto + iva }
   }, [lineas])
-
-  const montoTotal = useMemo(
-    () => items.filter(o => o.estado !== 'anulada').reduce((s, o) => s + (Number(o.total) || 0), 0),
-    [items])
 
   // ─── abrir / editar ───────────────────────────────────────
   const openNueva = () => {
@@ -133,7 +135,7 @@ export default function OrdenesCompraPage() {
         '\n\nSi menciona "ordenes_compra", ejecuta el SQL 15_ordenes_compra.sql en Supabase.')
       return
     }
-    await mutate(); setModal(null)
+    await mutate(); mutResumen(); setModal(null)
   }
 
   const cambiarEstado = async (oc: any, estado: string) => {
@@ -141,14 +143,14 @@ export default function OrdenesCompraPage() {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: oc.id, estado }),
     })
-    await mutate()
+    await mutate(); mutResumen()
   }
   const del = async (id: string) => {
     if (!confirm('¿Eliminar esta orden de compra?')) return
     await fetch('/api/ordenes-compra', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }),
     })
-    await mutate()
+    await mutate(); mutResumen()
   }
 
   return (
@@ -160,9 +162,16 @@ export default function OrdenesCompraPage() {
 
       {/* Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <MetricCard label="Total OCs" value={items.length} />
-        <MetricCard label="En borrador" value={items.filter(o => o.estado === 'borrador').length} sub="Pendientes de enviar" />
-        <MetricCard label="Monto comprometido" value={fmt(montoTotal)} sub="Excluye anuladas" />
+        <MetricCard label="Total OCs" value={resumen?.total_count ?? '—'} />
+        <MetricCard label="En borrador" value={resumen?.borrador ?? '—'} sub="Pendientes de enviar" />
+        <MetricCard label="Monto comprometido" value={fmt(resumen?.monto_total ?? 0)} sub="Excluye anuladas" />
+      </div>
+
+      {/* Buscador */}
+      <div className="mb-4">
+        <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
+          placeholder="Buscar por proveedor o proyecto…"
+          className="input-base !mb-0 w-full max-w-sm" />
       </div>
 
       {/* Tabla */}
@@ -170,7 +179,7 @@ export default function OrdenesCompraPage() {
         {isLoading
           ? <p className="text-muted text-center p-10">Cargando...</p>
           : items.length === 0
-          ? <p className="text-muted text-center p-10">Aún no hay órdenes de compra. Crea la primera.</p>
+          ? <p className="text-muted text-center p-10">{buscando ? 'Sin resultados para la búsqueda.' : 'Aún no hay órdenes de compra. Crea la primera.'}</p>
           : (
             <Table>
               <thead><tr>
@@ -204,6 +213,14 @@ export default function OrdenesCompraPage() {
               </tbody>
             </Table>
           )}
+        {!buscando && !isLoading && items.length >= limite && (
+          <div className="text-center mt-4">
+            <button onClick={() => setLimite(l => l + 60)}
+              className="px-4 py-2 rounded-lg border border-line text-brand text-[13px] font-semibold hover:bg-canvas">
+              Cargar más
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ══════ MODAL ══════ */}
