@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Btn, FormInput, FormSelect, Modal } from '@/components/ui'
+import SelectorCatalogo from '@/components/SelectorCatalogo'
 import { fmt } from '@/lib/format'
 import { UNIDADES } from '@/types/cotizaciones'
 import type { PartidaProyecto } from '@/types/partida-proyecto'
@@ -451,6 +452,11 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
       {modalMat && (
         <Modal title={`${matEditId ? 'Editar' : 'Nuevo'} material · ${modalMat.partida.descripcion}`} onClose={() => setModalMat(null)}>
           <div className="flex flex-col gap-3">
+            <SelectorCatalogo
+              mostrarSiempre
+              label="🔎 Elegir material del catálogo (autocompleta precio)"
+              onPick={p => setMatForm((f: any) => ({ ...f, material: p.descripcion, unidad: p.unidad || f.unidad || 'un', precio_unitario: Number(p.precio) || 0 }))}
+            />
             <FormInput label="Material *" value={matForm.material || ''} onChange={v => setMatForm((f: any) => ({ ...f, material: v }))} placeholder="Ej: Adhesivo EIFS" />
             <div className="grid grid-cols-2 gap-3">
               <FormSelect label="Unidad del material" value={matForm.unidad || 'un'} onChange={v => setMatForm((f: any) => ({ ...f, unidad: v }))} options={UNIDADES} />
