@@ -10,6 +10,19 @@
 import { createServerSupabase } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
+// Avance de una partida: promedio de sus subpartidas PONDERADO por valor
+// (cantidad × precio). Si las subpartidas no tienen valor, promedio simple.
+// Si no hay subpartidas, el avance propio de la partida.
+function avancePartida(padre: any, hijosPadre: any[]): number {
+  if (hijosPadre.length === 0) return Number(padre.avance) || 0
+  const pesos = hijosPadre.map(h => (Number(h.cantidad) || 0) * (Number(h.precio_unitario) || 0))
+  const totalPeso = pesos.reduce((a, b) => a + b, 0)
+  if (totalPeso > 0) {
+    return hijosPadre.reduce((s, h, i) => s + (Number(h.avance) || 0) * (pesos[i] / totalPeso), 0)
+  }
+  return hijosPadre.reduce((s, h) => s + (Number(h.avance) || 0), 0) / hijosPadre.length
+}
+
 export async function GET(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
@@ -54,9 +67,7 @@ export async function GET(req: Request) {
       presupuestoVenta += venta
 
       const hijosPadre = hijos.filter(h => h.parent_id === padre.id)
-      const avance = hijosPadre.length > 0
-        ? hijosPadre.reduce((s, h) => s + (Number(h.avance) || 0), 0) / hijosPadre.length
-        : (Number(padre.avance) || 0)
+      const avance = avancePartida(padre, hijosPadre)
 
       costoEjecutado += costo * avance / 100
       ventaEjecutada += venta * avance / 100

@@ -4,6 +4,17 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const IVA = 0.19
 
+// Avance ponderado por valor de subpartida (fallback: promedio simple)
+function avancePartida(padre: any, hijosPadre: any[]): number {
+  if (hijosPadre.length === 0) return Number(padre.avance) || 0
+  const pesos = hijosPadre.map(h => (Number(h.cantidad) || 0) * (Number(h.precio_unitario) || 0))
+  const totalPeso = pesos.reduce((a, b) => a + b, 0)
+  if (totalPeso > 0) {
+    return hijosPadre.reduce((s, h, i) => s + (Number(h.avance) || 0) * (pesos[i] / totalPeso), 0)
+  }
+  return hijosPadre.reduce((s, h) => s + (Number(h.avance) || 0), 0) / hijosPadre.length
+}
+
 // ─── GET: lista EPs de un proyecto, o el "borrador sugerido" ──
 export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase()
@@ -74,9 +85,7 @@ async function sugerirEP(supabase: any, proyectoId: string, userId: string) {
   const detalle = padres.map((padre: any) => {
     const valor = (Number(padre.cantidad) || 0) * (Number(padre.precio_unitario) || 0)
     const hijosPadre = hijos.filter((h: any) => h.parent_id === padre.id)
-    const avanceActual = hijosPadre.length > 0
-      ? Math.round(hijosPadre.reduce((s: number, h: any) => s + (Number(h.avance) || 0), 0) / hijosPadre.length)
-      : (Number(padre.avance) || 0)
+    const avanceActual = Math.round(avancePartida(padre, hijosPadre))
     const avanceAnterior = yaCobrado[padre.id] || 0
     const avancePeriodo = Math.max(0, avanceActual - avanceAnterior)
     const monto = Math.round(valor * avancePeriodo / 100)

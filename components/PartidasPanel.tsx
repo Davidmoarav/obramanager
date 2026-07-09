@@ -68,9 +68,16 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
     if (padres.length === 0) return 0
     let totalValor = 0, totalPond = 0, suma = 0
     for (const p of padres) {
-      const av = p.children.length > 0
-        ? Math.round(p.children.reduce((s, h) => s + h.avance, 0) / p.children.length)
-        : p.avance
+      let av: number
+      if (p.children.length > 0) {
+        const pesos = p.children.map((h: any) => (Number(h.cantidad) || 0) * (Number(h.precio_unitario) || 0))
+        const tot = pesos.reduce((a: number, b: number) => a + b, 0)
+        av = tot > 0
+          ? Math.round(p.children.reduce((s: number, h: any, i: number) => s + (Number(h.avance) || 0) * (pesos[i] / tot), 0))
+          : Math.round(p.children.reduce((s: number, h: any) => s + (Number(h.avance) || 0), 0) / p.children.length)
+      } else {
+        av = p.avance
+      }
       const valor = p.cantidad * p.precio_unitario
       totalValor += valor
       totalPond += valor * av / 100
