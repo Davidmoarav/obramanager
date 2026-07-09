@@ -73,22 +73,41 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Se procesa en orden cronológico para arrastrar el remanente de crédito fiscal:
+  // si el crédito supera al débito, el excedente NO se paga negativo, pasa al mes
+  // siguiente. El PPM se paga siempre.
+  let remanenteAcum = 0
   const resumen = Object.values(periodos)
+    .sort((a, b) => a.periodo.localeCompare(b.periodo))   // ascendente para arrastrar
     .map(p => {
-      const iva_a_pagar = p.iva_debito - p.iva_credito
       const cfg = ppmPorPeriodo[p.periodo] ?? { regimen: 'pro_pyme_general', tasa: 0 }
-      // PPM = tasa% sobre los ingresos netos del mes (base imponible de ventas, sin IVA)
       const ppm = Math.round(p.neto_ventas * (cfg.tasa / 100))
+
+      const ivaDeterminado = p.iva_debito - p.iva_credito       // débito − crédito del mes
+      const posicion = ivaDeterminado - remanenteAcum           // descontando remanente previo
+      let iva_a_pagar: number
+      let remanente: number
+      if (posicion > 0) { iva_a_pagar = posicion; remanente = 0 }
+      else              { iva_a_pagar = 0;        remanente = -posicion }
+
+      const remanente_usado = remanenteAcum > 0 && posicion !== ivaDeterminado
+        ? Math.min(remanenteAcum, Math.max(0, ivaDeterminado))
+        : 0
+      remanenteAcum = remanente   // arrastra al mes siguiente
+
       return {
         ...p,
+        iva_determinado: ivaDeterminado,
+        remanente_usado,
+        remanente,                 // remanente de crédito que pasa al mes siguiente
         iva_a_pagar,
         ppm_tasa: cfg.tasa,
         ppm_regimen: cfg.regimen,
         ppm,
-        total_a_pagar: iva_a_pagar + ppm,
+        total_a_pagar: iva_a_pagar + ppm,   // el PPM se paga aunque el IVA quede en 0
       }
     })
-    .sort((a, b) => b.periodo.localeCompare(a.periodo))
+    .sort((a, b) => b.periodo.localeCompare(a.periodo))   // descendente para mostrar
 
   return NextResponse.json(resumen)
 }

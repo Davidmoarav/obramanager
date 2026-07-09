@@ -71,13 +71,14 @@ export default function FinanzasPage() {
   }, [periodoSel, ppmRegimen, ppmTasa])
 
   const ivaTotales = useMemo(() => {
-    if (!ivaPeriodo) return { debito: 0, credito: 0, pagar: 0, ppm: 0, total: 0 }
+    if (!ivaPeriodo) return { debito: 0, credito: 0, pagar: 0, ppm: 0, total: 0, remanente: 0 }
     return {
       debito: ivaPeriodo.iva_debito,
       credito: ivaPeriodo.iva_credito,
       pagar: ivaPeriodo.iva_a_pagar,
       ppm: ivaPeriodo.ppm ?? 0,
       total: ivaPeriodo.total_a_pagar ?? ivaPeriodo.iva_a_pagar,
+      remanente: ivaPeriodo.remanente ?? 0,
     }
   }, [ivaPeriodo])
 
@@ -140,7 +141,7 @@ export default function FinanzasPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <MetricCard label="IVA Débito (ventas)"  value={fmt(ivaTotales.debito)}  sub="IVA que cobraste"   subColor="#1e6bb8" />
             <MetricCard label="IVA Crédito (compras)" value={fmt(ivaTotales.credito)} sub="IVA que pagaste"    subColor="#1a7a4a" />
-            <MetricCard label="IVA a pagar al SII"   value={fmt(ivaTotales.pagar)}   sub={ivaTotales.pagar >= 0 ? 'Por pagar' : 'A favor'} subColor={ivaTotales.pagar >= 0 ? '#b0401a' : '#1a7a4a'} />
+            <MetricCard label="IVA a pagar al SII"   value={fmt(ivaTotales.pagar)}   sub={ivaTotales.remanente > 0 ? `Remanente a favor: ${fmt(ivaTotales.remanente)}` : 'Por pagar este período'} subColor={ivaTotales.remanente > 0 ? '#1a7a4a' : '#b0401a'} />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -241,8 +242,8 @@ export default function FinanzasPage() {
                 </div>
               )}
             <p className="text-[11px] text-muted mt-3">
-              IVA a pagar = IVA Débito (ventas) − IVA Crédito (compras). Total a pagar = IVA a pagar + PPM del período.
-              Valor positivo = pagas al SII; negativo = remanente a favor.
+              IVA a pagar = IVA Débito (ventas) − IVA Crédito (compras), descontando el remanente del mes anterior. Total a pagar = IVA a pagar + PPM del período.
+              Si el crédito supera al débito, el excedente queda como <strong>remanente de crédito fiscal</strong> que se arrastra al mes siguiente (el PPM se paga igual).
             </p>
           </div>
         </div>
