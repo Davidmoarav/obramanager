@@ -97,7 +97,7 @@ export default function CatalogoProveedor({ proveedor, onClose }: { proveedor: a
       {/* Carga CSV */}
       <div className="bg-canvas rounded-card p-3.5 mb-4">
         <div className="text-[13px] font-bold text-ink mb-1">Cargar desde CSV</div>
-        <p className="text-[11px] text-muted mb-2">Columnas: código, descripción, unidad, precio. Detecta el separador ( , o ; ) automáticamente.</p>
+        <p className="text-[11px] text-muted mb-2">Columnas: código, descripción, unidad, precio (<strong>neto</strong>). Detecta el separador ( , o ; ) automáticamente.</p>
         <div className="flex items-center gap-3 flex-wrap">
           <input ref={fileRef} type="file" accept=".csv" onChange={onFile} className="text-[12px]" />
           <button onClick={descargarPlantilla} className="text-[12px] text-brand font-semibold underline">
@@ -136,7 +136,7 @@ export default function CatalogoProveedor({ proveedor, onClose }: { proveedor: a
         <div><label className="text-[11px] text-muted block mb-0.5">Código</label><input value={nuevo.codigo} onChange={e => setNuevo(n => ({ ...n, codigo: e.target.value }))} className="input-base !mb-0 !py-1" /></div>
         <div><label className="text-[11px] text-muted block mb-0.5">Descripción</label><input value={nuevo.descripcion} onChange={e => setNuevo(n => ({ ...n, descripcion: e.target.value }))} className="input-base !mb-0 !py-1" /></div>
         <div><label className="text-[11px] text-muted block mb-0.5">Unidad</label><input value={nuevo.unidad} onChange={e => setNuevo(n => ({ ...n, unidad: e.target.value }))} className="input-base !mb-0 !py-1" /></div>
-        <div><label className="text-[11px] text-muted block mb-0.5">Precio</label><input type="number" value={nuevo.precio} onChange={e => setNuevo(n => ({ ...n, precio: e.target.value }))} className="input-base !mb-0 !py-1" /></div>
+        <div><label className="text-[11px] text-muted block mb-0.5">Precio neto</label><input type="number" value={nuevo.precio} onChange={e => setNuevo(n => ({ ...n, precio: e.target.value }))} className="input-base !mb-0 !py-1" /></div>
         <Btn onClick={agregar}>+ Agregar</Btn>
       </div>
 
@@ -148,7 +148,10 @@ export default function CatalogoProveedor({ proveedor, onClose }: { proveedor: a
             <table className="w-full text-[12px]">
               <thead className="bg-canvas sticky top-0"><tr>
                 <th className="text-left px-2 py-1.5">Código</th><th className="text-left px-2 py-1.5">Descripción</th>
-                <th className="px-2 py-1.5">Unidad</th><th className="text-right px-2 py-1.5">Precio</th><th className="px-2 py-1.5"></th>
+                <th className="px-2 py-1.5">Unidad</th>
+                <th className="text-right px-2 py-1.5">Precio neto</th>
+                <th className="text-right px-2 py-1.5">Con IVA</th>
+                <th className="px-2 py-1.5"></th>
               </tr></thead>
               <tbody>{productos.map(p => (
                 <tr key={p.id} className="border-t border-[#f0f4f8]">
@@ -156,6 +159,7 @@ export default function CatalogoProveedor({ proveedor, onClose }: { proveedor: a
                   <td className="px-2 py-1.5">{p.descripcion}</td>
                   <td className="px-2 py-1.5 text-center text-muted">{p.unidad}</td>
                   <td className="px-2 py-1.5 text-right font-semibold">{fmt(p.precio)}</td>
+                  <td className="px-2 py-1.5 text-right text-muted">{fmt(Math.round((Number(p.precio) || 0) * 1.19))}</td>
                   <td className="px-2 py-1.5 text-right"><button onClick={() => borrar(p.id)} className="text-danger text-[13px]">✕</button></td>
                 </tr>
               ))}</tbody>

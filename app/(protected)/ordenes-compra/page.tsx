@@ -266,7 +266,7 @@ export default function OrdenesCompraPage() {
               <span className="flex-1">Material</span>
               <span className="w-[70px]">Unidad</span>
               <span className="w-[80px] text-right">Cantidad</span>
-              <span className="w-[100px] text-right">Precio</span>
+              <span className="w-[100px] text-right">Precio neto</span>
               <span className="w-[100px] text-right">Subtotal</span>
               <span className="w-6" />
             </div>
