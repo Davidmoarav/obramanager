@@ -8,7 +8,22 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { data, error } = await supabase.from('contratos').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+
+  const contratos = data ?? []
+  // Ejecutado (facturado) de cada contrato enlazado, desde los estados de pago del proyecto
+  const proyectoIds = [...new Set(contratos.filter((c: any) => c.proyecto_id).map((c: any) => c.proyecto_id))]
+  const ejecutado: Record<string, number> = {}
+  if (proyectoIds.length) {
+    const { data: eps } = await supabase
+      .from('estados_pago').select('proyecto_id, bruto').eq('user_id', user.id).in('proyecto_id', proyectoIds as string[])
+    for (const ep of eps ?? []) ejecutado[ep.proyecto_id] = (ejecutado[ep.proyecto_id] || 0) + (Number(ep.bruto) || 0)
+  }
+
+  const result = contratos.map((c: any) => ({
+    ...c,
+    ejecutado: c.proyecto_id ? (ejecutado[c.proyecto_id] || 0) : null,
+  }))
+  return NextResponse.json(result)
 }
 
 export async function POST(req: Request) {
