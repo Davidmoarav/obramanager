@@ -26,7 +26,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
   const { soloLectura } = usePermisos('obra')
   const [eps, setEps]         = useState<EstadoPago[]>([])
   const [loading, setLoading] = useState(true)
-  const [resumen, setResumen] = useState({ presupuesto: 0, ejecutado: 0, cobrado: 0, costo: 0, ganancia: 0, markup_real: 0, margen_venta: 0, costo_ejecutado: 0, ganancia_ejecutada: 0, gasto_real: 0, gasto_manual: 0, gasto_facturas: 0, desviacion: 0, ganancia_real: 0, pct_gastado: 0, gasto_por_partida: {} as Record<string, number>, detalle_partidas: [] as any[] })
+  const [resumen, setResumen] = useState({ presupuesto: 0, ejecutado: 0, cobrado: 0, costo: 0, ganancia: 0, markup_real: 0, margen_venta: 0, costo_ejecutado: 0, ganancia_ejecutada: 0, gasto_real: 0, gasto_manual: 0, gasto_facturas: 0, desviacion: 0, desviacion_ejecutada: 0, pct_costo_ejecutado: 0, pct_ejecutado: 0, ganancia_real: 0, pct_gastado: 0, gasto_por_partida: {} as Record<string, number>, detalle_partidas: [] as any[] })
 
   // Gastos reales de la obra
   const [gastos, setGastos]     = useState<any[]>([])
@@ -89,6 +89,9 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
       gasto_manual: p?.gasto_manual || 0,
       gasto_facturas: p?.gasto_facturas || 0,
       desviacion: p?.desviacion || 0,
+      desviacion_ejecutada: p?.desviacion_ejecutada || 0,
+      pct_ejecutado: p?.pct_ejecutado || 0,
+      pct_costo_ejecutado: p?.pct_costo_ejecutado || 0,
       ganancia_real: p?.ganancia_real || 0,
       pct_gastado: p?.pct_gastado || 0,
       gasto_por_partida: p?.gasto_por_partida || {},
@@ -293,11 +296,18 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
             <div className="text-[10px] text-muted">{resumen.pct_gastado}% del presupuesto</div>
           </div>
           <div>
-            <div className="text-[11px] text-muted">Desviación</div>
-            <div className={`text-base font-bold ${resumen.desviacion >= 0 ? 'text-success' : 'text-danger'}`}>
-              {resumen.desviacion >= 0 ? '+' : ''}{fmt(resumen.desviacion)}
+            <div className="text-[11px] text-muted">Desviación al avance</div>
+            <div className={`text-base font-bold ${resumen.desviacion_ejecutada >= 0 ? 'text-success' : 'text-danger'}`}>
+              {resumen.desviacion_ejecutada >= 0 ? '+' : ''}{fmt(resumen.desviacion_ejecutada)}
             </div>
-            <div className="text-[10px] text-muted">{resumen.desviacion >= 0 ? 'Bajo presupuesto ✓' : '⚠ Te pasaste'}</div>
+            <div className="text-[10px] text-muted">
+              {resumen.costo_ejecutado > 0
+                ? (resumen.desviacion_ejecutada >= 0
+                    ? `Bajo costo para el ${resumen.pct_ejecutado ?? 0}% de avance ✓`
+                    : `⚠ Sobregirado para el avance actual`)
+                : 'Sin avance cargado'}
+            </div>
+            <div className="text-[10px] text-subtle mt-0.5">Total obra: {resumen.desviacion >= 0 ? '+' : ''}{fmt(resumen.desviacion)}</div>
           </div>
           <div>
             <div className="text-[11px] text-muted">Ganancia real a la fecha</div>

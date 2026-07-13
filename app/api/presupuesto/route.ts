@@ -112,7 +112,11 @@ export async function GET(req: Request) {
     }).sort((a, b) => b.gastado - a.gastado)   // los más tocados primero
 
     const gananciaEsperada = presupuestoVenta - presupuestoCosto
-    const desviacion = presupuestoCosto - gastoReal       // + = vas bajo presupuesto
+    const desviacion = presupuestoCosto - gastoReal       // + = holgura contra el presupuesto TOTAL
+    // Desviación REAL: compara el gasto con lo que debería haber costado el avance actual.
+    // Es la métrica que importa en obra: "para el avance que llevo, ¿voy sobre o bajo costo?"
+    const desviacionEjecutada = costoEjecutado - gastoReal   // + = vas bajo costo; − = sobregirado
+    const pctCostoEjecutado = costoEjecutado > 0 ? Math.round((gastoReal / costoEjecutado) * 100) : 0
     const gananciaReal = ventaEjecutada - gastoReal       // utilidad real a la fecha
     const markupReal = presupuestoCosto > 0 ? Math.round((gananciaEsperada / presupuestoCosto) * 100) : 0
     const margenVentaPct = presupuestoVenta > 0 ? Math.round((gananciaEsperada / presupuestoVenta) * 100) : 0
@@ -143,6 +147,8 @@ export async function GET(req: Request) {
       gasto_por_partida: gastoPorPartida,
       detalle_partidas: detallePartidas,
       desviacion: Math.round(desviacion),
+      desviacion_ejecutada: Math.round(desviacionEjecutada),
+      pct_costo_ejecutado: pctCostoEjecutado,
       ganancia_real: Math.round(gananciaReal),
       pct_gastado: pctGastado,
       // Compat

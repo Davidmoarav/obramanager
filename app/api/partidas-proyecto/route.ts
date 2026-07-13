@@ -4,6 +4,19 @@ import { guardEscritura } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // ─── Recalcular avances (hijos → padre → proyecto) ────────
+// Avance de una partida padre: promedio de sus subpartidas PONDERADO por valor
+// (cantidad × precio). Si las subpartidas no tienen valor, promedio simple.
+// DEBE coincidir con la fórmula de presupuesto/route.ts y estados-pago/route.ts.
+function avanceDeHijos(hijosDelPadre: any[]): number {
+  const pesos = hijosDelPadre.map((h: any) => (Number(h.cantidad) || 0) * (Number(h.precio_unitario) || 0))
+  const totalPeso = pesos.reduce((a: number, b: number) => a + b, 0)
+  if (totalPeso > 0) {
+    return hijosDelPadre.reduce((s: number, h: any, i: number) =>
+      s + (Number(h.avance) || 0) * (pesos[i] / totalPeso), 0)
+  }
+  return hijosDelPadre.reduce((s: number, h: any) => s + (Number(h.avance) || 0), 0) / hijosDelPadre.length
+}
+
 async function recalcTodo(supabase: any, proyectoId: string, userId: string) {
   // 1. Traer todas las partidas del proyecto
   const { data: todas } = await supabase
@@ -20,12 +33,11 @@ async function recalcTodo(supabase: any, proyectoId: string, userId: string) {
   const padres = todas.filter((p: any) => !p.parent_id)
   const hijos  = todas.filter((p: any) => p.parent_id)
 
-  // 2. Para cada padre: avance = promedio simple de sus hijos
+  // 2. Para cada padre: avance = promedio de sus hijos PONDERADO por valor
   for (const padre of padres) {
     const hijosDelPadre = hijos.filter((h: any) => h.parent_id === padre.id)
     if (hijosDelPadre.length > 0) {
-      const sumaAvance = hijosDelPadre.reduce((s: number, h: any) => s + (Number(h.avance) || 0), 0)
-      const avancePadre = Math.round(sumaAvance / hijosDelPadre.length)
+      const avancePadre = Math.round(avanceDeHijos(hijosDelPadre))
       await supabase
         .from('partidas_proyecto')
         .update({ avance: avancePadre })
