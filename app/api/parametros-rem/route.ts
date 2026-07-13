@@ -1,5 +1,6 @@
 // app/api/parametros-rem/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
+import { guardModulo } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 const DEFAULTS = {
@@ -11,6 +12,8 @@ const DEFAULTS = {
 
 export async function GET() {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'remuneraciones')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -27,6 +30,8 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'remuneraciones')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 

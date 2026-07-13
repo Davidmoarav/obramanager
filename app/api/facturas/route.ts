@@ -1,9 +1,12 @@
 // app/api/facturas/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
+import { guardModulo } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 export async function GET(req: Request) {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'facturacion')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -77,6 +80,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'facturacion')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const body = await req.json()
@@ -87,6 +92,8 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'facturacion')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const body = await req.json()
@@ -98,6 +105,8 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'facturacion')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { id } = await req.json()

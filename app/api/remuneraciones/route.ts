@@ -1,6 +1,7 @@
 // app/api/remuneraciones/route.ts
 // Genera/guarda liquidaciones de un período
 import { createServerSupabase } from '@/lib/supabase-server'
+import { guardModulo } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Sincroniza el gasto de mano de obra: si el empleado está asignado a una obra,
@@ -31,6 +32,8 @@ async function syncGastoManoObra(supabase: any, userId: string, liq: any) {
 
 export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'remuneraciones')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -51,6 +54,8 @@ export async function GET(req: NextRequest) {
 // Guardar una liquidación calculada (upsert por empleado+periodo)
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'remuneraciones')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -92,6 +97,8 @@ export async function POST(req: Request) {
 // Marcar como pagada / cambiar estado
 export async function PUT(req: Request) {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'remuneraciones')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 

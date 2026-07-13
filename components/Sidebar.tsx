@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import useSWR from 'swr'
+import { fetcher } from '@/lib/fetcher'
 import { createClient } from '@/lib/supabase'
 
 const MENU = [
@@ -23,10 +25,19 @@ const MENU = [
   { href: '/remuneraciones',    label: 'Remuneraciones',    icon: '💰', section: 'Personal' },
 
   { href: '/contratos',         label: 'Contratos',         icon: '◫', section: 'Admin' },
+  { href: '/usuarios',          label: 'Usuarios y roles',  icon: '👥', section: 'Admin', modulo: 'usuarios' },
   { href: '/configuracion',     label: 'Configuración',     icon: '⚙', section: 'Admin' },
 ]
 
-const sections = [...new Set(MENU.map(m => m.section))]
+// Qué roles ven cada módulo restringido. Espejo de lib/roles.ts: el permiso REAL
+// se aplica en el servidor; esto solo evita mostrar lo que no corresponde.
+const ACCESO: Record<string, string[]> = {
+  '/facturacion':    ['admin', 'contador'],
+  '/finanzas':       ['admin', 'contador'],
+  '/remuneraciones': ['admin', 'contador'],
+  '/rrhh':           ['admin', 'contador'],
+  '/usuarios':       ['admin'],
+}
 
 export default function Sidebar({ userEmail, open = false, onClose }: {
   userEmail?: string
@@ -37,6 +48,15 @@ export default function Sidebar({ userEmail, open = false, onClose }: {
   const router   = useRouter()
   const supabase = createClient()
   const [empresa, setEmpresa] = useState<string>('')
+
+  // Rol del usuario: filtra qué módulos se muestran
+  const { data: miRol } = useSWR<any>('/api/mi-rol', fetcher)
+  const rol = miRol?.rol || 'admin'
+  const menuVisible = MENU.filter(m => {
+    const permitidos = ACCESO[m.href]
+    return !permitidos || permitidos.includes(rol)
+  })
+  const sections = [...new Set(menuVisible.map(m => m.section))]
 
   useEffect(() => {
     fetch('/api/empresa')
@@ -81,7 +101,7 @@ export default function Sidebar({ userEmail, open = false, onClose }: {
         {sections.map(sec => (
           <div key={sec}>
             <div className="text-[10px] font-bold text-subtle uppercase tracking-wider px-4 pt-3 pb-1">{sec}</div>
-            {MENU.filter(m => m.section === sec).map(m => {
+            {menuVisible.filter(m => m.section === sec).map(m => {
               const active = pathname === m.href || (m.href !== '/dashboard' && pathname.startsWith(m.href))
               return (
                 <Link key={m.href} href={m.href}
@@ -100,7 +120,12 @@ export default function Sidebar({ userEmail, open = false, onClose }: {
 
       {/* Footer */}
       <div className="px-4 py-3 border-t border-line">
-        {userEmail && <div className="text-[11px] text-muted mb-2 overflow-hidden text-ellipsis whitespace-nowrap">{userEmail}</div>}
+        {userEmail && <div className="text-[11px] text-muted mb-1 overflow-hidden text-ellipsis whitespace-nowrap">{userEmail}</div>}
+        {miRol?.rol && (
+          <div className="text-[10px] font-bold uppercase tracking-wide text-brand mb-2">
+            {miRol.rol === 'admin' ? 'Administrador' : miRol.rol === 'contador' ? 'Contador' : 'Jefe de obra'}
+          </div>
+        )}
         <button onClick={logout}
           className="w-full py-2 bg-canvas border border-line rounded-lg text-xs font-semibold text-muted cursor-pointer hover:bg-line transition">
           Cerrar sesión
