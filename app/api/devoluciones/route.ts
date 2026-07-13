@@ -2,6 +2,7 @@
 // Registra y lista las devoluciones (liberaciones) de retención y anticipo
 // que el mandante entrega al contratista a lo largo de la obra.
 import { createServerSupabase } from '@/lib/supabase-server'
+import { guardEscritura } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function GET(req: NextRequest) {
@@ -20,6 +21,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -47,6 +50,8 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 

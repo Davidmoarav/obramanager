@@ -1,5 +1,6 @@
 // app/api/estados-pago/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
+import { guardEscritura } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const IVA = 0.19
@@ -146,6 +147,8 @@ async function sugerirEP(supabase: any, proyectoId: string, userId: string) {
 // ─── POST: crear un EP con cascada completa ──
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -215,6 +218,8 @@ export async function POST(req: Request) {
 // ─── PUT: cambiar estado del EP ──
 export async function PUT(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -275,6 +280,8 @@ export async function PUT(req: Request) {
 // ─── DELETE ──
 export async function DELETE(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 

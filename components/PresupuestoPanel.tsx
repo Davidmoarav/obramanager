@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Btn, FormInput, Modal } from '@/components/ui'
+import { usePermisos } from '@/lib/usePermisos'
 import { fmt, fmtM } from '@/lib/format'
 import { ESTADO_EP, type EstadoPago } from '@/types/estado-pago'
 import DescargarEPBtn from '@/components/DescargarEPBtn'
@@ -22,6 +23,7 @@ interface Props {
 const IVA = 0.19
 
 export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNombre = '', proyectoCliente = '', proyectoDireccion = '' }: Props) {
+  const { soloLectura } = usePermisos('obra')
   const [eps, setEps]         = useState<EstadoPago[]>([])
   const [loading, setLoading] = useState(true)
   const [resumen, setResumen] = useState({ presupuesto: 0, ejecutado: 0, cobrado: 0, costo: 0, ganancia: 0, markup_real: 0, margen_venta: 0, costo_ejecutado: 0, ganancia_ejecutada: 0, gasto_real: 0, gasto_manual: 0, gasto_facturas: 0, desviacion: 0, ganancia_real: 0, pct_gastado: 0, gasto_por_partida: {} as Record<string, number>, detalle_partidas: [] as any[] })
@@ -251,6 +253,11 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
 
   return (
     <div>
+      {soloLectura && (
+        <div className="bg-[#fff8e6] border border-[#f0dca8] text-[#8a6314] text-[12px] px-4 py-2.5 rounded-lg mb-4">
+          👁 <strong>Solo lectura.</strong> Puedes consultar el presupuesto y los estados de pago, pero no modificarlos.
+        </div>
+      )}
       {/* Sub-pestañas */}
       <div className="flex gap-1 mb-5 border-b border-line">
         {[
@@ -264,6 +271,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
           </button>
         ))}
       </div>
+      <div className={soloLectura ? 'pointer-events-none opacity-95' : ''}>
 
       {subTab === 'presupuesto' && (<>
       {/* Presupuesto vs Gasto REAL */}
@@ -673,6 +681,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, proyectoNo
           </div>
         </Modal>
       )}
+      </div>
     </div>
   )
 }

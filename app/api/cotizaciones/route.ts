@@ -1,5 +1,6 @@
 // app/api/cotizaciones/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
+import { guardEscritura } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 // ─── GET ──────────────────────────────────────────────────
@@ -71,6 +72,8 @@ function filasPartidas(cotizacionId: string, partidas: Record<string, unknown>[]
 // ─── POST ─────────────────────────────────────────────────
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -96,6 +99,8 @@ export async function POST(req: Request) {
 // ─── PUT ──────────────────────────────────────────────────
 export async function PUT(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -124,6 +129,8 @@ export async function PUT(req: Request) {
 // ─── DELETE ───────────────────────────────────────────────
 export async function DELETE(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 

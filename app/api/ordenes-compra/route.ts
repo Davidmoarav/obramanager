@@ -5,6 +5,7 @@
 //   ?id=X                     → una OC con sus líneas
 //   (sin params)              → lista de OCs
 import { createServerSupabase } from '@/lib/supabase-server'
+import { guardEscritura } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const IVA = 0.19
@@ -141,6 +142,8 @@ async function syncGastoOC(supabase: any, userId: string, oc: any) {
 // ─── POST: crear OC ───────────────────────────────────────
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -183,6 +186,8 @@ export async function POST(req: Request) {
 // ─── PUT: actualizar OC (estado, datos y/o líneas) ────────
 export async function PUT(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -230,6 +235,8 @@ export async function PUT(req: Request) {
 // ─── DELETE ───────────────────────────────────────────────
 export async function DELETE(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 

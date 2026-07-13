@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Btn, FormInput, FormSelect, Modal } from '@/components/ui'
+import { usePermisos } from '@/lib/usePermisos'
 import SelectorCatalogo from '@/components/SelectorCatalogo'
 import { fmt } from '@/lib/format'
 import { UNIDADES } from '@/types/cotizaciones'
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceChange }: Props) {
+  const { soloLectura } = usePermisos('obra')
   const [allItems, setAllItems] = useState<PartidaProyecto[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -255,6 +257,12 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
 
   return (
     <div>
+      {soloLectura && (
+        <div className="bg-[#fff8e6] border border-[#f0dca8] text-[#8a6314] text-[12px] px-4 py-2.5 rounded-lg mb-4">
+          👁 <strong>Solo lectura.</strong> Puedes consultar el avance y los costos, pero no modificar la obra.
+        </div>
+      )}
+      <div className={soloLectura ? 'pointer-events-none opacity-95' : ''}>
       <div className="flex justify-between items-center mb-3.5">
         <div>
           <div className="text-sm font-bold text-ink">Control de obra ({padres.length} partida{padres.length !== 1 ? 's' : ''})</div>
@@ -538,6 +546,7 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
             )}
         </Modal>
       )}
+      </div>
     </div>
   )
 }

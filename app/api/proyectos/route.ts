@@ -1,5 +1,6 @@
 // app/api/proyectos/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
+import { guardEscritura } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -14,6 +15,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -25,6 +28,8 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -37,6 +42,8 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 

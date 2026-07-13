@@ -7,6 +7,7 @@ export type Rol = 'admin' | 'contador' | 'jefe_obra'
 // Módulos restringidos y qué roles pueden acceder (autoritativo, server-side).
 // Lo que no esté acá, lo pueden ver todos los roles.
 export const MODULOS_POR_ROL: Record<string, Rol[]> = {
+  proyectos:      ['admin', 'jefe_obra'],   // el contador no gestiona obras
   facturacion:    ['admin', 'contador'],
   finanzas:       ['admin', 'contador'],
   iva:            ['admin', 'contador'],
@@ -35,6 +36,27 @@ export async function getRolActual(supabase: any) {
     .maybeSingle()
   if (m) return { userId: user.id, email: user.email, rol: m.rol as Rol, ownerId: m.owner_id }
   return { userId: user.id, email: user.email, rol: 'admin' as Rol, ownerId: user.id }
+}
+
+// Módulos donde un rol entra en SOLO LECTURA (puede ver, no modificar).
+// El contador necesita ver las obras para contabilizar, pero no ejecutarlas.
+export const SOLO_LECTURA: Record<string, Rol[]> = {
+  obra: ['contador'],
+}
+
+export function esSoloLectura(rol: Rol, modulo: string): boolean {
+  return (SOLO_LECTURA[modulo] ?? []).includes(rol)
+}
+
+// Guarda de escritura: permite GET, bloquea POST/PUT/DELETE a los roles
+// que tienen ese módulo en solo lectura. Devuelve 403 o null.
+export async function guardEscritura(supabase: any, modulo: string) {
+  const info = await getRolActual(supabase)
+  if (!info) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (esSoloLectura(info.rol, modulo)) {
+    return NextResponse.json({ error: 'Tu rol tiene acceso de solo lectura a este módulo' }, { status: 403 })
+  }
+  return null
 }
 
 // Guarda de módulo para endpoints sensibles. Devuelve una respuesta 401/403

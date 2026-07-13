@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/fetcher'
+import { usePermisos } from '@/lib/usePermisos'
 import { Btn, FormInput, FormSelect, Modal, SectionTitle, fmtM } from '@/components/ui'
 import type { Proyecto } from '@/types'
 import DocumentosPanel from '@/components/DocumentosPanel'
@@ -39,6 +40,8 @@ export default function ProyectosPage() {
 
 
   const upd = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
+
+  const { puedeEditar, soloLectura } = usePermisos('obra')
 
   const openNew = () => { setForm({ ...EMPTY }); setModal('nuevo') }
   const openEdit = (p: Proyecto) => { setForm({ ...p }); setModal('editar') }
@@ -82,8 +85,14 @@ export default function ProyectosPage() {
           <SectionTitle>Proyectos</SectionTitle>
           <p className="text-sm text-muted mt-1">{items.length} proyecto{items.length !== 1 ? 's' : ''} en total</p>
         </div>
-        <Btn variant="primary" onClick={openNew}>+ Nuevo proyecto</Btn>
+        {puedeEditar && <Btn variant="primary" onClick={openNew}>+ Nuevo proyecto</Btn>}
       </div>
+
+      {soloLectura && (
+        <div className="bg-[#fff8e6] border border-[#f0dca8] text-[#8a6314] text-[12px] px-4 py-2.5 rounded-lg mb-5">
+          👁 <strong>Solo lectura.</strong> Puedes consultar las obras y sus datos para contabilizar, pero no modificarlas.
+        </div>
+      )}
 
       {/* Filtros tipo segmented */}
       <div className="inline-flex gap-1 p-1 bg-white border border-line rounded-xl mb-6 shadow-card">
@@ -167,25 +176,29 @@ export default function ProyectosPage() {
                     className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-bold text-brand bg-brand-bg hover:bg-brand hover:text-white transition">
                     🏗 Gestionar
                   </button>
-                  <button onClick={() => openEdit(p)}
-                    className="px-3 py-2 rounded-lg text-[13px] font-semibold text-muted bg-canvas border border-line hover:bg-line transition">
-                    Editar
-                  </button>
-                  <button onClick={() => del(p.id)}
-                    className="px-3 py-2 rounded-lg text-[13px] font-semibold text-danger bg-danger-bg hover:bg-[#fbdbd7] transition">
-                    ✕
-                  </button>
+                  {puedeEditar && (
+                    <>
+                      <button onClick={() => openEdit(p)}
+                        className="px-3 py-2 rounded-lg text-[13px] font-semibold text-muted bg-canvas border border-line hover:bg-line transition">
+                        Editar
+                      </button>
+                      <button onClick={() => del(p.id)}
+                        className="px-3 py-2 rounded-lg text-[13px] font-semibold text-danger bg-danger-bg hover:bg-[#fbdbd7] transition">
+                        ✕
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             )
           })}
 
           {/* Tarjeta nueva */}
-          <button onClick={openNew}
+          {puedeEditar && <button onClick={openNew}
             className="border-2 border-dashed border-line2 rounded-2xl p-5 flex flex-col items-center justify-center gap-2 text-muted hover:border-brand hover:text-brand hover:bg-brand-bg/40 transition min-h-[210px] cursor-pointer">
             <div className="w-12 h-12 rounded-full bg-canvas flex items-center justify-center text-2xl">+</div>
             <div className="text-[13px] font-semibold">Nuevo proyecto</div>
-          </button>
+          </button>}
         </div>
       )}
 

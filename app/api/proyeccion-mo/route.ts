@@ -2,6 +2,7 @@
 // Proyección de mano de obra por proyecto: dotación mes a mes,
 // costo con imposiciones, finiquitos y gasto pendiente.
 import { createServerSupabase } from '@/lib/supabase-server'
+import { guardEscritura } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Factor imposiciones patronales por defecto (SIS, mutual, cesantía ≈ +5%)
@@ -108,6 +109,8 @@ export async function GET(req: NextRequest) {
 // ─── PUT: guardar la proyección completa (reemplaza) ───
 export async function PUT(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
