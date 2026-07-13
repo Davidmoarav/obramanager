@@ -1,5 +1,6 @@
 // app/api/empresa/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
+import { guardModulo } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 // ─── GET: obtener la config de la empresa del usuario ─────
@@ -23,6 +24,8 @@ export async function GET() {
 // ─── PUT: upsert (crea si no existe, actualiza si sí) ─────
 export async function PUT(req: Request) {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'config_empresa')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 

@@ -3,6 +3,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Btn, FormInput, Modal, SectionTitle } from '@/components/ui'
+import PerfilPanel from '@/components/PerfilPanel'
+import useSWR from 'swr'
+import { fetcher } from '@/lib/fetcher'
 import { createClient } from '@/lib/supabase'
 import type { EmpresaConfig } from '@/types/empresa'
 
@@ -10,6 +13,9 @@ export default function ConfiguracionPage() {
   const supabase = createClient()
   const fileRef  = useRef<HTMLInputElement>(null)
 
+  const { data: miRol } = useSWR<any>('/api/mi-rol', fetcher)
+  const esAdmin = miRol?.rol === 'admin'
+  const [tab, setTab]           = useState<'empresa' | 'perfil'>('empresa')
   const [form, setForm]         = useState<EmpresaConfig>({})
   const [logoUrl, setLogoUrl]   = useState<string | null>(null)
   const [loading, setLoading]   = useState(true)
@@ -127,7 +133,25 @@ export default function ConfiguracionPage() {
 
   return (
     <div className="max-w-[860px]">
-      <SectionTitle>Configuración de empresa</SectionTitle>
+      <SectionTitle>Configuración</SectionTitle>
+
+      {/* Pestañas */}
+      <div className="flex gap-1 mb-5 border-b border-line">
+        {([['empresa', 'Empresa'], ['perfil', 'Mi perfil']] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k)}
+            className={`px-4 py-2 text-[13px] font-semibold border-b-2 -mb-px transition ${
+              tab === k ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'perfil' ? <PerfilPanel /> : !esAdmin ? (
+        <div className="bg-white border border-line rounded-2xl p-8 text-center shadow-card">
+          <p className="text-muted text-[14px]">Solo el administrador puede editar los datos de la empresa.</p>
+        </div>
+      ) : (
+      <>
       <p className="text-[13px] text-muted mb-6">
         Estos datos aparecerán en tus cotizaciones, facturas y reportes PDF.
       </p>
@@ -230,6 +254,8 @@ export default function ConfiguracionPage() {
           {saving ? 'Guardando...' : 'Guardar configuración'}
         </Btn>
       </div>
+      </>
+      )}
     </div>
   )
 }

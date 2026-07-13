@@ -13,6 +13,7 @@ export const MODULOS_POR_ROL: Record<string, Rol[]> = {
   ppm:            ['admin', 'contador'],
   remuneraciones: ['admin', 'contador'],
   usuarios:       ['admin'],
+  config_empresa: ['admin'],
 }
 
 export function rolPermiteModulo(rol: Rol, modulo: string): boolean {
