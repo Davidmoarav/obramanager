@@ -1,4 +1,4 @@
-    // app/api/informe/route.ts
+// app/api/informe/route.ts
 // Informe ejecutivo por proyecto: agrega KPIs de estados de pago (módulo 1),
 // retenciones/devoluciones (módulo 2) y proyección de mano de obra (módulo 3).
 //
@@ -9,7 +9,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const BILLED = ['presentado', 'aprobado', 'pagado']
 
-function kpisProyecto(valorContrato: number, eps: any[], devs: any[], proy: any[]) {
+function kpisProyecto(valorContrato: number, eps: any[], devs: any[], proy: any[], montoContrato = 0) {
   const billed = eps.filter(e => BILLED.includes(e.estado))
   const pagados = eps.filter(e => e.estado === 'pagado')
 
@@ -18,8 +18,15 @@ function kpisProyecto(valorContrato: number, eps: any[], devs: any[], proy: any[
   const totalFacturado = billed.reduce((s, e) => s + (e.total || 0), 0)     // c/IVA
   const totalCobrado   = pagados.reduce((s, e) => s + (e.total || 0), 0)    // c/IVA
 
-  const avanceFinanciero = valorContrato > 0 ? (brutoAcum / valorContrato) * 100 : 0
-  const cobradoPct       = valorContrato > 0 ? (brutoCobrado / valorContrato) * 100 : 0
+  // El avance financiero compara NETO contra NETO.
+  // `bruto` del EP es neto; `proyectos.valor` viene CON IVA, así que se usa el
+  // monto de contrato neto (o se descuenta el IVA del valor si no está cargado).
+  const contratoNeto = montoContrato > 0
+    ? montoContrato
+    : Math.round((valorContrato || 0) / 1.19)
+
+  const avanceFinanciero = contratoNeto > 0 ? (brutoAcum / contratoNeto) * 100 : 0
+  const cobradoPct       = contratoNeto > 0 ? (brutoCobrado / contratoNeto) * 100 : 0
   const saldoPorFacturar = Math.max(0, valorContrato - brutoAcum)
 
   // Retenciones (módulo 2)
@@ -80,7 +87,7 @@ export async function GET(req: NextRequest) {
   // ─── Resumen compacto de todos los proyectos (para tarjetas) ───
   if (!proyectoId) {
     const [{ data: proyectos }, { data: eps }, { data: devs }, { data: pmo }] = await Promise.all([
-      supabase.from('proyectos').select('id, nombre, valor').eq('user_id', user.id),
+      supabase.from('proyectos').select('id, nombre, valor, monto_contrato').eq('user_id', user.id),
       supabase.from('estados_pago').select('proyecto_id, estado, bruto, total, retencion_monto, anticipo_desc').eq('user_id', user.id),
       supabase.from('devoluciones').select('proyecto_id, tipo, monto').eq('user_id', user.id),
       supabase.from('proyeccion_mo').select('proyecto_id, mes, dotacion, costo_unitario, finiquito').eq('user_id', user.id),
@@ -92,6 +99,7 @@ export async function GET(req: NextRequest) {
         (eps ?? []).filter(e => e.proyecto_id === p.id),
         (devs ?? []).filter(d => d.proyecto_id === p.id),
         (pmo ?? []).filter(r => r.proyecto_id === p.id),
+        Number((p as any).monto_contrato) || 0,
       )
       return {
         proyecto_id: p.id,
@@ -114,7 +122,7 @@ export async function GET(req: NextRequest) {
     supabase.from('proyeccion_mo').select('*').eq('proyecto_id', proyectoId).eq('user_id', user.id).order('mes', { ascending: true }),
   ])
 
-  const kpis = kpisProyecto(proyecto?.valor || 0, eps ?? [], devs ?? [], pmo ?? [])
+  const kpis = kpisProyecto(proyecto?.valor || 0, eps ?? [], devs ?? [], pmo ?? [], Number((proyecto as any)?.monto_contrato) || 0)
 
   return NextResponse.json({
     proyecto: proyecto ? { id: proyecto.id, nombre: proyecto.nombre, cliente: proyecto.cliente, direccion: (proyecto as any).direccion } : null,

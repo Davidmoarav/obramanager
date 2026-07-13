@@ -66,6 +66,14 @@ export async function POST(req: Request) {
     subPartidasCatalogo = subs ?? []
   }
 
+  // 2.b Markup por defecto de la empresa: sirve para derivar el COSTO desde el
+  //     precio de venta cotizado (precio = costo × (1 + markup) → costo = precio / (1+markup))
+  const { data: cfg } = await supabase
+    .from('empresa_config').select('markup_default').eq('user_id', user.id).maybeSingle()
+  const markupDefault = Number(cfg?.markup_default) || 20
+  const factor = 1 + markupDefault / 100
+  const costoDesde = (precio: any) => Math.round((Number(precio) || 0) / factor)
+
   // 3. Valor total CON IVA = solo padres (los hijos son desglose del padre)
   //    Si una partida padre NO tiene hijos, su propio valor cuenta.
   //    Si tiene hijos, el valor del padre ya representa el total de la partida.
@@ -98,6 +106,8 @@ export async function POST(req: Request) {
       fin:           null,
       cliente_id:    cot.cliente_id || null,
       cotizacion_id: cot.id,
+      markup_global: markupDefault,
+      monto_contrato: Math.round(neto),
       user_id:       user.id,
     })
     .select()
@@ -123,6 +133,8 @@ export async function POST(req: Request) {
         unidad:          p.unidad || 'gl',
         cantidad:        Number(p.cantidad) || 1,
         precio_unitario: Number(p.precio_unitario) || 0,
+        costo_unitario:  costoDesde(p.precio_unitario),
+        markup_pct:      markupDefault,
         avance:          0,
         user_id:         user.id,
       })
@@ -154,6 +166,8 @@ export async function POST(req: Request) {
           unidad:          sub.unidad || 'gl',
           cantidad:        1,
           precio_unitario: Number(sub.precio_unitario_ref) || 0,
+          costo_unitario:  costoDesde(sub.precio_unitario_ref),
+          markup_pct:      markupDefault,
           avance:          0,
           user_id:         user.id,
         }

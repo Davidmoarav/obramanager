@@ -33,7 +33,13 @@ export default function RRHHPage() {
     await mutate()
   }
 
-  const totalNomina = items.reduce((s, e) => s + e.sueldo + e.horas_extra * 14000, 0)
+  // Horas extra: valor hora × 1,5 (misma fórmula que la liquidación real,
+  // no un valor fijo: depende del sueldo de cada trabajador)
+  const totalNomina = items.reduce((s, e) => {
+    const valorHora = (Number(e.sueldo) || 0) / 30 / 8
+    const extra = Math.round(valorHora * 1.5 * (Number(e.horas_extra) || 0))
+    return s + (Number(e.sueldo) || 0) + extra
+  }, 0)
   const totalHE     = items.reduce((s, e) => s + e.horas_extra, 0)
 
   const initials = (n: string) => n.split(' ').map(x => x[0]).slice(0,2).join('')
