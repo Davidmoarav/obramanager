@@ -28,12 +28,20 @@ export default function LoginPage() {
       router.push('/dashboard')
       router.refresh()
     } else {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email, password,
         options: { data: { nombre } }
       })
       if (error) { setError(error.message); setLoading(false); return }
-      setMsg('Revisa tu correo para confirmar la cuenta, luego inicia sesión.')
+
+      // Si la confirmación por correo está desactivada, Supabase ya devuelve la
+      // sesión activa: se entra directo. Si está activada, sí hay que confirmar.
+      if (data.session) {
+        router.push('/dashboard')
+        router.refresh()
+        return
+      }
+      setMsg('Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.')
       setMode('login')
     }
     setLoading(false)

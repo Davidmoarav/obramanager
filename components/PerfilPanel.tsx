@@ -62,7 +62,7 @@ export default function PerfilPanel() {
     if (!miRol?.email) return
     setMsg(null)
     const { error } = await supabase.auth.resetPasswordForEmail(miRol.email, {
-      redirectTo: `${window.location.origin}/auth/login`,
+      redirectTo: `${window.location.origin}/auth/callback`,
     })
     setMsg(error
       ? { kind: 'error', text: 'No se pudo enviar el correo de recuperación.' }

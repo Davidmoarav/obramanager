@@ -28,5 +28,8 @@ export async function GET(request: NextRequest) {
     if (!error) return successResponse
   }
 
-  return NextResponse.redirect(`${origin}/auth/forgot?error=link-invalido`)
+  // Sin ?code: el enlace puede venir en formato implícito (#access_token=... en el
+  // fragmento), que el servidor NO puede leer. Se deriva a update-password para que
+  // el cliente procese el token desde el hash.
+  return NextResponse.redirect(`${origin}/auth/update-password`)
 }
