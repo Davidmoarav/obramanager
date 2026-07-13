@@ -30,13 +30,26 @@ export async function GET(req: Request) {
 
   // Opciones para los filtros de la interfaz
   if (sp.get('filtros')) {
-    const { data } = await supabase.from('auditoria').select('actor_email, tabla').limit(2000)
-    const usuarios = [...new Set((data ?? []).map((r: any) => r.actor_email).filter(Boolean))].sort()
-    const tablas = [...new Set((data ?? []).map((r: any) => r.tabla).filter(Boolean))].sort()
-    return NextResponse.json({
-      usuarios,
-      tablas: tablas.map((t: string) => ({ valor: t, label: NOMBRE_TABLA[t] || t })),
-    })
+    const { data, error } = await supabase
+      .from('auditoria')
+      .select('actor_email, tabla')
+      .eq('owner_id', info.ownerId)
+      .order('creado_en', { ascending: false })
+      .limit(3000)
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    const rows = data ?? []
+    const usuarios = [...new Set(rows.map((r: any) => r.actor_email).filter(Boolean))].sort()
+
+    // Módulos: los que ya tienen eventos, primero; luego el resto de los conocidos
+    const conEventos = [...new Set(rows.map((r: any) => r.tabla).filter(Boolean))]
+    const todos = [...new Set([...conEventos, ...Object.keys(NOMBRE_TABLA)])]
+    const tablas = todos
+      .map((t: string) => ({ valor: t, label: NOMBRE_TABLA[t] || t, tiene: conEventos.includes(t) }))
+      .sort((a, b) => (Number(b.tiene) - Number(a.tiene)) || a.label.localeCompare(b.label))
+
+    return NextResponse.json({ usuarios, tablas, total_eventos: rows.length })
   }
 
   const limit  = Math.min(Number(sp.get('limit')) || 50, 300)

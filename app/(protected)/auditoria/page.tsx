@@ -63,6 +63,14 @@ export default function AuditoriaPage() {
 
   const { data: eventos = [], isLoading } = useSWR<any[]>(`/api/auditoria?${qs}`, fetcher)
   const { data: filtros } = useSWR<any>('/api/auditoria?filtros=1', fetcher)
+  const { data: miRol } = useSWR<any>('/api/mi-rol', fetcher)
+
+  // Usuarios: los que tienen eventos + yo (aunque aún no haya registrado ninguno)
+  const usuarios: string[] = [...new Set([
+    ...(filtros?.usuarios ?? []),
+    ...(miRol?.email ? [miRol.email] : []),
+  ])].sort()
+  const sinEventos = filtros && (filtros.total_eventos ?? 0) === 0
 
   const limpiar = () => { setTabla(''); setActor(''); setAccion(''); setDesde(''); setHasta(''); setBuscar('') }
   const hayFiltro = tabla || actor || accion || desde || hasta || buscar
@@ -87,14 +95,14 @@ export default function AuditoriaPage() {
             <label className="text-[11px] text-muted block mb-1">Usuario</label>
             <select value={actor} onChange={e => setActor(e.target.value)} className="input-base !mb-0 !py-1.5 text-[12px]">
               <option value="">Todos</option>
-              {(filtros?.usuarios ?? []).map((u: string) => <option key={u} value={u}>{u}</option>)}
+              {usuarios.map((u: string) => <option key={u} value={u}>{u}</option>)}
             </select>
           </div>
           <div>
             <label className="text-[11px] text-muted block mb-1">Módulo</label>
             <select value={tabla} onChange={e => setTabla(e.target.value)} className="input-base !mb-0 !py-1.5 text-[12px]">
               <option value="">Todos</option>
-              {(filtros?.tablas ?? []).map((t: any) => <option key={t.valor} value={t.valor}>{t.label}</option>)}
+              {(filtros?.tablas ?? []).map((t: any) => <option key={t.valor} value={t.valor}>{t.label}{t.tiene ? '' : ' (sin cambios aún)'}</option>)}
             </select>
           </div>
           <div>
@@ -129,7 +137,14 @@ export default function AuditoriaPage() {
         {isLoading
           ? <p className="text-muted text-center p-10">Cargando...</p>
           : eventos.length === 0
-          ? <p className="text-muted text-center p-10">{hayFiltro ? 'No hay cambios que coincidan con los filtros.' : 'Aún no hay cambios registrados.'}</p>
+          ? <div className="text-center p-10">
+              <p className="text-muted">{hayFiltro ? 'No hay cambios que coincidan con los filtros.' : 'Aún no hay cambios registrados.'}</p>
+              {!hayFiltro && sinEventos && (
+                <p className="text-[12px] text-subtle mt-2">
+                  La bitácora empieza a registrar desde que se activa. Haz un cambio (por ejemplo, edita una factura) y aparecerá aquí.
+                </p>
+              )}
+            </div>
           : (
             <div className="flex flex-col gap-1">
               {eventos.map(ev => {
