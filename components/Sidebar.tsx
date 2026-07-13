@@ -26,17 +26,20 @@ const MENU = [
 
   { href: '/contratos',         label: 'Contratos',         icon: '◫', section: 'Admin' },
   { href: '/usuarios',          label: 'Usuarios y roles',  icon: '👥', section: 'Admin', modulo: 'usuarios' },
+  { href: '/auditoria',         label: 'Bitácora',          icon: '🕐', section: 'Admin', modulo: 'auditoria' },
   { href: '/configuracion',     label: 'Configuración',     icon: '⚙', section: 'Admin' },
 ]
 
 // Qué roles ven cada módulo restringido. Espejo de lib/roles.ts: el permiso REAL
 // se aplica en el servidor; esto solo evita mostrar lo que no corresponde.
 const ACCESO: Record<string, string[]> = {
+  '/proyectos':      ['admin', 'jefe_obra'],
   '/facturacion':    ['admin', 'contador'],
   '/finanzas':       ['admin', 'contador'],
   '/remuneraciones': ['admin', 'contador'],
   '/rrhh':           ['admin', 'contador'],
   '/usuarios':       ['admin'],
+  '/auditoria':      ['admin'],
 }
 
 export default function Sidebar({ userEmail, open = false, onClose }: {
