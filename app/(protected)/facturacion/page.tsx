@@ -8,7 +8,7 @@ import { Badge, Btn, FormInput, FormSelect, MetricCard, Modal, SectionTitle, Tab
 import ImportadorSII from '@/components/ImportadorSII'
 import ResumenBoletas from '@/components/ResumenBoletas'
 
-const EMPTY: any = { numero:'', cliente:'', proyecto:'', tipo:'venta', doc_tipo:'factura', factura_ref:'', neto:0, iva:0, monto:0, emision:'', vencimiento:'', estado:'pendiente' }
+const EMPTY: any = { numero:'', cliente:'', proyecto:'', proyecto_id:'', tipo:'venta', doc_tipo:'factura', factura_ref:'', neto:0, iva:0, monto:0, emision:'', vencimiento:'', estado:'pendiente' }
 
 export default function FacturacionPage() {
   const [periodoSel, setPeriodoSel] = useState(new Date().toISOString().slice(0, 7))
@@ -51,6 +51,7 @@ export default function FacturacionPage() {
       tipo: fac.tipo || 'venta',
       cliente: fac.cliente,
       proyecto: fac.proyecto || '',
+      proyecto_id: fac.proyecto_id || '',
     }))
   }
 
@@ -72,6 +73,7 @@ export default function FacturacionPage() {
       emision: form.emision || null,
       vencimiento: form.vencimiento || null,
       proyecto: form.proyecto || null,
+      proyecto_id: form.proyecto_id || null,
       numero: form.numero || null,
       factura_ref: form.factura_ref || null,
       periodo,
@@ -389,12 +391,16 @@ export default function FacturacionPage() {
             <div className="mb-3">
               <label className="label-base">Proyecto (opcional)</label>
               <select
-                value={form.proyecto || ''}
-                onChange={e => upd('proyecto', e.target.value)}
+                value={form.proyecto_id || ''}
+                onChange={e => {
+                  const id = e.target.value
+                  const pr = proyectos.find((p: any) => p.id === id)
+                  setForm((f: any) => ({ ...f, proyecto_id: id, proyecto: pr?.nombre || '' }))
+                }}
                 className="input-base cursor-pointer">
                 <option value="">— Sin proyecto —</option>
                 {proyectos.map((p: any) => (
-                  <option key={p.id} value={p.nombre}>{p.nombre}</option>
+                  <option key={p.id} value={p.id}>{p.nombre}</option>
                 ))}
               </select>
             </div>

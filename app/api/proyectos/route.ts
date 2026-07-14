@@ -37,6 +37,18 @@ export async function PUT(req: Request) {
   const { id, ...rest } = body
   const { data, error } = await supabase.from('proyectos').update(rest).eq('id', id).eq('user_id', user.id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Si se renombró la obra, actualizar el nombre en sus facturas y OC
+  // (el enlace real es por id, pero el texto se mantiene coherente)
+  if (rest.nombre && data?.nombre) {
+    await supabase.from('facturas')
+      .update({ proyecto: data.nombre })
+      .eq('proyecto_id', id).eq('user_id', user.id)
+    await supabase.from('ordenes_compra')
+      .update({ proyecto: data.nombre })
+      .eq('proyecto_id', id).eq('user_id', user.id)
+  }
+
   return NextResponse.json(data)
 }
 

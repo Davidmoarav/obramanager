@@ -222,9 +222,9 @@ export async function PUT(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Al asociar una factura, atribuirla al proyecto de la OC (así cuenta en su gasto)
-  if (data?.factura_id && data?.proyecto) {
+  if (data?.factura_id && (data?.proyecto_id || data?.proyecto)) {
     await supabase.from('facturas')
-      .update({ proyecto: data.proyecto })
+      .update({ proyecto: data.proyecto || null, proyecto_id: data.proyecto_id || null })
       .eq('id', data.factura_id).eq('user_id', user.id)
   }
 

@@ -43,7 +43,12 @@ export async function GET(req: Request) {
   const [{ data: partidas }, { data: gastos }, { data: facturas }] = await Promise.all([
     supabase.from('partidas_proyecto').select('*').eq('user_id', user.id).in('proyecto_id', proyIds),
     supabase.from('gastos_obra').select('*').eq('user_id', user.id).in('proyecto_id', proyIds),
-    supabase.from('facturas').select('proyecto, neto, tipo, doc_tipo').eq('user_id', user.id).eq('tipo', 'compra').in('proyecto', proyNombres.length ? proyNombres : ['__no_match__']),
+    // Se enlaza por proyecto_id (fiable). Se incluyen también las que solo tienen
+    // el nombre en texto (facturas antiguas aún sin migrar) para no perder gasto.
+    supabase.from('facturas')
+      .select('proyecto, proyecto_id, neto, tipo, doc_tipo')
+      .eq('user_id', user.id).eq('tipo', 'compra')
+      .or(`proyecto_id.in.(${proyIds.join(',')}),proyecto.in.(${proyNombres.map(n => `"${String(n).replace(/"/g, '')}"`).join(',') || '"__no_match__"'})`),
   ])
 
   const arrPart = partidas ?? []
@@ -77,10 +82,13 @@ export async function GET(req: Request) {
     const gastosProy = arrGastos.filter(g => g.proyecto_id === proy.id)
     const gastoManual = gastosProy.reduce((s, g) => s + (Number(g.monto) || 0), 0)
 
+    // Enlace por id (fiable); si la factura aún no tiene id, se acepta el nombre exacto.
     const facturasCompraProy = arrFacturas.filter(f =>
       (f.tipo === 'compra') &&
       (f.doc_tipo || 'factura') === 'factura' &&
-      f.proyecto === proy.nombre
+      (f.proyecto_id
+        ? f.proyecto_id === proy.id
+        : f.proyecto === proy.nombre)
     )
     const gastoFacturas = facturasCompraProy.reduce((s, f) => s + (Number(f.neto) || 0), 0)
 
