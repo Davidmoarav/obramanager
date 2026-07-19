@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Btn, FormInput, FormSelect, Modal } from '@/components/ui'
 import { usePermisos } from '@/lib/usePermisos'
 import SelectorCatalogo from '@/components/SelectorCatalogo'
+import FilaPartida from '@/components/FilaPartida'
 import { fmt } from '@/lib/format'
 import { UNIDADES } from '@/types/cotizaciones'
 import type { PartidaProyecto } from '@/types/partida-proyecto'
@@ -44,6 +45,7 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
   const [matForm, setMatForm]       = useState<any>({})
   const [matEditId, setMatEditId]   = useState<string | null>(null)
   const [savingMat, setSavingMat]   = useState(false)
+  const [partidaMatId, setPartidaMatId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -58,34 +60,51 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
 
   useEffect(() => { load() }, [load])
 
-  const padres = useMemo(() => {
-    const ps = allItems.filter(p => !p.parent_id).sort((a, b) => a.orden - b.orden)
-    return ps.map(padre => ({
-      ...padre,
-      children: allItems.filter(h => h.parent_id === padre.id).sort((a, b) => a.orden - b.orden),
-    }))
-  }, [allItems])
+  // ─── Árbol recursivo (N niveles: subproyecto → etapa → partida) ───
+  const valorDe = (nodo: any): number => {
+    if (nodo.children && nodo.children.length > 0)
+      return nodo.children.reduce((s: number, h: any) => s + valorDe(h), 0)
+    return (Number(nodo.cantidad) || 0) * (Number(nodo.precio_unitario) || 0)
+  }
+  const avanceDe = (nodo: any): number => {
+    if (nodo.children && nodo.children.length > 0) {
+      const pesos = nodo.children.map((h: any) => valorDe(h))
+      const tot = pesos.reduce((a: number, b: number) => a + b, 0)
+      if (tot > 0)
+        return nodo.children.reduce((s: number, h: any, i: number) => s + avanceDe(h) * (pesos[i] / tot), 0)
+      return nodo.children.reduce((s: number, h: any) => s + avanceDe(h), 0) / nodo.children.length
+    }
+    return Number(nodo.avance) || 0
+  }
+  const construirArbol = (items: any[]): any[] => {
+    const map: Record<string, any> = {}
+    items.forEach(i => { map[i.id] = { ...i, children: [] } })
+    const raiz: any[] = []
+    items.forEach(i => {
+      const nodo = map[i.id]
+      if (i.parent_id && map[i.parent_id]) map[i.parent_id].children.push(nodo)
+      else raiz.push(nodo)
+    })
+    const ordenar = (arr: any[]) => {
+      arr.sort((a, b) => (a.orden || 0) - (b.orden || 0))
+      arr.forEach(n => ordenar(n.children))
+    }
+    ordenar(raiz)
+    return raiz
+  }
+
+  const padres = useMemo(() => construirArbol(allItems), [allItems])
+  const partidaMateriales = useMemo(() => allItems.find(p => p.id === partidaMatId) || null, [allItems, partidaMatId])
 
   const avanceGeneral = useMemo(() => {
     if (padres.length === 0) return 0
-    let totalValor = 0, totalPond = 0, suma = 0
+    let totalValor = 0, totalPond = 0
     for (const p of padres) {
-      let av: number
-      if (p.children.length > 0) {
-        const pesos = p.children.map((h: any) => (Number(h.cantidad) || 0) * (Number(h.precio_unitario) || 0))
-        const tot = pesos.reduce((a: number, b: number) => a + b, 0)
-        av = tot > 0
-          ? Math.round(p.children.reduce((s: number, h: any, i: number) => s + (Number(h.avance) || 0) * (pesos[i] / tot), 0))
-          : Math.round(p.children.reduce((s: number, h: any) => s + (Number(h.avance) || 0), 0) / p.children.length)
-      } else {
-        av = p.avance
-      }
-      const valor = p.cantidad * p.precio_unitario
-      totalValor += valor
-      totalPond += valor * av / 100
-      suma += av
+      const v = valorDe(p)
+      totalValor += v
+      totalPond += v * avanceDe(p) / 100
     }
-    return totalValor > 0 ? Math.round((totalPond / totalValor) * 100) : padres.length > 0 ? Math.round(suma / padres.length) : 0
+    return totalValor > 0 ? Math.round((totalPond / totalValor) * 100) : 0
   }, [padres])
 
   const upd = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }))
@@ -101,14 +120,16 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
     if (!form.descripcion) { alert('La descripción es obligatoria'); return }
     setSaving(true)
     const method = modal?.type === 'editar' ? 'PUT' : 'POST'
-    // El precio_unitario (venta) se calcula desde costo + markup
-    const esPadre = modal?.type === 'padre' || (modal?.type === 'editar' && !form.parent_id)
+    const esGrupo = !!form.es_grupo
     const payload = {
       ...form,
       proyecto_id: proyectoId,
       parent_id: modal?.type === 'hijo' ? modal.parentId : (form.parent_id || null),
-      // Solo recalcular precio en partidas padre (las que tienen costo)
-      ...(esPadre ? { precio_unitario: precioVentaCalc } : {}),
+      es_grupo: esGrupo,
+      // Los grupos no llevan costo ni precio; las partidas reales sí
+      ...(esGrupo
+        ? { costo_unitario: 0, costo_material_unit: 0, costo_mo_unit: 0, precio_unitario: 0, cantidad: 0 }
+        : { precio_unitario: precioVentaCalc }),
     }
     const res = await fetch('/api/partidas-proyecto', {
       method,
@@ -119,7 +140,7 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       alert('No se pudo guardar: ' + (err.error || 'error desconocido') +
-        '\n\nSi menciona "costo_unitario" o "markup_pct", ejecuta el SQL 13_presupuesto_margen.sql en Supabase.')
+        '\n\nSi menciona "nivel", "es_grupo" o "costo_material_unit", ejecuta el SQL 28_partidas_tres_niveles.sql en Supabase.')
       return
     }
     await load(); onAvanceChange?.(); setModal(null)
@@ -146,11 +167,11 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
   }
 
   const openNewPadre = () => {
-    setForm({ descripcion: '', unidad: 'gl', cantidad: 1, precio_unitario: 0, avance: 0, notas: '', orden: padres.length })
+    setForm({ descripcion: '', unidad: 'gl', cantidad: 1, precio_unitario: 0, costo_unitario: 0, costo_material_unit: 0, costo_mo_unit: 0, avance: 0, notas: '', orden: padres.length, nivel: 1 })
     setModal({ type: 'padre' })
   }
-  const openNewHijo = (parentId: string, childCount: number) => {
-    setForm({ descripcion: '', unidad: 'gl', cantidad: 1, precio_unitario: 0, avance: 0, notas: '', orden: childCount })
+  const openNewHijo = (parentId: string, childCount: number, nivel = 2) => {
+    setForm({ descripcion: '', unidad: 'gl', cantidad: 1, precio_unitario: 0, costo_unitario: 0, costo_material_unit: 0, costo_mo_unit: 0, avance: 0, notas: '', orden: childCount, nivel })
     setModal({ type: 'hijo', parentId })
   }
   const openEdit = (p: PartidaProyecto) => { setForm({ ...p }); setModal({ type: 'editar' }) }
@@ -293,170 +314,155 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
             Sin partidas de obra. Agrega una manualmente o importa desde tu catálogo.
           </div>
         : (
-          <div className="flex flex-col gap-2">
-            {padres.map((padre, idx) => {
-              const isOpen = expanded.has(padre.id)
-              const avancePadre = padre.children.length > 0
-                ? Math.round(padre.children.reduce((s, h) => s + h.avance, 0) / padre.children.length)
-                : padre.avance
-              return (
-                <div key={padre.id} className="border border-line rounded-card overflow-hidden">
-                  <div
-                    onClick={() => toggle(padre.id)}
-                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-l-4 ${isOpen ? 'bg-[#f4f7fb]' : 'bg-white'}`}
-                    style={{ borderLeftColor: colorAvance(avancePadre) }}
-                  >
-                    <span
-                      className="text-[12px] text-muted flex-shrink-0 transition-transform duration-150"
-                      style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }}
-                    >▶</span>
-                    <span className="text-[11px] font-bold text-brand bg-[#e8f1fb] px-2 py-0.5 rounded flex-shrink-0">{idx + 1}</span>
-                    <div className="flex-1">
-                      <div className="text-sm font-bold text-[#1a2535]">{padre.descripcion}</div>
-                      <div className="flex gap-2.5 text-[11px] text-muted mt-0.5">
-                        <span>{padre.children.length} sub-partida{padre.children.length !== 1 ? 's' : ''}</span>
-                        {padre.precio_unitario > 0 && <span>P.U: {fmt(padre.precio_unitario)}</span>}
-                      </div>
-                    </div>
-                    <div className="w-[100px] flex-shrink-0">
-                      <div className="h-1.5 bg-[#e8edf2] rounded-[3px] overflow-hidden">
-                        <div className="h-full rounded-[3px]" style={{ width: `${avancePadre}%`, background: colorAvance(avancePadre) }} />
-                      </div>
-                    </div>
-                    <span
-                      className="text-sm font-extrabold min-w-[42px] text-right flex-shrink-0"
-                      style={{ color: colorAvance(avancePadre) }}
-                    >{avancePadre}%</span>
-                    <div className="flex gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => openEdit(padre)} className="w-6 h-6 rounded-[5px] border-none bg-canvas text-muted text-[11px] font-bold cursor-pointer flex items-center justify-center">✎</button>
-                      <button onClick={() => del(padre.id)} className="w-6 h-6 rounded-[5px] border-none bg-danger-bg text-danger text-[11px] font-bold cursor-pointer flex items-center justify-center">✕</button>
-                    </div>
-                  </div>
-
-                  {isOpen && (
-                    <div className="pl-9 pr-4 pt-3 pb-3.5 bg-[#fafbfc] border-t border-[#e4e9f0]">
-                      {padre.children.length === 0 && <p className="text-[12px] text-muted text-center py-1.5">Sin sub-partidas.</p>}
-                      {padre.children.map((hijo, hIdx) => (
-                        <div
-                          key={hijo.id}
-                          className={`flex items-center gap-2.5 py-2 ${hIdx < padre.children.length - 1 ? 'border-b border-[#e4e9f0]' : ''}`}
-                        >
-                          <span className="text-[11px] text-muted font-semibold min-w-[30px]">{idx + 1}.{hIdx + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[12px] font-semibold text-[#1a2535]">{hijo.descripcion}</div>
-                            {hijo.notas && <div className="text-[10px] text-muted italic">{hijo.notas}</div>}
-                          </div>
-                          <div className="w-[130px] flex-shrink-0">
-                            <input type="range" min={0} max={100} step={5} value={hijo.avance}
-                              onChange={e => setAllItems(prev => prev.map(x => x.id === hijo.id ? { ...x, avance: Number(e.target.value) } : x))}
-                              onMouseUp={e => updateAvance(hijo, Number((e.target as HTMLInputElement).value))}
-                              onTouchEnd={e => updateAvance(hijo, Number((e.target as HTMLInputElement).value))}
-                              className="w-full cursor-pointer"
-                              style={{ accentColor: colorAvance(hijo.avance) }} />
-                          </div>
-                          <span
-                            className="text-[13px] font-bold min-w-[38px] text-right flex-shrink-0"
-                            style={{ color: colorAvance(hijo.avance) }}
-                          >{hijo.avance}%</span>
-                          <div className="flex gap-[3px] flex-shrink-0">
-                            <button onClick={() => openEdit(hijo)} className="w-6 h-6 rounded-[5px] border-none bg-canvas text-muted text-[11px] font-bold cursor-pointer flex items-center justify-center">✎</button>
-                            <button onClick={() => del(hijo.id)} className="w-6 h-6 rounded-[5px] border-none bg-danger-bg text-danger text-[11px] font-bold cursor-pointer flex items-center justify-center">✕</button>
-                          </div>
-                        </div>
-                      ))}
-                      <button
-                        onClick={() => openNewHijo(padre.id, padre.children.length)}
-                        className="w-full py-2 mt-2 bg-white border border-dashed border-[#d1d9e6] rounded-[6px] text-[12px] text-brand font-semibold cursor-pointer"
-                      >
-                        + Agregar sub-partida
-                      </button>
-
-                      {/* Materiales / rendimientos */}
-                      <div className="mt-3.5 pt-3 border-t border-[#e4e9f0]">
-                        <div className="text-[10px] font-bold text-muted uppercase tracking-wide mb-1.5">Materiales (rendimientos)</div>
-                        {materialesDe(padre.id).length === 0
-                          ? <p className="text-[11px] text-muted py-0.5">Sin materiales. Agrega el consumo por {padre.unidad} para calcular compras.</p>
-                          : <div className="flex flex-col gap-1.5">
-                              {materialesDe(padre.id).map(m => {
-                                const necesario = (Number(padre.cantidad) || 0) * (Number(m.rendimiento) || 0)
-                                const costo = necesario * (Number(m.precio_unitario) || 0)
-                                return (
-                                  <div key={m.id} className="flex items-center gap-2 py-1.5 px-2.5 bg-white border border-[#e4e9f0] rounded-[6px]">
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-[12px] font-semibold text-[#1a2535]">{m.material}</div>
-                                      <div className="text-[10px] text-muted">
-                                        {m.rendimiento} {m.unidad}/{padre.unidad}
-                                        {m.precio_unitario > 0 && ` · ${fmt(m.precio_unitario)}/${m.unidad}`}
-                                      </div>
-                                    </div>
-                                    <div className="text-right flex-shrink-0 mr-1">
-                                      <div className="text-[12px] font-bold text-brand tabular-nums">
-                                        {necesario.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {m.unidad}
-                                      </div>
-                                      {costo > 0 && <div className="text-[10px] text-muted">{fmt(Math.round(costo))}</div>}
-                                    </div>
-                                    <div className="flex gap-[3px] flex-shrink-0">
-                                      <button onClick={() => openEditMat(padre, m)} className="w-6 h-6 rounded-[5px] border-none bg-canvas text-muted text-[11px] font-bold cursor-pointer flex items-center justify-center">✎</button>
-                                      <button onClick={() => delMat(m.id)} className="w-6 h-6 rounded-[5px] border-none bg-danger-bg text-danger text-[11px] font-bold cursor-pointer flex items-center justify-center">✕</button>
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>}
-                        <button
-                          onClick={() => openNewMat(padre)}
-                          className="w-full py-2 mt-2 bg-white border border-dashed border-[#d1d9e6] rounded-[6px] text-[12px] text-brand font-semibold cursor-pointer"
-                        >
-                          + Agregar material
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+          <div className="flex flex-col">
+            {padres.map((raiz, i) => (
+              <FilaPartida
+                key={raiz.id}
+                nodo={raiz}
+                ruta={[i + 1]}
+                valorDe={valorDe}
+                avanceDe={avanceDe}
+                expanded={expanded}
+                soloLectura={soloLectura}
+                onToggle={toggle}
+                onEdit={openEdit}
+                onDel={del}
+                onAddHijo={(padre) => openNewHijo(padre.id, (padre.children || []).length, (padre.nivel || 1) + 1)}
+                onAvance={updateAvance}
+                onAvanceLocal={(id, val) => setAllItems(prev => prev.map(x => x.id === id ? { ...x, avance: val } : x))}
+              />
+            ))}
+            {!soloLectura && (
+              <button onClick={openNewPadre}
+                className="w-full py-2.5 mt-2 bg-white border border-dashed border-[#d1d9e6] rounded-lg text-[13px] text-brand font-semibold">
+                + Agregar subproyecto / partida
+              </button>
+            )}
           </div>
         )}
 
+      {/* Materiales de la partida seleccionada (rendimientos -> compras) */}
+      {partidaMateriales && (
+        <div className="mt-4 bg-canvas border border-line rounded-xl p-4">
+          <div className="flex justify-between items-center mb-2">
+            <div>
+              <div className="text-[10px] font-bold text-muted uppercase tracking-wide">Materiales de la partida</div>
+              <div className="text-[13px] font-bold text-ink">{partidaMateriales.descripcion}</div>
+            </div>
+            <button onClick={() => setPartidaMatId(null)} className="text-[11px] text-muted">x cerrar</button>
+          </div>
+          {materialesDe(partidaMateriales.id).length === 0
+            ? <p className="text-[11px] text-muted py-1">Sin materiales. Agrega el consumo por {partidaMateriales.unidad} para calcular las compras.</p>
+            : <div className="flex flex-col gap-1.5">
+                {materialesDe(partidaMateriales.id).map(m => {
+                  const necesario = (Number(partidaMateriales.cantidad) || 0) * (Number(m.rendimiento) || 0)
+                  const costo = necesario * (Number(m.precio_unitario) || 0)
+                  return (
+                    <div key={m.id} className="flex items-center gap-2 py-1.5 px-2.5 bg-white border border-[#e4e9f0] rounded-[6px]">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12px] font-semibold text-ink">{m.material}</div>
+                        <div className="text-[10px] text-muted">{m.rendimiento} {m.unidad}/{partidaMateriales.unidad} - necesario: {necesario.toFixed(1)} {m.unidad}</div>
+                      </div>
+                      <span className="text-[12px] font-bold text-ink">{fmt(costo)}</span>
+                      {!soloLectura && (
+                        <div className="flex gap-1">
+                          <button onClick={() => openEditMat(partidaMateriales, m)} className="w-6 h-6 rounded bg-canvas text-muted text-[11px]">edit</button>
+                          <button onClick={() => delMat(m.id)} className="w-6 h-6 rounded bg-danger-bg text-danger text-[11px]">x</button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>}
+          {!soloLectura && (
+            <button onClick={() => openNewMat(partidaMateriales)}
+              className="w-full py-1.5 mt-2 bg-white border border-dashed border-[#d1d9e6] rounded-[6px] text-[11px] text-brand font-semibold">
+              + Agregar material
+            </button>
+          )}
+        </div>
+      )}
+
       {/* MODAL NUEVA/EDITAR */}
       {modal && (
-        <Modal title={modal.type === 'padre' ? 'Nueva partida' : modal.type === 'hijo' ? 'Nueva sub-partida' : 'Editar partida'} onClose={() => setModal(null)}>
+        <Modal title={modal.type === 'editar' ? 'Editar' : 'Nueva partida'} onClose={() => setModal(null)}>
           <div className="grid grid-cols-2 gap-3">
+            {/* Tipo: grupo (agrupa) o partida (lleva costo) */}
+            <div className="col-span-full">
+              <label className="label-base">Tipo</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => upd('es_grupo', true)}
+                  className={`flex-1 py-2 rounded-lg border text-[12px] font-semibold ${form.es_grupo ? 'border-brand bg-brand-bg text-brand' : 'border-line text-muted'}`}>
+                  📁 Agrupador<div className="text-[10px] font-normal opacity-80">Subproyecto o etapa (agrupa partidas)</div>
+                </button>
+                <button type="button" onClick={() => upd('es_grupo', false)}
+                  className={`flex-1 py-2 rounded-lg border text-[12px] font-semibold ${!form.es_grupo ? 'border-brand bg-brand-bg text-brand' : 'border-line text-muted'}`}>
+                  🔧 Partida<div className="text-[10px] font-normal opacity-80">Actividad real con costo</div>
+                </button>
+              </div>
+            </div>
+
             <div className="col-span-full">
               <FormInput label="Descripción *" value={form.descripcion || ''} onChange={v => upd('descripcion', v)} required
-                placeholder={modal.type === 'hijo' ? 'Ej: Excavación' : 'Ej: Obra Gruesa'} />
+                placeholder={form.es_grupo ? 'Ej: M1 (EIFS sobre muro albañilería)' : 'Ej: Hidrolavado de fachadas'} />
             </div>
-            {(modal.type === 'padre' || (modal.type === 'editar' && !form.parent_id)) && (
+
+            {/* Solo las partidas reales (hojas) llevan cantidad y costos */}
+            {!form.es_grupo && (
               <>
-                <FormSelect label="Unidad" value={form.unidad || 'gl'} onChange={v => upd('unidad', v)} options={UNIDADES} />
+                <FormSelect label="Unidad" value={form.unidad || 'm2'} onChange={v => upd('unidad', v)} options={UNIDADES} />
                 <FormInput label="Cantidad" value={form.cantidad ?? 1} onChange={v => upd('cantidad', v)} type="number" />
-                <div className="mb-3">
-                  <label className="label-base">Costo unitario ($)</label>
-                  <input type="number" value={form.costo_unitario || ''}
-                    onChange={e => upd('costo_unitario', e.target.value === '' ? 0 : Number(e.target.value))}
-                    className="input-base" placeholder="0" />
+
+                <div className="col-span-full grid grid-cols-2 gap-3 bg-canvas rounded-lg p-3">
+                  <div className="col-span-full text-[10px] font-bold text-muted uppercase tracking-wide">Costo por {form.unidad || 'unidad'}</div>
+                  <div>
+                    <label className="label-base">Material ($)</label>
+                    <input type="number" value={form.costo_material_unit || ''}
+                      onChange={e => {
+                        const mat = e.target.value === '' ? 0 : Number(e.target.value)
+                        setForm((f: any) => ({ ...f, costo_material_unit: mat, costo_unitario: mat + (Number(f.costo_mo_unit) || 0) }))
+                      }}
+                      className="input-base" placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="label-base">Mano de obra ($)</label>
+                    <input type="number" value={form.costo_mo_unit || ''}
+                      onChange={e => {
+                        const mo = e.target.value === '' ? 0 : Number(e.target.value)
+                        setForm((f: any) => ({ ...f, costo_mo_unit: mo, costo_unitario: (Number(f.costo_material_unit) || 0) + mo }))
+                      }}
+                      className="input-base" placeholder="0" />
+                  </div>
+                  <div className="col-span-full flex justify-between text-[11px] pt-1 border-t border-line2">
+                    <span className="text-muted">Costo total por {form.unidad || 'unidad'}</span>
+                    <span className="font-bold text-ink">{fmt((Number(form.costo_material_unit) || 0) + (Number(form.costo_mo_unit) || 0))}</span>
+                  </div>
                 </div>
+
                 <div className="mb-3">
                   <label className="label-base">Markup / ganancia (%)</label>
                   <input type="number" value={form.markup_pct ?? ''}
                     onChange={e => upd('markup_pct', e.target.value === '' ? null : Number(e.target.value))}
                     className="input-base" placeholder={`Global: ${markupGlobal}%`} />
                 </div>
-                {/* Precio de venta calculado */}
-                <div className="col-span-2 bg-brand-bg border border-[#b5d4f4] rounded-lg px-4 py-3 flex justify-between items-center">
-                  <div>
-                    <div className="text-[11px] text-[#0c447c] font-semibold">Precio de venta (calculado)</div>
-                    <div className="text-[10px] text-muted">costo × (1 + markup%)</div>
+                <div className="mb-3 flex items-end">
+                  <div className="w-full bg-brand-bg border border-[#b5d4f4] rounded-lg px-3 py-2">
+                    <div className="text-[10px] text-[#0c447c] font-semibold">Precio de venta</div>
+                    <div className="text-base font-extrabold text-brand">{fmt(precioVentaCalc)}</div>
                   </div>
-                  <div className="text-lg font-extrabold text-brand">{fmt(precioVentaCalc)}</div>
                 </div>
               </>
             )}
+
             <div className="col-span-full">
               <FormInput label="Notas (opcional)" value={form.notas || ''} onChange={v => upd('notas', v)} />
             </div>
           </div>
           <div className="flex gap-2 justify-end mt-3.5">
+            {modal.type === 'editar' && !form.es_grupo && (
+              <button onClick={() => { setPartidaMatId(form.id); setModal(null) }}
+                className="text-[12px] text-brand font-semibold mr-auto">Ver materiales →</button>
+            )}
             <Btn onClick={() => setModal(null)}>Cancelar</Btn>
             <Btn variant="primary" onClick={save} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</Btn>
           </div>

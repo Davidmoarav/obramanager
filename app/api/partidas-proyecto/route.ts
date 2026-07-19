@@ -3,73 +3,61 @@ import { createServerSupabase } from '@/lib/supabase-server'
 import { guardEscritura } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// ─── Recalcular avances (hijos → padre → proyecto) ────────
-// Avance de una partida padre: promedio de sus subpartidas PONDERADO por valor
-// (cantidad × precio). Si las subpartidas no tienen valor, promedio simple.
-// DEBE coincidir con la fórmula de presupuesto/route.ts y estados-pago/route.ts.
-function avanceDeHijos(hijosDelPadre: any[]): number {
-  const pesos = hijosDelPadre.map((h: any) => (Number(h.cantidad) || 0) * (Number(h.precio_unitario) || 0))
-  const totalPeso = pesos.reduce((a: number, b: number) => a + b, 0)
-  if (totalPeso > 0) {
-    return hijosDelPadre.reduce((s: number, h: any, i: number) =>
-      s + (Number(h.avance) || 0) * (pesos[i] / totalPeso), 0)
-  }
-  return hijosDelPadre.reduce((s: number, h: any) => s + (Number(h.avance) || 0), 0) / hijosDelPadre.length
+// ─── Recalcular avances (hojas → grupos → proyecto), N niveles ────
+// El avance de un grupo (subproyecto/etapa) = promedio de sus hijos PONDERADO
+// por valor. Se propaga hacia arriba a cualquier profundidad.
+// DEBE coincidir con presupuesto/route.ts y estados-pago/route.ts.
+
+// Valor de un nodo: hoja = cantidad×precio; grupo = suma de hijos.
+function valorNodo(nodo: any, hijosDe: (id: string) => any[]): number {
+  const h = hijosDe(nodo.id)
+  if (h.length === 0) return (Number(nodo.cantidad) || 0) * (Number(nodo.precio_unitario) || 0)
+  return h.reduce((s, c) => s + valorNodo(c, hijosDe), 0)
+}
+
+// Avance de un nodo: hoja = su avance; grupo = ponderado por valor de hijos.
+function avanceNodo(nodo: any, hijosDe: (id: string) => any[]): number {
+  const h = hijosDe(nodo.id)
+  if (h.length === 0) return Number(nodo.avance) || 0
+  const pesos = h.map(c => valorNodo(c, hijosDe))
+  const tot = pesos.reduce((a, b) => a + b, 0)
+  if (tot > 0) return h.reduce((s, c, i) => s + avanceNodo(c, hijosDe) * (pesos[i] / tot), 0)
+  return h.reduce((s, c) => s + avanceNodo(c, hijosDe), 0) / h.length
 }
 
 async function recalcTodo(supabase: any, proyectoId: string, userId: string) {
-  // 1. Traer todas las partidas del proyecto
   const { data: todas } = await supabase
-    .from('partidas_proyecto')
-    .select('*')
-    .eq('proyecto_id', proyectoId)
-    .eq('user_id', userId)
+    .from('partidas_proyecto').select('*')
+    .eq('proyecto_id', proyectoId).eq('user_id', userId)
 
   if (!todas || todas.length === 0) {
     await supabase.from('proyectos').update({ avance: 0 }).eq('id', proyectoId).eq('user_id', userId)
     return
   }
 
-  const padres = todas.filter((p: any) => !p.parent_id)
-  const hijos  = todas.filter((p: any) => p.parent_id)
+  const hijosDe = (id: string) => todas.filter((p: any) => p.parent_id === id)
+  const raices  = todas.filter((p: any) => !p.parent_id)
 
-  // 2. Para cada padre: avance = promedio de sus hijos PONDERADO por valor
-  for (const padre of padres) {
-    const hijosDelPadre = hijos.filter((h: any) => h.parent_id === padre.id)
-    if (hijosDelPadre.length > 0) {
-      const avancePadre = Math.round(avanceDeHijos(hijosDelPadre))
-      await supabase
-        .from('partidas_proyecto')
-        .update({ avance: avancePadre })
-        .eq('id', padre.id)
-        .eq('user_id', userId)
-      padre.avance = avancePadre  // actualizar en memoria para el cálculo del proyecto
+  // 1. Persistir el avance calculado de cada GRUPO (los que tienen hijos)
+  for (const nodo of todas) {
+    if (hijosDe(nodo.id).length > 0) {
+      const av = Math.round(avanceNodo(nodo, hijosDe))
+      if (av !== (Number(nodo.avance) || 0)) {
+        await supabase.from('partidas_proyecto').update({ avance: av }).eq('id', nodo.id).eq('user_id', userId)
+      }
     }
-    // Si el padre no tiene hijos, su avance se mantiene tal cual
   }
 
-  // 3. Avance del proyecto = ponderado por valor de los padres (o promedio simple si todo es $0)
-  let totalValor = 0
-  let totalAvancePond = 0
-  let sumaAvancePadres = 0
-
-  for (const padre of padres) {
-    const valor = (Number(padre.cantidad) || 0) * (Number(padre.precio_unitario) || 0)
-    totalValor       += valor
-    totalAvancePond  += valor * (Number(padre.avance) || 0) / 100
-    sumaAvancePadres += (Number(padre.avance) || 0)
+  // 2. Avance del proyecto = ponderado por valor de las raíces
+  let totalValor = 0, totalPond = 0
+  for (const r of raices) {
+    const v = valorNodo(r, hijosDe)
+    totalValor += v
+    totalPond  += v * avanceNodo(r, hijosDe) / 100
   }
+  const avanceProyecto = totalValor > 0 ? Math.round((totalPond / totalValor) * 100) : 0
 
-  const avanceProyecto = padres.length === 0 ? 0
-    : totalValor > 0
-      ? Math.round((totalAvancePond / totalValor) * 100)
-      : Math.round(sumaAvancePadres / padres.length)
-
-  await supabase
-    .from('proyectos')
-    .update({ avance: avanceProyecto })
-    .eq('id', proyectoId)
-    .eq('user_id', userId)
+  await supabase.from('proyectos').update({ avance: avanceProyecto }).eq('id', proyectoId).eq('user_id', userId)
 }
 
 // ─── GET ──────────────────────────────────────────────────

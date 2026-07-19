@@ -23,6 +23,29 @@ function avancePartida(padre: any, hijosPadre: any[]): number {
   return hijosPadre.reduce((s, h) => s + (Number(h.avance) || 0), 0) / hijosPadre.length
 }
 
+// ─── Cálculo recursivo del árbol de partidas (N niveles) ───
+// Devuelve, para un nodo, sus totales acumulando hacia arriba desde las hojas.
+// Solo las HOJAS (partidas reales) tienen costo/venta propios; los grupos suman.
+function calcNodo(nodo: any, hijosDe: (id: string) => any[]): {
+  costo: number; venta: number; costoEjec: number; ventaEjec: number; avance: number
+} {
+  const hijos = hijosDe(nodo.id)
+  if (hijos.length === 0) {
+    const cant  = Number(nodo.cantidad) || 0
+    const costo = cant * (Number(nodo.costo_unitario) || 0)
+    const venta = cant * (Number(nodo.precio_unitario) || 0)
+    const av = Number(nodo.avance) || 0
+    return { costo, venta, costoEjec: costo * av / 100, ventaEjec: venta * av / 100, avance: av }
+  }
+  let costo = 0, venta = 0, costoEjec = 0, ventaEjec = 0
+  for (const h of hijos) {
+    const r = calcNodo(h, hijosDe)
+    costo += r.costo; venta += r.venta; costoEjec += r.costoEjec; ventaEjec += r.ventaEjec
+  }
+  const avance = venta > 0 ? (ventaEjec / venta) * 100 : 0
+  return { costo, venta, costoEjec, ventaEjec, avance }
+}
+
 export async function GET(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
@@ -56,26 +79,26 @@ export async function GET(req: Request) {
   const arrFacturas = facturas ?? []
 
   const resumen = arrProy.map(proy => {
-    const padres = arrPart.filter(p => p.proyecto_id === proy.id && !p.parent_id)
-    const hijos  = arrPart.filter(p => p.proyecto_id === proy.id && p.parent_id)
+    const delProy = arrPart.filter(p => p.proyecto_id === proy.id)
+    const hijosDe = (id: string) => delProy.filter(p => p.parent_id === id).sort((a, b) => (a.orden || 0) - (b.orden || 0))
+    const raices = delProy.filter(p => !p.parent_id).sort((a, b) => (a.orden || 0) - (b.orden || 0))
+
+    // Compat: para el detalle plano y la sincronización antigua
+    const padres = raices
+    const hijos  = delProy.filter(p => p.parent_id)
 
     let presupuestoCosto = 0
     let presupuestoVenta = 0
     let costoEjecutado   = 0
     let ventaEjecutada   = 0
 
-    for (const padre of padres) {
-      const cant  = Number(padre.cantidad) || 0
-      const costo = cant * (Number(padre.costo_unitario) || 0)
-      const venta = cant * (Number(padre.precio_unitario) || 0)
-      presupuestoCosto += costo
-      presupuestoVenta += venta
-
-      const hijosPadre = hijos.filter(h => h.parent_id === padre.id)
-      const avance = avancePartida(padre, hijosPadre)
-
-      costoEjecutado += costo * avance / 100
-      ventaEjecutada += venta * avance / 100
+    // Suma recursiva desde las raíces (soporta 2 o 3 niveles indistintamente)
+    for (const raiz of raices) {
+      const r = calcNodo(raiz, hijosDe)
+      presupuestoCosto += r.costo
+      presupuestoVenta += r.venta
+      costoEjecutado   += r.costoEjec
+      ventaEjecutada   += r.ventaEjec
     }
 
     // ─── GASTO REAL: gastos manuales + facturas de compra del proyecto ───
