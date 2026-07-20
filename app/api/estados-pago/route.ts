@@ -27,9 +27,20 @@ export async function GET(req: NextRequest) {
   const sugerir    = req.nextUrl.searchParams.get('sugerir')
   if (!proyectoId) return NextResponse.json({ error: 'Falta proyecto_id' }, { status: 400 })
 
+  // Modo "beneficiarios": lista los subproyectos nivel 1 (para el selector de alcance del EP)
+  if (req.nextUrl.searchParams.get('beneficiarios')) {
+    const { data } = await supabase
+      .from('partidas_proyecto')
+      .select('id, descripcion')
+      .eq('proyecto_id', proyectoId).eq('user_id', ownerId)
+      .is('parent_id', null).eq('es_grupo', true)
+      .order('orden', { ascending: true })
+    return NextResponse.json(data ?? [])
+  }
+
   // Modo "sugerir": calcula cuánto se cobraría en un EP nuevo según avance actual
   if (sugerir) {
-    return await sugerirEP(supabase, proyectoId, ownerId)
+    return await sugerirEP(supabase, proyectoId, ownerId, req.nextUrl.searchParams.get('beneficiario_id'))
   }
 
   const { data, error } = await supabase
@@ -44,7 +55,7 @@ export async function GET(req: NextRequest) {
 }
 
 // ─── Sugerir EP: avance actual menos lo ya cobrado en EPs previos ──
-async function sugerirEP(supabase: any, proyectoId: string, userId: string) {
+async function sugerirEP(supabase: any, proyectoId: string, userId: string, beneficiarioId?: string | null) {
   // 0. Config de % del proyecto (utilidad, GG, anticipo, retención)
   const { data: proy } = await supabase
     .from('proyectos')
@@ -58,14 +69,30 @@ async function sugerirEP(supabase: any, proyectoId: string, userId: string) {
   const anticipoPct = Number(proy?.anticipo_pct) || 0
   const retencionPct = Number(proy?.retencion_pct) || 0
 
-  // 1. Partidas padre del proyecto (con su avance actual)
+  // 1. Partidas del proyecto (con su avance actual)
   const { data: partidas } = await supabase
     .from('partidas_proyecto')
     .select('*')
     .eq('proyecto_id', proyectoId)
     .eq('user_id', userId)
 
-  const todas  = partidas ?? []
+  let todas = partidas ?? []
+
+  // Alcance por beneficiario: si se indica, quedarse solo con el subárbol de ese
+  // beneficiario (el nodo nivel 1 y todos sus descendientes a cualquier profundidad)
+  if (beneficiarioId) {
+    const hijosDe = (id: string) => todas.filter((p: any) => p.parent_id === id)
+    const incluidos = new Set<string>([beneficiarioId])
+    const pila = [beneficiarioId]
+    while (pila.length) {
+      const actual = pila.pop() as string
+      for (const h of hijosDe(actual)) {
+        if (!incluidos.has(h.id)) { incluidos.add(h.id); pila.push(h.id) }
+      }
+    }
+    todas = todas.filter((p: any) => incluidos.has(p.id))
+  }
+
   const padres = todas.filter((p: any) => !p.parent_id)
   const hijos  = todas.filter((p: any) => p.parent_id)
 

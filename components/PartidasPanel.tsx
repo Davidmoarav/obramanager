@@ -7,6 +7,7 @@ import { usePermisos } from '@/lib/usePermisos'
 import SelectorCatalogo from '@/components/SelectorCatalogo'
 import FilaPartida from '@/components/FilaPartida'
 import ImportarExcelPartidas from '@/components/ImportarExcelPartidas'
+import ImportarPrograma from '@/components/ImportarPrograma'
 import { fmt } from '@/lib/format'
 import { UNIDADES } from '@/types/cotizaciones'
 import type { PartidaProyecto } from '@/types/partida-proyecto'
@@ -36,6 +37,7 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
 
   const [showImport, setShowImport] = useState(false)
   const [showExcel, setShowExcel] = useState(false)
+  const [showPrograma, setShowPrograma] = useState(false)
   const [catalogo, setCatalogo] = useState<CatalogoPartida[]>([])
   const [catLoading, setCatLoading] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -301,6 +303,9 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
               <Btn onClick={() => setShowExcel(true)} style={{ fontSize: 12, padding: '5px 12px', background: '#e6f4ea', borderColor: '#a8d5b8', color: '#1a7a4a', fontWeight: 700 }}>
                 📊 Importar de Excel
               </Btn>
+              <Btn onClick={() => setShowPrograma(true)} style={{ fontSize: 12, padding: '5px 12px', background: '#e8f1fb', borderColor: '#b5d4f4', color: '#0c447c', fontWeight: 700 }}>
+                🏘️ Programa (beneficiarios)
+              </Btn>
               <Btn onClick={openImport} style={{ fontSize: 12, padding: '5px 12px', background: '#eeedfe', borderColor: '#ccc5fc', color: '#534ab7', fontWeight: 700 }}>
                 📋 Del catálogo
               </Btn>
@@ -511,6 +516,15 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
       )}
 
       {/* MODAL IMPORTAR DEL CATÁLOGO */}
+      {showPrograma && (
+        <ImportarPrograma
+          proyectoId={proyectoId}
+          markup={markupGlobal}
+          onImported={() => { load(); onAvanceChange?.() }}
+          onClose={() => setShowPrograma(false)}
+        />
+      )}
+
       {showExcel && (
         <ImportarExcelPartidas
           proyectoId={proyectoId}

@@ -39,6 +39,8 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
   // Modal nuevo EP — cascada completa
   const [modal, setModal]       = useState(false)
   const [sugerencia, setSugerencia] = useState<any>(null)
+  const [beneficiarios, setBeneficiarios] = useState<any[]>([])
+  const [beneficiarioEP, setBeneficiarioEP] = useState<string>('')
   const [detalleEdit, setDetalleEdit] = useState<any[]>([])
   const [utilidadPct, setUtilidadPct] = useState(0)
   const [ggPct, setGgPct]           = useState(0)
@@ -106,6 +108,14 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
 
   useEffect(() => { load() }, [load])
 
+  // Cargar la lista de beneficiarios (subproyectos nivel 1) para el alcance del EP
+  useEffect(() => {
+    fetch(`/api/estados-pago?proyecto_id=${proyectoId}&beneficiarios=1`)
+      .then(r => r.json())
+      .then(d => setBeneficiarios(Array.isArray(d) ? d : []))
+      .catch(() => setBeneficiarios([]))
+  }, [proyectoId])
+
   // ─── Gastos reales ───────────────────────────────────────
   const openNuevoGasto = () => {
     setGastoForm({ categoria: 'materiales', fecha: new Date().toISOString().split('T')[0], partida_id: '', descripcion: '', monto: 0, proveedor: '', documento: '' })
@@ -141,10 +151,13 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
   }
 
   // ─── Abrir modal: pedir sugerencia de EP (trae % del proyecto) ──
-  const openNuevoEP = async () => {
-    const res = await fetch(`/api/estados-pago?proyecto_id=${proyectoId}&sugerir=1`)
+  const openNuevoEP = async (beneficiarioId?: string) => {
+    const url = `/api/estados-pago?proyecto_id=${proyectoId}&sugerir=1` +
+      (beneficiarioId ? `&beneficiario_id=${beneficiarioId}` : '')
+    const res = await fetch(url)
     const sug = await res.json()
     setSugerencia(sug)
+    setBeneficiarioEP(beneficiarioId || '')
     setDetalleEdit((sug.detalle || []).map((d: any) => ({ ...d })))
     setUtilidadPct(Number(sug.utilidad_pct) || 0)
     setGgPct(Number(sug.gg_pct) || 0)
@@ -176,6 +189,9 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
   const guardarEP = async () => {
     if (avanceObra <= 0) { alert('El avance de obra del período debe ser mayor a cero'); return }
     setSaving(true)
+    // Si el EP es de un beneficiario específico, dejarlo trazado en las notas
+    const nombreBenef = beneficiarioEP ? (beneficiarios.find(b => b.id === beneficiarioEP)?.descripcion || '') : ''
+    const notasFinal = nombreBenef ? `[${nombreBenef}] ${notas}`.trim() : notas
     await fetch('/api/estados-pago', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -190,7 +206,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
         anticipo_pct: anticipoPct,
         multas,
         retencion_pct: retencionPct,
-        notas,
+        notas: notasFinal,
         detalle: detalleEdit,
       }),
     })
@@ -444,14 +460,36 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
 
       {subTab === 'estados' && (<>
       {/* ─── ESTADOS DE PAGO ─── */}
-      <div className="flex justify-between items-center mb-3">
+      <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
         <div className="text-sm font-bold text-ink">
           Estados de pago ({eps.length})
         </div>
-        <Btn variant="primary" onClick={openNuevoEP} className="!text-[12px] !px-3 !py-[5px]">
-          + Nuevo estado de pago
-        </Btn>
+        {!soloLectura && (
+          beneficiarios.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <select
+                value={beneficiarioEP}
+                onChange={e => e.target.value !== '__crear__' && setBeneficiarioEP(e.target.value)}
+                className="text-[12px] border border-line rounded-md px-2 py-[5px] bg-white">
+                <option value="">Proyecto completo</option>
+                {beneficiarios.map(b => <option key={b.id} value={b.id}>{b.descripcion}</option>)}
+              </select>
+              <Btn variant="primary" onClick={() => openNuevoEP(beneficiarioEP || undefined)} className="!text-[12px] !px-3 !py-[5px]">
+                + Nuevo EP
+              </Btn>
+            </div>
+          ) : (
+            <Btn variant="primary" onClick={() => openNuevoEP()} className="!text-[12px] !px-3 !py-[5px]">
+              + Nuevo estado de pago
+            </Btn>
+          )
+        )}
       </div>
+      {beneficiarios.length > 0 && (
+        <p className="text-[11px] text-muted mb-3 -mt-1">
+          Elige el <strong>alcance</strong>: cobra el proyecto completo o solo un beneficiario específico.
+        </p>
+      )}
 
       {eps.length === 0
         ? <div className="bg-canvas border border-dashed border-line2 rounded-lg p-6 text-center text-[12px] text-muted">
@@ -681,7 +719,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
 
                 <div className="flex gap-2 justify-end">
                   <Btn onClick={() => setModal(false)}>Cancelar</Btn>
-                  <Btn variant="primary" onClick={guardarEP} disabled={saving}>{saving ? 'Guardando...' : 'Crear estado de pago'}</Btn>
+                  <Btn variant="primary" onClick={guardarEP} disabled={saving}>{saving ? 'Guardando...' : (beneficiarioEP ? 'Crear EP del beneficiario' : 'Crear estado de pago')}</Btn>
                 </div>
               </>
             )}
