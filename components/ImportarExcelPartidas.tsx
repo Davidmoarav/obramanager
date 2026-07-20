@@ -8,8 +8,8 @@ import { useState } from 'react'
 import { Btn, Modal } from '@/components/ui'
 import { fmt } from '@/lib/format'
 
-// Mapeo de columnas (índice base 0). Ajustable si tu planilla cambia.
-const COL = { sub: 0, etapa: 2, partida: 5, unidad: 6, cantidad: 8, material: 10, hh: 12 }
+// El importador detecta las columnas por el nombre del encabezado.
+// Compatible con la plantilla oficial y con planillas de análisis económico propias.
 
 interface Sub { nombre: string; etapas: { nombre: string; partidas: any[] }[] }
 
@@ -44,14 +44,45 @@ export default function ImportarExcelPartidas({ proyectoId, markup = 20, onImpor
       const ws = wb.Sheets[hoja]
       const filas: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true })
 
-      // Detectar la fila de encabezado (la que dice PARTIDA / U/M) para empezar debajo
+      // Detectar la fila de encabezado y mapear columnas POR NOMBRE.
+      // Así funciona con la plantilla oficial y con planillas propias.
+      const normaliza = (s: any) => String(s || '').toLowerCase().trim()
       let inicio = 2
-      for (let i = 0; i < Math.min(filas.length, 10); i++) {
-        const rowText = (filas[i] || []).map(c => String(c || '').toUpperCase()).join(' ')
-        if (rowText.includes('PARTIDA') && (rowText.includes('U/M') || rowText.includes('CANT'))) {
-          inicio = i + 1; break
+      let col = { sub: 0, etapa: 2, partida: 5, unidad: 6, cantidad: 8, material: 10, hh: 12 }
+      let mapeoPorNombre = false
+
+      for (let i = 0; i < Math.min(filas.length, 12); i++) {
+        const row = (filas[i] || []).map(normaliza)
+        const texto = row.join(' ')
+        const tienePartida = row.findIndex(c => c === 'partida' || c.includes('partida'))
+        if (tienePartida >= 0 && (texto.includes('subproyecto') || texto.includes('unidad') || texto.includes('u/m') || texto.includes('cant'))) {
+          // Buscar cada columna por su encabezado
+          const buscar = (...claves: string[]) => row.findIndex(c => claves.some(k => c === k || c.includes(k)))
+          const iSub = buscar('subproyecto', 'recinto')
+          const iEta = buscar('etapa', 'capítulo', 'capitulo')
+          const iPar = tienePartida
+          const iUni = buscar('unidad', 'u/m', 'u.m')
+          const iCan = buscar('cantidad', 'cant')
+          const iMat = buscar('material')
+          const iHH  = buscar('mano de obra', 'mano obra', 'hh', 'm.o', 'mo')
+          // Si encontró al menos partida + un costo, usa mapeo por nombre
+          if (iPar >= 0 && (iMat >= 0 || iHH >= 0)) {
+            col = {
+              sub: iSub >= 0 ? iSub : 0,
+              etapa: iEta >= 0 ? iEta : 1,
+              partida: iPar,
+              unidad: iUni >= 0 ? iUni : iPar + 1,
+              cantidad: iCan >= 0 ? iCan : iPar + 2,
+              material: iMat >= 0 ? iMat : iPar + 3,
+              hh: iHH >= 0 ? iHH : iPar + 4,
+            }
+            mapeoPorNombre = true
+          }
+          inicio = i + 1
+          break
         }
       }
+      const COL = col
 
       // Parsear con arrastre de subproyecto (A) y etapa (C)
       const subs: Sub[] = []
@@ -119,6 +150,11 @@ export default function ImportarExcelPartidas({ proyectoId, markup = 20, onImpor
             Sube tu planilla de análisis económico. Debe tener el <strong>subproyecto</strong> en la columna A,
             la <strong>etapa</strong> en la C, y la <strong>partida</strong> en la F (con unidad, cantidad, material y HH).
           </p>
+          <a href="/Plantilla_Partidas_ObraManager.xlsx" download
+            className="flex items-center gap-2 text-[12px] text-brand font-semibold mb-3 hover:underline">
+            ⬇ Descargar plantilla de ejemplo
+            <span className="text-[11px] text-muted font-normal">(recomendado si armas desde cero — evita errores)</span>
+          </a>
           <label className="block border-2 border-dashed border-line rounded-xl p-8 text-center cursor-pointer hover:border-brand hover:bg-brand-bg/30 transition">
             <input type="file" accept=".xlsx,.xls" className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) leerArchivo(f) }} />
