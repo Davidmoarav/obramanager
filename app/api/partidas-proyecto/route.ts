@@ -1,6 +1,6 @@
 // app/api/partidas-proyecto/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardEscritura } from '@/lib/roles'
+import { guardEscritura, getOwnerId } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // ─── Recalcular avances (hojas → grupos → proyecto), N niveles ────
@@ -65,6 +65,7 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const proyectoId = req.nextUrl.searchParams.get('proyecto_id')
   if (!proyectoId) return NextResponse.json({ error: 'Falta proyecto_id' }, { status: 400 })
@@ -73,7 +74,7 @@ export async function GET(req: NextRequest) {
     .from('partidas_proyecto')
     .select('*')
     .eq('proyecto_id', proyectoId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('orden', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -87,6 +88,7 @@ export async function POST(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   const { data, error } = await supabase
@@ -109,7 +111,7 @@ export async function POST(req: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  await recalcTodo(supabase, body.proyecto_id, user.id)
+  await recalcTodo(supabase, body.proyecto_id, ownerId)
   return NextResponse.json(data)
 }
 
@@ -120,6 +122,7 @@ export async function PUT(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   const { id, created_at, user_id, children, ...rest } = body
@@ -133,12 +136,12 @@ export async function PUT(req: Request) {
       avance:          Math.min(100, Math.max(0, Number(rest.avance) || 0)),
     })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  if (rest.proyecto_id) await recalcTodo(supabase, rest.proyecto_id, user.id)
+  if (rest.proyecto_id) await recalcTodo(supabase, rest.proyecto_id, ownerId)
   return NextResponse.json(data)
 }
 
@@ -149,6 +152,7 @@ export async function DELETE(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { id, proyecto_id } = await req.json()
   // CASCADE borra los hijos automáticamente
@@ -156,9 +160,9 @@ export async function DELETE(req: Request) {
     .from('partidas_proyecto')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  if (proyecto_id) await recalcTodo(supabase, proyecto_id, user.id)
+  if (proyecto_id) await recalcTodo(supabase, proyecto_id, ownerId)
   return NextResponse.json({ ok: true })
 }

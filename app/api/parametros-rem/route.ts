@@ -1,6 +1,6 @@
 // app/api/parametros-rem/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardModulo } from '@/lib/roles'
+import { guardModulo, getOwnerId } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 const DEFAULTS = {
@@ -16,11 +16,12 @@ export async function GET() {
   if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { data, error } = await supabase
     .from('parametros_remuneracion')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -34,13 +35,14 @@ export async function PUT(req: Request) {
   if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   const { id, created_at, user_id, ...payload } = body
 
   const { data, error } = await supabase
     .from('parametros_remuneracion')
-    .upsert({ ...payload, user_id: user.id, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+    .upsert({ ...payload, user_id: ownerId, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
     .select()
     .single()
 

@@ -2,7 +2,7 @@
 // Proyección de mano de obra por proyecto: dotación mes a mes,
 // costo con imposiciones, finiquitos y gasto pendiente.
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardEscritura } from '@/lib/roles'
+import { guardEscritura, getOwnerId } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Factor imposiciones patronales por defecto (SIS, mutual, cesantía ≈ +5%)
@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const proyectoId = req.nextUrl.searchParams.get('proyecto_id')
   const sugerir    = req.nextUrl.searchParams.get('sugerir')
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
   if (sugerir) {
     const [{ data: proy }, { data: emps }] = await Promise.all([
       supabase.from('proyectos').select('inicio, fin').eq('id', proyectoId).maybeSingle(),
-      supabase.from('empleados').select('sueldo, estado').eq('proyecto_id', proyectoId).eq('user_id', user.id),
+      supabase.from('empleados').select('sueldo, estado').eq('proyecto_id', proyectoId).eq('user_id', ownerId),
     ])
 
     const activos = (emps ?? []).filter((e: any) => e.estado === 'activo')
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
     .from('proyeccion_mo')
     .select('*')
     .eq('proyecto_id', proyectoId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('mes', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -113,17 +114,18 @@ export async function PUT(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { proyecto_id, filas } = await req.json()
   if (!proyecto_id) return NextResponse.json({ error: 'proyecto_id requerido' }, { status: 400 })
 
   // Reemplazo total: borra las filas previas y reinserta
-  await supabase.from('proyeccion_mo').delete().eq('proyecto_id', proyecto_id).eq('user_id', user.id)
+  await supabase.from('proyeccion_mo').delete().eq('proyecto_id', proyecto_id).eq('user_id', ownerId)
 
   const toInsert = (filas ?? [])
     .filter((f: any) => f.mes)
     .map((f: any) => ({
-      user_id: user.id,
+      user_id: ownerId,
       proyecto_id,
       mes: f.mes,
       dotacion: Number(f.dotacion) || 0,

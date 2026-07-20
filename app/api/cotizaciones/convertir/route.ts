@@ -7,7 +7,7 @@
 // 4. Transaccional con rollback manual
 
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardEscritura } from '@/lib/roles'
+import { guardEscritura, getOwnerId } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 const IVA = 0.19
@@ -18,6 +18,7 @@ export async function POST(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { cotizacion_id } = await req.json()
   if (!cotizacion_id) return NextResponse.json({ error: 'Falta cotizacion_id' }, { status: 400 })
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     .from('cotizaciones')
     .select('*, partidas:partidas_cotizacion(*)')
     .eq('id', cotizacion_id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single()
 
   if (e1 || !cot) {
@@ -62,14 +63,14 @@ export async function POST(req: Request) {
       .from('catalogo_partidas')
       .select('*')
       .in('parent_id', catalogoIds)
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
     subPartidasCatalogo = subs ?? []
   }
 
   // 2.b Markup por defecto de la empresa: sirve para derivar el COSTO desde el
   //     precio de venta cotizado (precio = costo × (1 + markup) → costo = precio / (1+markup))
   const { data: cfg } = await supabase
-    .from('empresa_config').select('markup_default').eq('user_id', user.id).maybeSingle()
+    .from('empresa_config').select('markup_default').eq('user_id', ownerId).maybeSingle()
   const markupDefault = Number(cfg?.markup_default) || 20
   const factor = 1 + markupDefault / 100
   const costoDesde = (precio: any) => Math.round((Number(precio) || 0) / factor)
@@ -142,8 +143,8 @@ export async function POST(req: Request) {
       .single()
 
     if (ep || !nuevoPadre) {
-      await supabase.from('partidas_proyecto').delete().eq('proyecto_id', proyecto.id).eq('user_id', user.id)
-      await supabase.from('proyectos').delete().eq('id', proyecto.id).eq('user_id', user.id)
+      await supabase.from('partidas_proyecto').delete().eq('proyecto_id', proyecto.id).eq('user_id', ownerId)
+      await supabase.from('proyectos').delete().eq('id', proyecto.id).eq('user_id', ownerId)
       return NextResponse.json({ error: 'Error al copiar partida: ' + (ep?.message || '') }, { status: 500 })
     }
     mapaIds[p.id] = nuevoPadre.id
@@ -180,8 +181,8 @@ export async function POST(req: Request) {
         .insert(filasHijos)
 
       if (eh) {
-        await supabase.from('partidas_proyecto').delete().eq('proyecto_id', proyecto.id).eq('user_id', user.id)
-        await supabase.from('proyectos').delete().eq('id', proyecto.id).eq('user_id', user.id)
+        await supabase.from('partidas_proyecto').delete().eq('proyecto_id', proyecto.id).eq('user_id', ownerId)
+        await supabase.from('proyectos').delete().eq('id', proyecto.id).eq('user_id', ownerId)
         return NextResponse.json({ error: 'Error al copiar sub-partidas: ' + eh.message }, { status: 500 })
       }
       totalCopiadas += filasHijos.length
@@ -193,11 +194,11 @@ export async function POST(req: Request) {
     .from('cotizaciones')
     .update({ estado: 'convertida', proyecto_id: proyecto.id })
     .eq('id', cot.id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
 
   if (e4) {
-    await supabase.from('partidas_proyecto').delete().eq('proyecto_id', proyecto.id).eq('user_id', user.id)
-    await supabase.from('proyectos').delete().eq('id', proyecto.id).eq('user_id', user.id)
+    await supabase.from('partidas_proyecto').delete().eq('proyecto_id', proyecto.id).eq('user_id', ownerId)
+    await supabase.from('proyectos').delete().eq('id', proyecto.id).eq('user_id', ownerId)
     return NextResponse.json({ error: 'Error al actualizar cotización: ' + e4.message }, { status: 500 })
   }
 

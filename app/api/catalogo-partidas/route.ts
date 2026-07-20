@@ -1,17 +1,18 @@
 // app/api/catalogo-partidas/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardEscritura } from '@/lib/roles'
+import { guardEscritura, getOwnerId } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { data, error } = await supabase
     .from('catalogo_partidas')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('orden', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   const { data, error } = await supabase
@@ -49,6 +51,7 @@ export async function PUT(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   const { id, created_at, user_id, children, ...rest } = body
@@ -59,7 +62,7 @@ export async function PUT(req: Request) {
       precio_unitario_ref: Number(rest.precio_unitario_ref) || 0,
     })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .select()
     .single()
 
@@ -73,13 +76,14 @@ export async function DELETE(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { id } = await req.json()
   const { error } = await supabase
     .from('catalogo_partidas')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

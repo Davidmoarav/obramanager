@@ -1,6 +1,6 @@
 // app/api/facturas/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardModulo } from '@/lib/roles'
+import { guardModulo, getOwnerId } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 export async function GET(req: Request) {
@@ -9,6 +9,7 @@ export async function GET(req: Request) {
   if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const sp = new URL(req.url).searchParams
   const resumen = sp.get('resumen')
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
 
   // ── Resumen agregado, calculado en el servidor (no trae filas al cliente) ──
   if (resumen) {
-    let q = supabase.from('facturas').select('tipo, estado, monto').eq('user_id', user.id)
+    let q = supabase.from('facturas').select('tipo, estado, monto').eq('user_id', ownerId)
     if (periodo) q = q.eq('periodo', periodo)
     const { data, error } = await q
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
   if (folios !== null) {
     const lista = folios.split(',').map(s => s.trim()).filter(Boolean).slice(0, 200)
     if (lista.length === 0) return NextResponse.json([])
-    let q = supabase.from('facturas').select('id, numero, cliente, tipo').eq('user_id', user.id).in('numero', lista)
+    let q = supabase.from('facturas').select('id, numero, cliente, tipo').eq('user_id', ownerId).in('numero', lista)
     if (tipo) q = q.eq('tipo', tipo)
     if (docTipo) q = q.eq('doc_tipo', docTipo)
     const { data, error } = await q
@@ -57,7 +58,7 @@ export async function GET(req: Request) {
 
   // ── Búsqueda server-side (para asociar notas a su factura) ──
   if (buscar !== null) {
-    let q = supabase.from('facturas').select(COLS).eq('user_id', user.id)
+    let q = supabase.from('facturas').select(COLS).eq('user_id', ownerId)
     if (tipo) q = q.eq('tipo', tipo)
     if (docTipo) q = q.eq('doc_tipo', docTipo)
     const term = buscar.trim().replace(/[,()%*\\]/g, '')   // sanitizar para el filtro PostgREST
@@ -68,7 +69,7 @@ export async function GET(req: Request) {
   }
 
   // ── Lista: por período (mes) o, sin período, solo las recientes con tope ──
-  let q = supabase.from('facturas').select(COLS).eq('user_id', user.id)
+  let q = supabase.from('facturas').select(COLS).eq('user_id', ownerId)
   if (periodo) q = q.eq('periodo', periodo)
   if (tipo) q = q.eq('tipo', tipo)
   q = q.order('emision', { ascending: false })
@@ -84,8 +85,9 @@ export async function POST(req: Request) {
   if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
   const body = await req.json()
-  const { data, error } = await supabase.from('facturas').insert({ ...body, user_id: user.id }).select().single()
+  const { data, error } = await supabase.from('facturas').insert({ ...body, user_id: ownerId }).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
@@ -96,9 +98,10 @@ export async function PUT(req: Request) {
   if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
   const body = await req.json()
   const { id, ...rest } = body
-  const { data, error } = await supabase.from('facturas').update(rest).eq('id', id).eq('user_id', user.id).select().single()
+  const { data, error } = await supabase.from('facturas').update(rest).eq('id', id).eq('user_id', ownerId).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
@@ -109,8 +112,9 @@ export async function DELETE(req: Request) {
   if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
   const { id } = await req.json()
-  const { error } = await supabase.from('facturas').delete().eq('id', id).eq('user_id', user.id)
+  const { error } = await supabase.from('facturas').delete().eq('id', id).eq('user_id', ownerId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

@@ -60,6 +60,16 @@ export async function guardEscritura(supabase: any, modulo: string) {
   return null
 }
 
+// Devuelve el ID del DUEÑO de la organización del usuario actual.
+// - Si es dueño (sin membresía) → su propio id.
+// - Si es miembro de una organización → el id del dueño de esa organización.
+// Con esto, los filtros .eq('user_id', ownerId) apuntan a los datos de la
+// empresa, no a los del miembro (cuyo id no tiene datos propios).
+export async function getOwnerId(supabase: any): Promise<string | null> {
+  const info = await getRolActual(supabase)
+  return info?.ownerId ?? null
+}
+
 // Guarda de módulo para endpoints sensibles. Devuelve una respuesta 401/403
 // si el usuario no puede, o null si tiene permiso.
 export async function guardModulo(supabase: any, modulo: string) {

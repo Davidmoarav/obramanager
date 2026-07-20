@@ -1,7 +1,7 @@
 // app/api/remuneraciones/route.ts
 // Genera/guarda liquidaciones de un período
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardModulo } from '@/lib/roles'
+import { guardModulo, getOwnerId } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Sincroniza el gasto de mano de obra: si el empleado está asignado a una obra,
@@ -36,13 +36,14 @@ export async function GET(req: NextRequest) {
   if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const periodo = req.nextUrl.searchParams.get('periodo')
 
   let query = supabase
     .from('liquidaciones')
     .select('*, empleado:empleados(*)')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
 
   if (periodo) query = query.eq('periodo', periodo)
 
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
   if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
 
@@ -67,14 +69,14 @@ export async function POST(req: Request) {
     .select('id')
     .eq('empleado_id', body.empleado_id)
     .eq('periodo', body.periodo)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle()
 
   let result
   if (existing) {
     const { data, error } = await supabase
       .from('liquidaciones')
-      .update({ ...body, user_id: user.id })
+      .update({ ...body, user_id: ownerId })
       .eq('id', existing.id)
       .select()
       .single()
@@ -83,14 +85,14 @@ export async function POST(req: Request) {
   } else {
     const { data, error } = await supabase
       .from('liquidaciones')
-      .insert({ ...body, user_id: user.id })
+      .insert({ ...body, user_id: ownerId })
       .select()
       .single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     result = data
   }
 
-  await syncGastoManoObra(supabase, user.id, result)
+  await syncGastoManoObra(supabase, ownerId, result)
   return NextResponse.json(result)
 }
 
@@ -101,13 +103,14 @@ export async function PUT(req: Request) {
   if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { id, estado } = await req.json()
   const { data, error } = await supabase
     .from('liquidaciones')
     .update({ estado })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .select()
     .single()
 

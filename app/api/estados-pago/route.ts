@@ -1,6 +1,6 @@
 // app/api/estados-pago/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardEscritura } from '@/lib/roles'
+import { guardEscritura, getOwnerId } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const IVA = 0.19
@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const proyectoId = req.nextUrl.searchParams.get('proyecto_id')
   const sugerir    = req.nextUrl.searchParams.get('sugerir')
@@ -28,14 +29,14 @@ export async function GET(req: NextRequest) {
 
   // Modo "sugerir": calcula cuánto se cobraría en un EP nuevo según avance actual
   if (sugerir) {
-    return await sugerirEP(supabase, proyectoId, user.id)
+    return await sugerirEP(supabase, proyectoId, ownerId)
   }
 
   const { data, error } = await supabase
     .from('estados_pago')
     .select('*, detalle:estado_pago_detalle(*)')
     .eq('proyecto_id', proyectoId)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('numero', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -166,6 +167,7 @@ export async function POST(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   const {
@@ -204,7 +206,7 @@ export async function POST(req: Request) {
       iva, total,
       estado: 'borrador',
       notas: notas || null,
-      user_id: user.id,
+      user_id: ownerId,
     })
     .select()
     .single()
@@ -222,7 +224,7 @@ export async function POST(req: Request) {
       avance_actual: d.avance_actual,
       avance_periodo: d.avance_periodo,
       monto: d.monto,
-      user_id: user.id,
+      user_id: ownerId,
     }))
     await supabase.from('estado_pago_detalle').insert(filas)
   }
@@ -237,6 +239,7 @@ export async function PUT(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { id, estado, generar_factura } = await req.json()
 
@@ -245,7 +248,7 @@ export async function PUT(req: Request) {
     .from('estados_pago')
     .select('*')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single()
 
   if (!ep) return NextResponse.json({ error: 'EP no encontrado' }, { status: 404 })
@@ -256,7 +259,7 @@ export async function PUT(req: Request) {
   if (generar_factura && !ep.factura_id) {
     // Datos del proyecto para la factura
     const { data: proy } = await supabase
-      .from('proyectos').select('nombre, cliente').eq('id', ep.proyecto_id).eq('user_id', user.id).single()
+      .from('proyectos').select('nombre, cliente').eq('id', ep.proyecto_id).eq('user_id', ownerId).single()
 
     const { data: factura } = await supabase
       .from('facturas')
@@ -272,7 +275,7 @@ export async function PUT(req: Request) {
         periodo: ep.periodo || new Date().toISOString().slice(0, 7),
         estado: 'pendiente',
         estado_pago_id: ep.id,
-        user_id: user.id,
+        user_id: ownerId,
       })
       .select()
       .single()
@@ -284,7 +287,7 @@ export async function PUT(req: Request) {
     .from('estados_pago')
     .update({ estado: estado || ep.estado, factura_id: facturaId })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .select()
     .single()
 
@@ -299,13 +302,14 @@ export async function DELETE(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { id } = await req.json()
   const { error } = await supabase
     .from('estados_pago')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

@@ -1,6 +1,7 @@
 // app/api/proveedor-productos/route.ts
 // Catálogo de productos por proveedor: CRUD + carga masiva (CSV) + búsqueda.
 import { createServerSupabase } from '@/lib/supabase-server'
+import { getOwnerId } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 const COLS = 'id, proveedor_id, codigo, descripcion, unidad, precio, created_at'
@@ -9,12 +10,13 @@ export async function GET(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const sp = req.url ? new URL(req.url).searchParams : new URLSearchParams()
   const proveedorId = sp.get('proveedor_id')
   const buscar = sp.get('buscar')
 
-  let q = supabase.from('proveedor_productos').select(COLS).eq('user_id', user.id)
+  let q = supabase.from('proveedor_productos').select(COLS).eq('user_id', ownerId)
   if (proveedorId) q = q.eq('proveedor_id', proveedorId)
   if (buscar) {
     const term = buscar.trim().replace(/[,()%*\\]/g, '')
@@ -31,6 +33,7 @@ export async function POST(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
 
@@ -41,7 +44,7 @@ export async function POST(req: Request) {
 
     // Reemplazo total si se pide (para re-subir el catálogo limpio)
     if (body.reemplazar) {
-      await supabase.from('proveedor_productos').delete().eq('proveedor_id', proveedorId).eq('user_id', user.id)
+      await supabase.from('proveedor_productos').delete().eq('proveedor_id', proveedorId).eq('user_id', ownerId)
     }
 
     const filas = body.productos
@@ -82,6 +85,7 @@ export async function PUT(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { id, ...rest } = await req.json()
   if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
@@ -92,7 +96,7 @@ export async function PUT(req: Request) {
   if (rest.precio !== undefined) update.precio = Math.round(Number(rest.precio) || 0)
 
   const { data, error } = await supabase
-    .from('proveedor_productos').update(update).eq('id', id).eq('user_id', user.id).select(COLS).single()
+    .from('proveedor_productos').update(update).eq('id', id).eq('user_id', ownerId).select(COLS).single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
@@ -101,18 +105,19 @@ export async function DELETE(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { id, proveedor_id, todos } = await req.json()
 
   // Vaciar el catálogo completo de un proveedor
   if (todos && proveedor_id) {
-    const { error } = await supabase.from('proveedor_productos').delete().eq('proveedor_id', proveedor_id).eq('user_id', user.id)
+    const { error } = await supabase.from('proveedor_productos').delete().eq('proveedor_id', proveedor_id).eq('user_id', ownerId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ ok: true })
   }
 
   if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
-  const { error } = await supabase.from('proveedor_productos').delete().eq('id', id).eq('user_id', user.id)
+  const { error } = await supabase.from('proveedor_productos').delete().eq('id', id).eq('user_id', ownerId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

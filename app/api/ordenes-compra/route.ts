@@ -5,7 +5,7 @@
 //   ?id=X                     → una OC con sus líneas
 //   (sin params)              → lista de OCs
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardEscritura } from '@/lib/roles'
+import { guardEscritura, getOwnerId } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const IVA = 0.19
@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const sp = req.nextUrl.searchParams
   const sugerir = sp.get('sugerir')
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
   // ── Sugerencia: materiales agregados del proyecto ──
   if (sugerir && proyectoId) {
     const { data: partidas } = await supabase
-      .from('partidas_proyecto').select('id, cantidad').eq('proyecto_id', proyectoId).eq('user_id', user.id)
+      .from('partidas_proyecto').select('id, cantidad').eq('proyecto_id', proyectoId).eq('user_id', ownerId)
     const cantPorPartida: Record<string, number> = {}
     for (const p of partidas ?? []) cantPorPartida[p.id] = Number(p.cantidad) || 0
     const partIds = Object.keys(cantPorPartida)
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
     const { data: mats } = partIds.length
       ? await supabase.from('partida_materiales')
           .select('material, unidad, rendimiento, precio_unitario, partida_id')
-          .in('partida_id', partIds).eq('user_id', user.id)
+          .in('partida_id', partIds).eq('user_id', ownerId)
       : { data: [] as any[] }
 
     // Agrupar por material + unidad
@@ -63,17 +64,17 @@ export async function GET(req: NextRequest) {
   // ── Una OC con sus líneas ──
   if (id) {
     const { data: oc, error } = await supabase
-      .from('ordenes_compra').select('*').eq('id', id).eq('user_id', user.id).single()
+      .from('ordenes_compra').select('*').eq('id', id).eq('user_id', ownerId).single()
     if (error) return NextResponse.json({ error: error.message }, { status: 404 })
     const { data: lineas } = await supabase
-      .from('orden_compra_lineas').select('*').eq('orden_id', id).eq('user_id', user.id).order('created_at', { ascending: true })
+      .from('orden_compra_lineas').select('*').eq('orden_id', id).eq('user_id', ownerId).order('created_at', { ascending: true })
     return NextResponse.json({ ...oc, lineas: lineas ?? [] })
   }
 
   // ── Resumen agregado para las métricas (usa el total guardado) ──
   if (sp.get('resumen')) {
     const { data, error } = await supabase
-      .from('ordenes_compra').select('estado, total').eq('user_id', user.id)
+      .from('ordenes_compra').select('estado, total').eq('user_id', ownerId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     const rows = data ?? []
     return NextResponse.json({
@@ -87,7 +88,7 @@ export async function GET(req: NextRequest) {
   // ── Lista de OCs (paginada / con búsqueda server-side) ──
   const buscar = sp.get('buscar')
   const limit = Math.min(Number(sp.get('limit')) || 60, 500)
-  let q = supabase.from('ordenes_compra').select('*').eq('user_id', user.id)
+  let q = supabase.from('ordenes_compra').select('*').eq('user_id', ownerId)
   if (buscar) {
     const term = buscar.trim().replace(/[,()%*\\]/g, '')
     if (term) q = q.or(`proveedor.ilike.%${term}%,proyecto.ilike.%${term}%`)
@@ -146,13 +147,14 @@ export async function POST(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   const { lineas, neto, iva, total } = calcTotales(body.lineas)
 
   // Correlativo por usuario
   const { data: ultima } = await supabase
-    .from('ordenes_compra').select('numero').eq('user_id', user.id).order('numero', { ascending: false }).limit(1).maybeSingle()
+    .from('ordenes_compra').select('numero').eq('user_id', ownerId).order('numero', { ascending: false }).limit(1).maybeSingle()
   const numero = (ultima?.numero || 0) + 1
 
   const { data: oc, error } = await supabase
@@ -174,12 +176,12 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   if (lineas.length > 0) {
-    const rows = lineas.map(l => ({ ...l, orden_id: oc.id, user_id: user.id }))
+    const rows = lineas.map(l => ({ ...l, orden_id: oc.id, user_id: ownerId }))
     const { error: eL } = await supabase.from('orden_compra_lineas').insert(rows)
     if (eL) return NextResponse.json({ error: eL.message }, { status: 500 })
   }
 
-  await syncGastoOC(supabase, user.id, oc)
+  await syncGastoOC(supabase, ownerId, oc)
   return NextResponse.json({ ...oc, lineas })
 }
 
@@ -190,6 +192,7 @@ export async function PUT(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   if (!body.id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
@@ -209,26 +212,26 @@ export async function PUT(req: Request) {
     const { lineas, neto, iva, total } = calcTotales(body.lineas)
     update.neto = neto; update.iva = iva; update.total = total
 
-    await supabase.from('orden_compra_lineas').delete().eq('orden_id', body.id).eq('user_id', user.id)
+    await supabase.from('orden_compra_lineas').delete().eq('orden_id', body.id).eq('user_id', ownerId)
     if (lineas.length > 0) {
-      const rows = lineas.map(l => ({ ...l, orden_id: body.id, user_id: user.id }))
+      const rows = lineas.map(l => ({ ...l, orden_id: body.id, user_id: ownerId }))
       const { error: eL } = await supabase.from('orden_compra_lineas').insert(rows)
       if (eL) return NextResponse.json({ error: eL.message }, { status: 500 })
     }
   }
 
   const { data, error } = await supabase
-    .from('ordenes_compra').update(update).eq('id', body.id).eq('user_id', user.id).select().single()
+    .from('ordenes_compra').update(update).eq('id', body.id).eq('user_id', ownerId).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Al asociar una factura, atribuirla al proyecto de la OC (así cuenta en su gasto)
   if (data?.factura_id && (data?.proyecto_id || data?.proyecto)) {
     await supabase.from('facturas')
       .update({ proyecto: data.proyecto || null, proyecto_id: data.proyecto_id || null })
-      .eq('id', data.factura_id).eq('user_id', user.id)
+      .eq('id', data.factura_id).eq('user_id', ownerId)
   }
 
-  await syncGastoOC(supabase, user.id, data)
+  await syncGastoOC(supabase, ownerId, data)
   return NextResponse.json(data)
 }
 
@@ -239,11 +242,12 @@ export async function DELETE(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { id } = await req.json()
   // Quita el gasto asociado (si la OC estaba recibida) antes de borrarla
-  await supabase.from('gastos_obra').delete().eq('orden_compra_id', id).eq('user_id', user.id)
-  const { error } = await supabase.from('ordenes_compra').delete().eq('id', id).eq('user_id', user.id)
+  await supabase.from('gastos_obra').delete().eq('orden_compra_id', id).eq('user_id', ownerId)
+  const { error } = await supabase.from('ordenes_compra').delete().eq('id', id).eq('user_id', ownerId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

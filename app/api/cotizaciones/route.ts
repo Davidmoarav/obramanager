@@ -1,6 +1,6 @@
 // app/api/cotizaciones/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardEscritura } from '@/lib/roles'
+import { guardEscritura, getOwnerId } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 // ─── GET ──────────────────────────────────────────────────
@@ -8,6 +8,7 @@ export async function GET(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const sp = new URL(req.url).searchParams
 
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
     const { data, error } = await supabase
       .from('cotizaciones')
       .select('estado, partidas:partidas_cotizacion(cantidad, precio_unitario)')
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     const rows = data ?? []
     const montoDe = (c: any) => (c.partidas ?? []).reduce((s: number, p: any) => s + (Number(p.cantidad) || 0) * (Number(p.precio_unitario) || 0), 0)
@@ -36,7 +37,7 @@ export async function GET(req: Request) {
   let q = supabase
     .from('cotizaciones')
     .select('*, partidas:partidas_cotizacion(*)')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
 
   if (buscar) {
     const term = buscar.trim().replace(/[,()%*\\]/g, '')
@@ -76,13 +77,14 @@ export async function POST(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   const { partidas = [], ...cabecera } = body
 
   const { data: cot, error: e1 } = await supabase
     .from('cotizaciones')
-    .insert({ ...cabecera, user_id: user.id })
+    .insert({ ...cabecera, user_id: ownerId })
     .select()
     .single()
 
@@ -103,6 +105,7 @@ export async function PUT(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   const { id, partidas = [], created_at, user_id, ...cabecera } = body
@@ -111,7 +114,7 @@ export async function PUT(req: Request) {
     .from('cotizaciones')
     .update(cabecera)
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
 
   if (e1) return NextResponse.json({ error: e1.message }, { status: 500 })
 
@@ -133,13 +136,14 @@ export async function DELETE(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { id } = await req.json()
   const { error } = await supabase
     .from('cotizaciones')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

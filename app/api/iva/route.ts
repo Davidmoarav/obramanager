@@ -7,7 +7,7 @@
 //   PPM = tasa% (editable, según lo informado por el SII a cada contribuyente) × ventas netas del mes
 //   Total a pagar al SII = IVA a pagar + PPM
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardModulo } from '@/lib/roles'
+import { guardModulo, getOwnerId } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function GET(req: NextRequest) {
@@ -16,10 +16,11 @@ export async function GET(req: NextRequest) {
   if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const [{ data: facturas, error }, { data: ppmRows }] = await Promise.all([
-    supabase.from('facturas').select('*').eq('user_id', user.id),
-    supabase.from('ppm_config').select('*').eq('user_id', user.id),
+    supabase.from('facturas').select('*').eq('user_id', ownerId),
+    supabase.from('ppm_config').select('*').eq('user_id', ownerId),
   ])
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

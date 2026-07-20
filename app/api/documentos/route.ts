@@ -1,5 +1,6 @@
 // app/api/documentos/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
+import { getOwnerId } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // ─── GET: listar documentos (opcionalmente filtrar por proyecto_id) ──
@@ -7,13 +8,14 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const proyectoId = req.nextUrl.searchParams.get('proyecto_id')
 
   let query = supabase
     .from('documentos')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .order('created_at', { ascending: false })
 
   if (proyectoId) {
@@ -30,11 +32,12 @@ export async function POST(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   const { data, error } = await supabase
     .from('documentos')
-    .insert({ ...body, user_id: user.id })
+    .insert({ ...body, user_id: ownerId })
     .select()
     .single()
 
@@ -47,6 +50,7 @@ export async function DELETE(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { id } = await req.json()
 
@@ -55,7 +59,7 @@ export async function DELETE(req: Request) {
     .from('documentos')
     .select('archivo_path')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .single()
 
   if (e1 || !doc) return NextResponse.json({ error: 'Documento no encontrado' }, { status: 404 })
@@ -68,7 +72,7 @@ export async function DELETE(req: Request) {
     .from('documentos')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
 
   if (e2) return NextResponse.json({ error: e2.message }, { status: 500 })
   return NextResponse.json({ ok: true })

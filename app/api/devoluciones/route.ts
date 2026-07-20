@@ -2,16 +2,17 @@
 // Registra y lista las devoluciones (liberaciones) de retención y anticipo
 // que el mandante entrega al contratista a lo largo de la obra.
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardEscritura } from '@/lib/roles'
+import { guardEscritura, getOwnerId } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const proyectoId = req.nextUrl.searchParams.get('proyecto_id')
-  let query = supabase.from('devoluciones').select('*').eq('user_id', user.id)
+  let query = supabase.from('devoluciones').select('*').eq('user_id', ownerId)
   if (proyectoId) query = query.eq('proyecto_id', proyectoId)
 
   const { data, error } = await query.order('fecha', { ascending: false })
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   const { proyecto_id, tipo, monto, fecha, glosa } = body
@@ -34,7 +36,7 @@ export async function POST(req: Request) {
   const { data, error } = await supabase
     .from('devoluciones')
     .insert({
-      user_id: user.id,
+      user_id: ownerId,
       proyecto_id,
       tipo,
       monto: Number(monto) || 0,
@@ -54,11 +56,12 @@ export async function DELETE(req: Request) {
   if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { id } = await req.json()
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
 
-  const { error } = await supabase.from('devoluciones').delete().eq('id', id).eq('user_id', user.id)
+  const { error } = await supabase.from('devoluciones').delete().eq('id', id).eq('user_id', ownerId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

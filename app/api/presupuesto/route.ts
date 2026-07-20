@@ -8,6 +8,7 @@
 //   desviacion         = presupuesto_costo - gasto_real  (verde si positivo)
 //   ganancia_real      = venta_ejecutada - gasto_real
 import { createServerSupabase } from '@/lib/supabase-server'
+import { getOwnerId } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 // Avance de una partida: promedio de sus subpartidas PONDERADO por valor
@@ -50,11 +51,12 @@ export async function GET(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   // Opcional: acotar a un solo proyecto (evita escanear todas las obras)
   const proyectoId = new URL(req.url).searchParams.get('proyecto_id')
 
-  let proyQuery = supabase.from('proyectos').select('*').eq('user_id', user.id)
+  let proyQuery = supabase.from('proyectos').select('*').eq('user_id', ownerId)
   if (proyectoId) proyQuery = proyQuery.eq('id', proyectoId)
   const { data: proyectos } = await proyQuery
   const arrProy = proyectos ?? []
@@ -64,13 +66,13 @@ export async function GET(req: Request) {
   const proyIds = arrProy.map(p => p.id)
   const proyNombres = arrProy.map(p => p.nombre).filter(Boolean)
   const [{ data: partidas }, { data: gastos }, { data: facturas }] = await Promise.all([
-    supabase.from('partidas_proyecto').select('*').eq('user_id', user.id).in('proyecto_id', proyIds),
-    supabase.from('gastos_obra').select('*').eq('user_id', user.id).in('proyecto_id', proyIds),
+    supabase.from('partidas_proyecto').select('*').eq('user_id', ownerId).in('proyecto_id', proyIds),
+    supabase.from('gastos_obra').select('*').eq('user_id', ownerId).in('proyecto_id', proyIds),
     // Se enlaza por proyecto_id (fiable). Se incluyen también las que solo tienen
     // el nombre en texto (facturas antiguas aún sin migrar) para no perder gasto.
     supabase.from('facturas')
       .select('proyecto, proyecto_id, neto, tipo, doc_tipo')
-      .eq('user_id', user.id).eq('tipo', 'compra')
+      .eq('user_id', ownerId).eq('tipo', 'compra')
       .or(`proyecto_id.in.(${proyIds.join(',')}),proyecto.in.(${proyNombres.map(n => `"${String(n).replace(/"/g, '')}"`).join(',') || '"__no_match__"'})`),
   ])
 

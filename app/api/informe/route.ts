@@ -5,6 +5,7 @@
 //   GET ?proyecto_id=X  → informe completo de un proyecto
 //   GET (sin proyecto)  → resumen compacto de todos (para tarjetas)
 import { createServerSupabase } from '@/lib/supabase-server'
+import { getOwnerId } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const BILLED = ['presentado', 'aprobado', 'pagado']
@@ -81,16 +82,17 @@ export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const proyectoId = req.nextUrl.searchParams.get('proyecto_id')
 
   // ─── Resumen compacto de todos los proyectos (para tarjetas) ───
   if (!proyectoId) {
     const [{ data: proyectos }, { data: eps }, { data: devs }, { data: pmo }] = await Promise.all([
-      supabase.from('proyectos').select('id, nombre, valor, monto_contrato').eq('user_id', user.id),
-      supabase.from('estados_pago').select('proyecto_id, estado, bruto, total, retencion_monto, anticipo_desc').eq('user_id', user.id),
-      supabase.from('devoluciones').select('proyecto_id, tipo, monto').eq('user_id', user.id),
-      supabase.from('proyeccion_mo').select('proyecto_id, mes, dotacion, costo_unitario, finiquito').eq('user_id', user.id),
+      supabase.from('proyectos').select('id, nombre, valor, monto_contrato').eq('user_id', ownerId),
+      supabase.from('estados_pago').select('proyecto_id, estado, bruto, total, retencion_monto, anticipo_desc').eq('user_id', ownerId),
+      supabase.from('devoluciones').select('proyecto_id, tipo, monto').eq('user_id', ownerId),
+      supabase.from('proyeccion_mo').select('proyecto_id, mes, dotacion, costo_unitario, finiquito').eq('user_id', ownerId),
     ])
 
     const out = (proyectos ?? []).map(p => {
@@ -116,10 +118,10 @@ export async function GET(req: NextRequest) {
 
   // ─── Informe completo de un proyecto ───
   const [{ data: proyecto }, { data: eps }, { data: devs }, { data: pmo }] = await Promise.all([
-    supabase.from('proyectos').select('*').eq('id', proyectoId).eq('user_id', user.id).maybeSingle(),
-    supabase.from('estados_pago').select('*').eq('proyecto_id', proyectoId).eq('user_id', user.id).order('numero', { ascending: true }),
-    supabase.from('devoluciones').select('*').eq('proyecto_id', proyectoId).eq('user_id', user.id),
-    supabase.from('proyeccion_mo').select('*').eq('proyecto_id', proyectoId).eq('user_id', user.id).order('mes', { ascending: true }),
+    supabase.from('proyectos').select('*').eq('id', proyectoId).eq('user_id', ownerId).maybeSingle(),
+    supabase.from('estados_pago').select('*').eq('proyecto_id', proyectoId).eq('user_id', ownerId).order('numero', { ascending: true }),
+    supabase.from('devoluciones').select('*').eq('proyecto_id', proyectoId).eq('user_id', ownerId),
+    supabase.from('proyeccion_mo').select('*').eq('proyecto_id', proyectoId).eq('user_id', ownerId).order('mes', { ascending: true }),
   ])
 
   const kpis = kpisProyecto(proyecto?.valor || 0, eps ?? [], devs ?? [], pmo ?? [], Number((proyecto as any)?.monto_contrato) || 0)

@@ -2,12 +2,14 @@
 // Importación masiva del Registro de Compras y Ventas (RCV) del SII.
 // Recibe filas ya parseadas desde el cliente y las inserta como facturas.
 import { createServerSupabase } from '@/lib/supabase-server'
+import { getOwnerId } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { filas, tipo } = await req.json()  // tipo: 'compra' | 'venta'
   if (!Array.isArray(filas) || filas.length === 0) {
@@ -19,7 +21,7 @@ export async function POST(req: Request) {
   const { data: existentes } = await supabase
     .from('facturas')
     .select('numero, periodo, doc_tipo')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .eq('tipo', tipo)
 
   const claveDe = (f: any) => `${f.numero}__${f.periodo}__${f.doc_tipo || 'factura'}`

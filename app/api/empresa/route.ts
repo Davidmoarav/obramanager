@@ -1,6 +1,6 @@
 // app/api/empresa/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
-import { guardModulo } from '@/lib/roles'
+import { guardModulo, getOwnerId } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 // ─── GET: obtener la config de la empresa del usuario ─────
@@ -8,11 +8,12 @@ export async function GET() {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const { data, error } = await supabase
     .from('empresa_config')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', ownerId)
     .maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -28,6 +29,7 @@ export async function PUT(req: Request) {
   if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
   // Limpiar campos que no deben venir del cliente
@@ -36,7 +38,7 @@ export async function PUT(req: Request) {
   const { data, error } = await supabase
     .from('empresa_config')
     .upsert(
-      { ...payload, user_id: user.id, updated_at: new Date().toISOString() },
+      { ...payload, user_id: ownerId, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
     )
     .select()
