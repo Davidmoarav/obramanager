@@ -6,6 +6,7 @@ import { Btn, FormInput, FormSelect, Modal } from '@/components/ui'
 import { usePermisos } from '@/lib/usePermisos'
 import SelectorCatalogo from '@/components/SelectorCatalogo'
 import FilaPartida from '@/components/FilaPartida'
+import ImportarExcelPartidas from '@/components/ImportarExcelPartidas'
 import { fmt } from '@/lib/format'
 import { UNIDADES } from '@/types/cotizaciones'
 import type { PartidaProyecto } from '@/types/partida-proyecto'
@@ -34,6 +35,7 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
   const [saving, setSaving] = useState(false)
 
   const [showImport, setShowImport] = useState(false)
+  const [showExcel, setShowExcel] = useState(false)
   const [catalogo, setCatalogo] = useState<CatalogoPartida[]>([])
   const [catLoading, setCatLoading] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -294,10 +296,17 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
           )}
         </div>
         <div className="flex gap-1.5">
-          <Btn onClick={openImport} style={{ fontSize: 12, padding: '5px 12px', background: '#eeedfe', borderColor: '#ccc5fc', color: '#534ab7', fontWeight: 700 }}>
-            📋 Importar del catálogo
-          </Btn>
-          <Btn variant="primary" onClick={openNewPadre} style={{ fontSize: 12, padding: '5px 12px' }}>+ Nueva partida</Btn>
+          {!soloLectura && (
+            <>
+              <Btn onClick={() => setShowExcel(true)} style={{ fontSize: 12, padding: '5px 12px', background: '#e6f4ea', borderColor: '#a8d5b8', color: '#1a7a4a', fontWeight: 700 }}>
+                📊 Importar de Excel
+              </Btn>
+              <Btn onClick={openImport} style={{ fontSize: 12, padding: '5px 12px', background: '#eeedfe', borderColor: '#ccc5fc', color: '#534ab7', fontWeight: 700 }}>
+                📋 Del catálogo
+              </Btn>
+              <Btn variant="primary" onClick={openNewPadre} style={{ fontSize: 12, padding: '5px 12px' }}>+ Nueva partida</Btn>
+            </>
+          )}
         </div>
       </div>
 
@@ -502,6 +511,15 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
       )}
 
       {/* MODAL IMPORTAR DEL CATÁLOGO */}
+      {showExcel && (
+        <ImportarExcelPartidas
+          proyectoId={proyectoId}
+          markup={markupGlobal}
+          onImported={() => { load(); onAvanceChange?.() }}
+          onClose={() => setShowExcel(false)}
+        />
+      )}
+
       {showImport && (
         <Modal title="Importar partidas del catálogo" onClose={() => setShowImport(false)}>
           {catLoading
