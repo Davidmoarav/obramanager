@@ -139,6 +139,11 @@ export default function ImportarPrograma({ proyectoId, markup = 20, onImported, 
             💡 Cada beneficiario se creará como un <strong>subproyecto</strong> dentro de esta obra, con sus
             soluciones y partidas. Podrás medir avance y rentabilidad por beneficiario o del programa completo.
           </div>
+          <a href="/Plantilla_Programa_Beneficiarios.xlsx" download
+            className="flex items-center gap-2 text-[12px] text-brand font-semibold mb-3 hover:underline">
+            ⬇ Descargar plantilla de programa
+            <span className="text-[11px] text-muted font-normal">(con la grilla de beneficiarios lista)</span>
+          </a>
           <label className="block border-2 border-dashed border-line rounded-xl p-8 text-center cursor-pointer hover:border-brand hover:bg-brand-bg/30 transition">
             <input type="file" accept=".xlsx,.xls" className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) leerArchivo(f) }} />
