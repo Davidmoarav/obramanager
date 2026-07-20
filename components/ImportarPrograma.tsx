@@ -201,9 +201,13 @@ export default function ImportarPrograma({ proyectoId, markup = 20, onImported, 
             })}
           </div>
 
+          <div className="bg-[#e8f1fb] border border-[#b5d4f4] rounded-lg px-3 py-2.5 mb-3 text-[12px] text-[#0c447c]">
+            Se crearán <strong>{totales!.benef} beneficiarios</strong> con <strong>{totales!.partidas} partidas en total</strong>
+            {totales!.benef > 0 && <> (~{Math.round(totales!.partidas / totales!.benef)} por beneficiario)</>}.
+            Es normal que sean muchas: cada beneficiario tiene su propio juego de partidas.
+          </div>
           <p className="text-[11px] text-muted mb-2">
-            Se crearán {totales!.benef} subproyectos (uno por beneficiario). El precio de venta usa tu markup ({markup}%).
-            Puede tardar unos segundos por el volumen.
+            Cada beneficiario será un subproyecto con su árbol de soluciones y partidas. El precio de venta usa tu markup ({markup}%).
           </p>
           <label className="flex items-center gap-2 mb-3 text-[12px] text-ink cursor-pointer bg-[#fff8e6] border border-[#f0dca8] rounded-lg px-3 py-2">
             <input type="checkbox" checked={reemplazar} onChange={e => setReemplazar(e.target.checked)} />
