@@ -256,6 +256,19 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
     await load()
   }
 
+  // Formato según la moneda del proyecto.
+  // Internamente todo se calcula en pesos. Si el contrato es en UF, se muestra
+  // el valor en UF y, para control interno, el equivalente en pesos.
+  const esUF = resumen.moneda === 'uf'
+  const ufVal = Number(resumen.valor_uf) || 0
+  const enUF = (pesos: number) => (ufVal > 0 ? (pesos / ufVal) : 0)
+  // Valor principal (lo que se le presenta al mandante)
+  const fmtMoneda = (pesos: number) => esUF && ufVal > 0
+    ? `${enUF(pesos).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} UF`
+    : fmt(pesos)
+  // Equivalente en pesos (nuestra vista interna), solo cuando es UF
+  const fmtPesos = (pesos: number) => esUF && ufVal > 0 ? fmt(pesos) : ''
+
   const totalCobradoConIva = eps.filter(e => e.estado === 'pagado').reduce((s, e) => s + (e.total || 0), 0)
   const pctCobrado = valorContrato > 0 ? Math.round(totalCobradoConIva / valorContrato * 100) : 0
 
@@ -462,8 +475,10 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-base font-extrabold text-ink">{fmt(ep.total)}</div>
-                      <div className="text-[10px] text-muted">Neto {fmt(ep.monto_pagar)} + IVA</div>
+                      <div className="text-base font-extrabold text-ink">{fmtMoneda(ep.total)}</div>
+                      {esUF && ufVal > 0
+                        ? <div className="text-[10px] text-subtle">{fmt(ep.total)} · Neto {fmtMoneda(ep.monto_pagar)}</div>
+                        : <div className="text-[10px] text-muted">Neto {fmt(ep.monto_pagar)} + IVA</div>}
                       <div className="mt-1">
                         <DescargarEPBtn ep={ep} proyecto={{ nombre: proyectoNombre, cliente: proyectoCliente, direccion: proyectoDireccion }} />
                       </div>
@@ -641,17 +656,22 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
 
                 {/* Cascada completa */}
                 <div className="bg-canvas rounded-card p-3.5 mb-3.5">
-                  <Row label="Valor EEPP — avance del período" valor={fmt(bruto)} bold />
-                  {descuentos > 0 && <Row label="Descuentos" valor={`− ${fmt(descuentos)}`} danger />}
-                  {anticipoDesc > 0 && <Row label={`Anticipo carátula ${anticipoPct}%`} valor={`− ${fmt(anticipoDesc)}`} danger />}
-                  {multas > 0 && <Row label="Multas" valor={`− ${fmt(multas)}`} danger />}
-                  {retencionMonto > 0 && <Row label={`Retención ${retencionPct}%`} valor={`− ${fmt(retencionMonto)}`} danger />}
+                  {esUF && ufVal > 0 && (
+                    <div className="text-[10px] text-[#8a6314] bg-[#fff8e6] rounded px-2 py-1 mb-2">
+                      Contrato en UF (UF = {fmt(ufVal)}). Se presenta en UF; en gris, el equivalente en pesos para control interno.
+                    </div>
+                  )}
+                  <Row label="Valor EEPP — avance del período" valor={fmtMoneda(bruto)} sub={fmtPesos(bruto)} bold />
+                  {descuentos > 0 && <Row label="Descuentos" valor={`− ${fmtMoneda(descuentos)}`} sub={fmtPesos(descuentos)} danger />}
+                  {anticipoDesc > 0 && <Row label={`Anticipo carátula ${anticipoPct}%`} valor={`− ${fmtMoneda(anticipoDesc)}`} sub={fmtPesos(anticipoDesc)} danger />}
+                  {multas > 0 && <Row label="Multas" valor={`− ${fmtMoneda(multas)}`} sub={fmtPesos(multas)} danger />}
+                  {retencionMonto > 0 && <Row label={`Retención ${retencionPct}%`} valor={`− ${fmtMoneda(retencionMonto)}`} sub={fmtPesos(retencionMonto)} danger />}
                   <div className="border-t border-line2 mt-1.5 pt-1.5">
-                    <Row label="Total neto" valor={fmt(totalNeto)} />
+                    <Row label="Total neto" valor={fmtMoneda(totalNeto)} sub={fmtPesos(totalNeto)} />
                   </div>
-                  <Row label="IVA (19%)" valor={fmt(ivaCalc)} />
+                  <Row label="IVA (19%)" valor={fmtMoneda(ivaCalc)} sub={fmtPesos(ivaCalc)} />
                   <div className="border-t border-line2 mt-1.5 pt-1.5">
-                    <Row label="Líquido a pagar" valor={fmt(totalCalc)} bold />
+                    <Row label="Líquido a pagar" valor={fmtMoneda(totalCalc)} sub={fmtPesos(totalCalc)} bold />
                   </div>
                 </div>
 
@@ -732,11 +752,14 @@ function ResumenCard({ label, valor, colorCls, sub }: { label: string; valor: st
   )
 }
 
-function Row({ label, valor, danger, bold }: { label: string; valor: string; danger?: boolean; bold?: boolean }) {
+function Row({ label, valor, sub, danger, bold }: { label: string; valor: string; sub?: string; danger?: boolean; bold?: boolean }) {
   return (
-    <div className={`flex justify-between mb-0.5 ${bold ? 'text-[15px]' : 'text-[13px]'}`}>
+    <div className={`flex justify-between items-baseline mb-0.5 ${bold ? 'text-[15px]' : 'text-[13px]'}`}>
       <span className={`${danger ? 'text-danger' : 'text-muted'} ${bold ? 'font-bold' : 'font-normal'}`}>{label}</span>
-      <span className={`${danger ? 'text-danger' : 'text-[#1a2535]'} ${bold ? 'font-extrabold' : 'font-semibold'}`}>{valor}</span>
+      <span className="text-right">
+        <span className={`${danger ? 'text-danger' : 'text-[#1a2535]'} ${bold ? 'font-extrabold' : 'font-semibold'}`}>{valor}</span>
+        {sub && <span className="block text-[10px] text-subtle font-normal">{sub}</span>}
+      </span>
     </div>
   )
 }
