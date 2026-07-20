@@ -44,6 +44,23 @@ export default function ImportarExcelPartidas({ proyectoId, markup = 20, onImpor
       const ws = wb.Sheets[hoja]
       const filas: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true })
 
+      // Detectar si el archivo es en realidad un PROGRAMA (grilla con beneficiarios
+      // en la fila 1): varios pares (numero, nombre) a lo ancho. Si es asi, avisar.
+      const f1 = filas[0] || []
+      let bloquesBenef = 0
+      for (let c = 0; c < f1.length; c++) {
+        const e = f1[c], nom = f1[c + 1]
+        if (e != null && !isNaN(Number(e)) && Number.isInteger(Number(e)) && nom &&
+            String(nom).trim() && !String(nom).toUpperCase().includes('TOTAL')) {
+          bloquesBenef++
+        }
+      }
+      if (bloquesBenef >= 2) {
+        setError('Este archivo parece un PROGRAMA con varios beneficiarios (' + bloquesBenef +
+          ' detectados en la fila 1). Usa el boton Programa (beneficiarios) en su lugar.')
+        return
+      }
+
       // Detectar la fila de encabezado y mapear columnas POR NOMBRE.
       // Así funciona con la plantilla oficial y con planillas propias.
       const normaliza = (s: any) => String(s || '').toLowerCase().trim()

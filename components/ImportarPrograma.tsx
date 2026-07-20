@@ -20,6 +20,7 @@ export default function ImportarPrograma({ proyectoId, markup = 20, onImported, 
   const [error, setError] = useState('')
   const [importing, setImporting] = useState(false)
   const [expandido, setExpandido] = useState<number | null>(0)
+  const [reemplazar, setReemplazar] = useState(true)
 
   const num = (v: any) => { const n = Number(v); return isNaN(n) ? 0 : n }
   const limpiar = (s: any) => String(s || '').trim().replace(/\s+/g, ' ')
@@ -118,7 +119,7 @@ export default function ImportarPrograma({ proyectoId, markup = 20, onImported, 
     setImporting(true); setError('')
     const res = await fetch('/api/partidas-proyecto/importar-programa', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ proyecto_id: proyectoId, beneficiarios: parsed, markup }),
+      body: JSON.stringify({ proyecto_id: proyectoId, beneficiarios: parsed, markup, reemplazar }),
     })
     const data = await res.json()
     setImporting(false)
@@ -204,6 +205,10 @@ export default function ImportarPrograma({ proyectoId, markup = 20, onImported, 
             Se crearán {totales!.benef} subproyectos (uno por beneficiario). El precio de venta usa tu markup ({markup}%).
             Puede tardar unos segundos por el volumen.
           </p>
+          <label className="flex items-center gap-2 mb-3 text-[12px] text-ink cursor-pointer bg-[#fff8e6] border border-[#f0dca8] rounded-lg px-3 py-2">
+            <input type="checkbox" checked={reemplazar} onChange={e => setReemplazar(e.target.checked)} />
+            <span><strong>Reemplazar las partidas actuales</strong> de este proyecto (recomendado — evita duplicar si ya importaste antes)</span>
+          </label>
           {error && <p className="text-[12px] text-danger mb-2 bg-danger-bg rounded-lg p-2.5">{error}</p>}
 
           <div className="flex gap-2 justify-end">

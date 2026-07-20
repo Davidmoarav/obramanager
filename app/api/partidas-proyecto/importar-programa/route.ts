@@ -15,9 +15,20 @@ export async function POST(req: Request) {
   const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
-  const { proyecto_id, beneficiarios, markup = 20 } = body
+  const { proyecto_id, beneficiarios, markup = 20, reemplazar = false } = body
   if (!proyecto_id || !Array.isArray(beneficiarios)) {
     return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 })
+  }
+
+  // Si se pide reemplazar, borrar TODAS las partidas actuales del proyecto
+  // (evita acumular partidas de importaciones previas)
+  if (reemplazar) {
+    const { error: eDel } = await supabase
+      .from('partidas_proyecto')
+      .delete()
+      .eq('proyecto_id', proyecto_id)
+      .eq('user_id', ownerId)
+    if (eDel) return NextResponse.json({ error: 'No se pudieron limpiar las partidas previas: ' + eDel.message }, { status: 500 })
   }
 
   const factor = 1 + Number(markup) / 100
