@@ -187,6 +187,13 @@ export async function GET(req: Request) {
       ejecutado: Math.round(ventaEjecutada),
       valor_contrato: Number(proy.valor) || 0,
       pct_presupuesto: pctEjecutado,
+      // Moneda del proyecto (partidas y costos SIEMPRE en pesos; contrato en su moneda)
+      moneda: proy.moneda || 'peso',
+      valor_uf: Number(proy.valor_uf) || 0,
+      // Valor del contrato convertido a pesos (para comparar con costos)
+      valor_contrato_pesos: (proy.moneda === 'uf')
+        ? Math.round((Number(proy.valor) || 0) * (Number(proy.valor_uf) || 0))
+        : Number(proy.valor) || 0,
     }
   })
 

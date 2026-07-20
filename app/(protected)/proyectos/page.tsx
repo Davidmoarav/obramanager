@@ -58,6 +58,8 @@ export default function ProyectosPage() {
       gg_pct: Number((form as any).gg_pct) || 0,
       anticipo_pct: Number((form as any).anticipo_pct) || 0,
       anticipo: Number((form as any).anticipo) || 0,
+      moneda: (form as any).moneda || 'peso',
+      valor_uf: Number((form as any).valor_uf) || 0,
       retencion_pct: Number((form as any).retencion_pct) || 0,
     }) })
     await mutate(); setSaving(false); setModal(null)
@@ -149,8 +151,10 @@ export default function ProyectosPage() {
 
                 {/* Valor */}
                 <div className="flex items-baseline justify-between mb-4 pb-4 border-b border-line">
-                  <span className="text-xl font-extrabold text-ink tabular-nums">{fmtM(p.valor)}</span>
-                  <span className="text-[11px] text-subtle">valor contrato</span>
+                  <span className="text-xl font-extrabold text-ink tabular-nums">
+                    {(p as any).moneda === 'uf' ? `${(p.valor || 0).toLocaleString('es-CL')} UF` : fmtM(p.valor)}
+                  </span>
+                  <span className="text-[11px] text-subtle">valor contrato{(p as any).moneda === 'uf' ? ' (UF)' : ''}</span>
                 </div>
 
                 {/* Resumen KPI (informe ejecutivo) */}
@@ -217,7 +221,23 @@ export default function ProyectosPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2"><FormInput label="Nombre del proyecto" value={form.nombre || ''} onChange={v => upd('nombre', v)} required /></div>
             <FormInput label="Cliente"      value={form.cliente || ''}          onChange={v => upd('cliente', v)} />
-            <FormInput label="Valor (CLP)"  value={form.valor || ''}            onChange={v => upd('valor', v)}   type="number" />
+            <FormSelect label="Moneda del contrato" value={(form as any).moneda || 'peso'} onChange={v => upd('moneda' as any, v)}
+              options={[{ value: 'peso', label: 'Pesos (CLP)' }, { value: 'uf', label: 'UF' }]} />
+            <FormInput label={(form as any).moneda === 'uf' ? 'Valor contrato (UF)' : 'Valor (CLP)'}
+              value={form.valor || ''} onChange={v => upd('valor', v)} type="number" />
+            {(form as any).moneda === 'uf' && (
+              <div className="col-span-2 bg-[#fff8e6] border border-[#f0dca8] rounded-lg px-3 py-2.5 flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="text-[11px] font-semibold text-[#8a6314] block mb-1">Valor de la UF (en pesos)</label>
+                  <input type="number" value={(form as any).valor_uf || ''}
+                    onChange={e => upd('valor_uf' as any, e.target.value === '' ? 0 : Number(e.target.value))}
+                    className="input-base !mb-0" placeholder="Ej: 39000" />
+                </div>
+                <div className="text-[11px] text-[#8a6314] max-w-[190px]">
+                  Se usa para medir rentabilidad (contrato en UF vs costos en pesos). Actualízalo cuando quieras.
+                </div>
+              </div>
+            )}
             <FormInput label="Fecha inicio" value={form.inicio || ''}           onChange={v => upd('inicio', v)}  type="date" />
             <FormInput label="Fecha fin"    value={form.fin || ''}              onChange={v => upd('fin', v)}     type="date" />
             <FormSelect label="Estado"      value={form.estado || 'cotizacion'} onChange={v => upd('estado', v)} options={ESTADOS} />

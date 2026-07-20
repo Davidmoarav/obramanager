@@ -27,7 +27,7 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
   const { soloLectura } = usePermisos('obra')
   const [eps, setEps]         = useState<EstadoPago[]>([])
   const [loading, setLoading] = useState(true)
-  const [resumen, setResumen] = useState({ presupuesto: 0, ejecutado: 0, cobrado: 0, costo: 0, ganancia: 0, markup_real: 0, margen_venta: 0, costo_ejecutado: 0, ganancia_ejecutada: 0, gasto_real: 0, gasto_manual: 0, gasto_facturas: 0, desviacion: 0, desviacion_ejecutada: 0, pct_costo_ejecutado: 0, pct_ejecutado: 0, ganancia_real: 0, pct_gastado: 0, gasto_por_partida: {} as Record<string, number>, detalle_partidas: [] as any[] })
+  const [resumen, setResumen] = useState({ presupuesto: 0, ejecutado: 0, cobrado: 0, costo: 0, ganancia: 0, markup_real: 0, margen_venta: 0, costo_ejecutado: 0, ganancia_ejecutada: 0, gasto_real: 0, gasto_manual: 0, gasto_facturas: 0, desviacion: 0, desviacion_ejecutada: 0, pct_costo_ejecutado: 0, pct_ejecutado: 0, ganancia_real: 0, pct_gastado: 0, moneda: 'peso', valor_uf: 0, valor_contrato_pesos: 0, gasto_por_partida: {} as Record<string, number>, detalle_partidas: [] as any[] })
 
   // Gastos reales de la obra
   const [gastos, setGastos]     = useState<any[]>([])
@@ -95,6 +95,9 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
       pct_costo_ejecutado: p?.pct_costo_ejecutado || 0,
       ganancia_real: p?.ganancia_real || 0,
       pct_gastado: p?.pct_gastado || 0,
+      moneda: p?.moneda || 'peso',
+      valor_uf: p?.valor_uf || 0,
+      valor_contrato_pesos: p?.valor_contrato_pesos || 0,
       gasto_por_partida: p?.gasto_por_partida || {},
       detalle_partidas: p?.detalle_partidas || [],
     })
@@ -290,6 +293,21 @@ export default function PresupuestoPanel({ proyectoId, valorContrato, anticipoRe
           </button>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {resumen.moneda === 'uf' && (
+            <div className="col-span-2 lg:col-span-4 bg-[#fff8e6] border border-[#f0dca8] rounded-lg px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1">
+              <span className="text-[11px] font-bold text-[#8a6314] uppercase tracking-wide">Contrato en UF</span>
+              <span className="text-[12px] text-[#8a6314]">
+                Valor: <strong>{(valorContrato || 0).toLocaleString('es-CL')} UF</strong>
+              </span>
+              <span className="text-[12px] text-[#8a6314]">
+                UF hoy: <strong>{fmt(resumen.valor_uf)}</strong>
+              </span>
+              <span className="text-[12px] text-[#8a6314]">
+                Equivale a: <strong>{fmt(resumen.valor_contrato_pesos)}</strong>
+              </span>
+              <span className="text-[10px] text-[#a5854a] ml-auto">Partidas y costos en pesos · rentabilidad convertida con la UF</span>
+            </div>
+          )}
           <div>
             <div className="text-[11px] text-muted">Presupuestado (costo)</div>
             <div className="text-base font-bold text-[#b07d1a]">{fmt(resumen.costo)}</div>
