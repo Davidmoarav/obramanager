@@ -22,6 +22,7 @@ const colorAvance = (pct: number) => {
 
 interface Props {
   proyectoId: string
+  proyectoNombre?: string
   markupGlobal?: number
   onAvanceChange?: () => void
 }

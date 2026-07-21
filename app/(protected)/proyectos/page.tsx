@@ -285,7 +285,7 @@ export default function ProyectosPage() {
               ))}
             </div>
 
-            {tab === 'obra'        && <PartidasPanel proyectoId={gestion.id} markupGlobal={(gestion as any).markup_global ?? 20} onAvanceChange={refresh} />}
+            {tab === 'obra'        && <PartidasPanel proyectoId={gestion.id} proyectoNombre={gestion.nombre} markupGlobal={(gestion as any).markup_global ?? 20} onAvanceChange={refresh} />}
             {tab === 'presupuesto' && <PresupuestoPanel proyectoId={gestion.id} valorContrato={gestion.valor} anticipoRecibido={(gestion as any).anticipo ?? 0} proyectoNombre={gestion.nombre} proyectoCliente={gestion.cliente} proyectoDireccion={(gestion as any).direccion} />}
             {tab === 'mano_obra'   && <ManoObraPanel proyectoId={gestion.id} proyectoNombre={gestion.nombre} />}
             {tab === 'informe'     && <InformePanel proyectoId={gestion.id} proyectoNombre={gestion.nombre} />}

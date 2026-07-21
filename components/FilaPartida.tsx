@@ -74,12 +74,13 @@ export default function FilaPartida(props: Props) {
 
         {/* Descripción */}
         <div className="flex-1 min-w-0">
-          <div className={`${nivel === 1 ? 'text-sm font-bold' : nivel === 2 ? 'text-[13px] font-semibold' : 'text-[12px]'} text-[#1a2535] truncate`}>
+          <div className={`${nivel === 1 ? 'text-[15px] font-extrabold' : nivel === 2 ? 'text-[13px] font-bold' : nivel === 3 ? 'text-[12px] font-semibold' : 'text-[12px]'} text-[#1a2535] truncate flex items-center gap-1.5`}>
+            {nivel === 1 && <span className="text-[13px]">👤</span>}
             {nodo.descripcion}
           </div>
           <div className="flex gap-2.5 text-[10px] text-muted mt-0.5">
             {esGrupo
-              ? <span>{hijos.length} {nivel === 1 ? 'etapa' : 'partida'}{hijos.length !== 1 ? 's' : ''}</span>
+              ? <span>{hijos.length} {etiquetaHijos}{hijos.length !== 1 ? 's' : ''}</span>
               : <>
                   {nodo.cantidad > 0 && <span>{nodo.cantidad} {nodo.unidad}</span>}
                   {nodo.precio_unitario > 0 && <span>P.U: {fmt(nodo.precio_unitario)}</span>}
