@@ -1,7 +1,11 @@
 // app/api/partidas-proyecto/importar-programa/route.ts
 // Importa un PROGRAMA con varios beneficiarios (grilla horizontal).
-// Cada beneficiario se crea como subproyecto (nivel 1), y adentro va su
-// estructura de soluciones (nivel 2) → etapas... → partidas (nivel hoja).
+// ESTRUCTURA DE 2 NIVELES:
+//   Nivel 1: cada beneficiario/persona = subproyecto (agrupador, es_grupo).
+//   Nivel 2: sus partidas reales (hojas) con costo y avance.
+// El subproyecto (M1/M4) y la etapa del Excel se guardan como "categoria"
+// dentro de cada partida (campo notas), para poder agruparlas en el resumen
+// sin crear niveles extra en el árbol.
 import { createServerSupabase } from '@/lib/supabase-server'
 import { guardEscritura, getOwnerId } from '@/lib/roles'
 import { NextResponse } from 'next/server'
@@ -46,54 +50,36 @@ export async function POST(req: Request) {
 
   try {
     for (const benef of beneficiarios) {
-      // Nivel 1: el beneficiario (agrupador)
+      // Nivel 1: el beneficiario/persona (agrupador = subproyecto)
       const idBenef = await insertarNodo({
         parent_id: null, nivel: 1, es_grupo: true,
         descripcion: String(benef.nombre || 'Beneficiario').slice(0, 200),
         unidad: 'gl', cantidad: 0, costo_unitario: 0, precio_unitario: 0, avance: 0, orden: ordenBenef++,
       })
 
-      let ordenSol = 0
-      for (const sol of (benef.soluciones || [])) {
-        // Nivel 2: solución constructiva (agrupador)
-        const idSol = await insertarNodo({
-          parent_id: idBenef, nivel: 2, es_grupo: true,
-          descripcion: String(sol.nombre || 'Solución').slice(0, 200),
-          unidad: 'gl', cantidad: 0, costo_unitario: 0, precio_unitario: 0, avance: 0, orden: ordenSol++,
-        })
-
-        let ordenEt = 0
-        for (const et of (sol.etapas || [])) {
-          // Nivel 3: etapa (agrupador)
-          const idEt = await insertarNodo({
-            parent_id: idSol, nivel: 3, es_grupo: true,
-            descripcion: String(et.nombre || 'Etapa').slice(0, 200),
-            unidad: 'gl', cantidad: 0, costo_unitario: 0, precio_unitario: 0, avance: 0, orden: ordenEt++,
-          })
-
-          // Nivel 4 (hojas): partidas reales, insertadas por lote
-          const filas = (et.partidas || []).map((p: any, i: number) => {
-            const mat = Math.round(Number(p.material) || 0)
-            const mo  = Math.round(Number(p.mano_obra) || 0)
-            const costo = mat + mo
-            return {
-              proyecto_id, parent_id: idEt, nivel: 4, es_grupo: false,
-              descripcion: String(p.descripcion || 'Partida').slice(0, 200),
-              unidad: String(p.unidad || 'm2').slice(0, 20),
-              cantidad: Number(p.cantidad) || 0,
-              costo_material_unit: mat, costo_mo_unit: mo, costo_unitario: costo,
-              markup_pct: Number(markup), precio_unitario: Math.round(costo * factor),
-              avance: 0, orden: i, user_id: ownerId,
-            }
-          })
-          // Insertar en lotes de 100 (evita payloads gigantes)
-          for (let i = 0; i < filas.length; i += 100) {
-            const lote = filas.slice(i, i + 100)
-            const { error } = await supabase.from('partidas_proyecto').insert(lote)
-            if (error) throw error
-            creados += lote.length
-          }
+      // Nivel 2 (hojas): partidas reales de la persona, insertadas por lote.
+      // La categoría (M1/etapa) se guarda en notas para agrupar en el resumen.
+      const filas = (benef.partidas || []).map((p: any, i: number) => {
+        const mat = Math.round(Number(p.material) || 0)
+        const mo  = Math.round(Number(p.mano_obra) || 0)
+        const costo = mat + mo
+        return {
+          proyecto_id, parent_id: idBenef, nivel: 2, es_grupo: false,
+          descripcion: String(p.descripcion || 'Partida').slice(0, 200),
+          unidad: String(p.unidad || 'm2').slice(0, 20),
+          cantidad: Number(p.cantidad) || 0,
+          costo_material_unit: mat, costo_mo_unit: mo, costo_unitario: costo,
+          markup_pct: Number(markup), precio_unitario: Math.round(costo * factor),
+          avance: 0, orden: i, notas: String(p.categoria || '').slice(0, 200) || null,
+          user_id: ownerId,
         }
+      })
+      // Insertar en lotes de 100 (evita payloads gigantes)
+      for (let i = 0; i < filas.length; i += 100) {
+        const lote = filas.slice(i, i + 100)
+        const { error } = await supabase.from('partidas_proyecto').insert(lote)
+        if (error) throw error
+        creados += lote.length
       }
     }
   } catch (err: any) {

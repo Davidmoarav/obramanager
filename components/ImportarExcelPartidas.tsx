@@ -31,12 +31,44 @@ export default function ImportarExcelPartidas({ proyectoId, markup = 20, onImpor
       const buf = await file.arrayBuffer()
       const wb = XLSX.read(buf, { type: 'array' })
 
-      // Elegir la hoja con más filas (la del análisis, no las de listas)
+      // Elegir la hoja de DATOS (no la de "Instrucciones"): se puntúa cada hoja
+      // por cuántos encabezados de partida reconoce en sus primeras filas.
+      // Antes se elegía "la hoja con más filas", pero eso fallaba porque la hoja
+      // de Instrucciones suele tener más filas que la de Partidas.
+      const CONCEPTOS: string[][] = [
+        ['subproyecto', 'recinto'],
+        ['etapa', 'capítulo', 'capitulo'],
+        ['partida'],
+        ['unidad', 'u/m', 'u.m'],
+        ['cantidad', 'cant'],
+        ['material'],
+        ['mano de obra', 'mano obra', 'hh', 'm.o'],
+      ]
+      // Cuántos conceptos-encabezado aparecen en una fila (celdas cortas = títulos)
+      const scoreFila = (row: string[]) =>
+        CONCEPTOS.filter(claves =>
+          row.some(c => c.length > 0 && c.length < 30 && claves.some(k => c === k || c.includes(k)))
+        ).length
+      const scoreHoja = (rows: any[][]) => {
+        let best = 0
+        for (let i = 0; i < Math.min(rows.length, 12); i++) {
+          const row = (rows[i] || []).map((x: any) => String(x || '').toLowerCase().trim())
+          best = Math.max(best, scoreFila(row))
+        }
+        return best
+      }
+
       let hoja = wb.SheetNames[0]
-      let maxRows = 0
+      let mejorScore = -1
+      let mejorFilas = -1
       for (const nombre of wb.SheetNames) {
+        const rows: any[][] = XLSX.utils.sheet_to_json(wb.Sheets[nombre], { header: 1, raw: true })
         const rng = XLSX.utils.decode_range(wb.Sheets[nombre]['!ref'] || 'A1')
-        if (rng.e.r > maxRows) { maxRows = rng.e.r; hoja = nombre }
+        const sc = scoreHoja(rows)
+        // Prioriza mayor score de encabezados; a igual score, la de más filas
+        if (sc > mejorScore || (sc === mejorScore && rng.e.r > mejorFilas)) {
+          mejorScore = sc; mejorFilas = rng.e.r; hoja = nombre
+        }
       }
       const ws = wb.Sheets[hoja]
       const filas: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true })

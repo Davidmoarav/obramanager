@@ -8,6 +8,7 @@ import SelectorCatalogo from '@/components/SelectorCatalogo'
 import FilaPartida from '@/components/FilaPartida'
 import ImportarExcelPartidas from '@/components/ImportarExcelPartidas'
 import ImportarPrograma from '@/components/ImportarPrograma'
+import ResumenDistribucion from '@/components/ResumenDistribucion'
 import { fmt } from '@/lib/format'
 import { UNIDADES } from '@/types/cotizaciones'
 import type { PartidaProyecto } from '@/types/partida-proyecto'
@@ -32,6 +33,7 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
   const [allItems, setAllItems] = useState<PartidaProyecto[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [vista, setVista] = useState<'arbol' | 'resumen'>('arbol')
   const [modal, setModal] = useState<{ type: 'padre' | 'hijo' | 'editar'; parentId?: string } | null>(null)
   const [form, setForm] = useState<any>({})
   const [saving, setSaving] = useState(false)
@@ -322,12 +324,28 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
         </div>
       )}
 
+      {/* Toggle Árbol / Resumen (proyecto general) */}
+      {padres.length > 0 && (
+        <div className="flex gap-1 bg-canvas rounded-lg p-0.5 w-fit mb-3">
+          <button onClick={() => setVista('arbol')}
+            className={`text-[12px] font-semibold px-3 py-1.5 rounded-md ${vista === 'arbol' ? 'bg-white shadow-sm text-brand' : 'text-muted'}`}>
+            🌳 Árbol por subproyecto
+          </button>
+          <button onClick={() => setVista('resumen')}
+            className={`text-[12px] font-semibold px-3 py-1.5 rounded-md ${vista === 'resumen' ? 'bg-white shadow-sm text-brand' : 'text-muted'}`}>
+            📊 Resumen del proyecto
+          </button>
+        </div>
+      )}
+
       {loading
         ? <p className="text-center py-5 text-muted">Cargando...</p>
         : padres.length === 0
         ? <div className="bg-canvas border border-dashed border-line2 rounded-lg p-7 text-center text-[12px] text-muted">
             Sin partidas de obra. Agrega una manualmente o importa desde tu catálogo.
           </div>
+        : vista === 'resumen'
+        ? <ResumenDistribucion raices={padres} />
         : (
           <div className="flex flex-col">
             {padres.map((raiz, i) => (
