@@ -44,14 +44,18 @@ export default function FilaPartida(props: Props) {
   const avance = Math.round(avanceDe(nodo))
   const valor = valorDe(nodo)
 
-  // Estilo por nivel: nivel 1 más destacado, se va aclarando hacia abajo
+  // Estilo por nivel: nivel 1 (beneficiario) destacado como título, se aclara hacia abajo
   const estiloNivel = [
-    'bg-white border border-line',                       // nivel 1 (subproyecto)
-    'bg-[#fafbfc] border border-[#e8edf3]',              // nivel 2 (etapa)
-    'bg-transparent',                                     // nivel 3 (partida)
-  ][Math.min(nivel - 1, 2)]
+    'bg-gradient-to-r from-[#eef5fd] to-white border border-[#c5ddf5]',  // nivel 1 (beneficiario)
+    'bg-[#f7f9fc] border border-[#e2e9f2]',                              // nivel 2 (subproyecto)
+    'bg-[#fafbfc] border border-[#eef1f5]',                             // nivel 3 (etapa)
+    'bg-transparent',                                                    // nivel 4 (partida)
+  ][Math.min(nivel - 1, 3)]
 
   const sangria = (nivel - 1) * 16
+
+  // Etiqueta de qué contiene cada grupo, según el nivel
+  const etiquetaHijos = nivel === 1 ? 'subproyecto' : nivel === 2 ? 'etapa' : 'partida'
 
   return (
     <div className={`rounded-lg overflow-hidden ${nivel === 1 ? 'mb-2' : 'mb-1'}`}>
@@ -128,11 +132,11 @@ export default function FilaPartida(props: Props) {
           {hijos.map((h: any, i: number) => (
             <FilaPartida key={h.id} {...props} nodo={h} ruta={[...ruta, i + 1]} />
           ))}
-          {!soloLectura && nivel < 3 && (
+          {!soloLectura && nivel < 4 && (
             <button onClick={() => onAddHijo(nodo)}
               className="py-1.5 mt-1 mb-1 bg-white border border-dashed border-[#d1d9e6] rounded-[6px] text-[11px] text-brand font-semibold"
               style={{ marginLeft: sangria + 16, width: `calc(100% - ${sangria + 16}px)` }}>
-              + Agregar {nivel === 1 ? 'etapa' : 'partida'}
+              + Agregar {etiquetaHijos}
             </button>
           )}
         </div>
