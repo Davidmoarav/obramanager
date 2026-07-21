@@ -104,6 +104,37 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
   const padres = useMemo(() => construirArbol(allItems), [allItems])
   const partidaMateriales = useMemo(() => allItems.find(p => p.id === partidaMatId) || null, [allItems, partidaMatId])
 
+  // Lista de compra consolidada del PROYECTO: mismo material sumado entre todas
+  // las partidas (necesario = cantidad de la partida × rendimiento).
+  const comprasProyecto = useMemo(() => {
+    const porId: Record<string, any> = {}
+    allItems.forEach(p => { porId[p.id] = p })
+    const map = new Map<string, { material: string; unidad: string; necesario: number; costo: number }>()
+    for (const m of materiales) {
+      const p = porId[m.partida_id]
+      if (!p) continue
+      const necesario = (Number(p.cantidad) || 0) * (Number(m.rendimiento) || 0)
+      const costo = necesario * (Number(m.precio_unitario) || 0)
+      const key = String(m.material || '').trim().toLowerCase() + '¦' + (m.unidad || '')
+      const cur = map.get(key) || { material: m.material, unidad: m.unidad || '', necesario: 0, costo: 0 }
+      cur.necesario += necesario; cur.costo += costo
+      map.set(key, cur)
+    }
+    return Array.from(map.values()).sort((a, b) => b.costo - a.costo)
+  }, [materiales, allItems])
+
+  // Notas editables dentro del detalle
+  const [detNotas, setDetNotas] = useState('')
+  useEffect(() => { setDetNotas(partidaMateriales?.notas || '') }, [partidaMatId, partidaMateriales?.notas])
+  const guardarNotas = async () => {
+    if (!partidaMateriales) return
+    await fetch('/api/partidas-proyecto', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: partidaMateriales.id, proyecto_id: proyectoId, notas: detNotas }),
+    })
+    await load()
+  }
+
   const avanceGeneral = useMemo(() => {
     if (padres.length === 0) return 0
     let totalValor = 0, totalPond = 0
@@ -373,6 +404,7 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
                 onAddHijo={(padre) => openNewHijo(padre.id, (padre.children || []).length, (padre.nivel || 1) + 1)}
                 onAvance={updateAvance}
                 onAvanceLocal={(id, val) => setAllItems(prev => prev.map(x => x.id === id ? { ...x, avance: val } : x))}
+                onDetalle={(nodo) => setPartidaMatId(nodo.id)}
               />
             ))}
             {!soloLectura && (
@@ -384,47 +416,153 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
           </div>
         )}
 
-      {/* Materiales de la partida seleccionada (rendimientos -> compras) */}
-      {partidaMateriales && (
-        <div className="mt-4 bg-canvas border border-line rounded-xl p-4">
-          <div className="flex justify-between items-center mb-2">
-            <div>
-              <div className="text-[10px] font-bold text-muted uppercase tracking-wide">Materiales de la partida</div>
-              <div className="text-[13px] font-bold text-ink">{partidaMateriales.descripcion}</div>
-            </div>
-            <button onClick={() => setPartidaMatId(null)} className="text-[11px] text-muted">x cerrar</button>
+      {/* DETALLE DE PARTIDA (click en la partida): costo, avance, materiales a comprar */}
+      {partidaMateriales && (() => {
+        const p = partidaMateriales
+        const cant = Number(p.cantidad) || 0
+        const cmat = Number(p.costo_material_unit) || 0
+        const cmo  = Number(p.costo_mo_unit) || 0
+        const costoU = (Number(p.costo_unitario) || 0) || (cmat + cmo)
+        const precioU = Number(p.precio_unitario) || 0
+        const totalVenta = cant * precioU
+        const totalCosto = cant * costoU
+        const margen = totalVenta - totalCosto
+        const margenPct = costoU > 0 ? Math.round(((precioU - costoU) / costoU) * 100) : 0
+        const mats = materialesDe(p.id)
+        const subtotalMats = mats.reduce((s, m) => s + (cant * (Number(m.rendimiento) || 0)) * (Number(m.precio_unitario) || 0), 0)
+        const nombresPartida = new Set(mats.map(m => String(m.material || '').trim().toLowerCase()))
+        const av = Math.round(Number(p.avance) || 0)
+        const Stat = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
+          <div className="bg-canvas rounded-lg p-2.5">
+            <div className="text-[10px] text-muted">{label}</div>
+            <div className="text-[13px] font-extrabold text-ink">{value}</div>
+            {hint && <div className="text-[9px] text-subtle">{hint}</div>}
           </div>
-          {materialesDe(partidaMateriales.id).length === 0
-            ? <p className="text-[11px] text-muted py-1">Sin materiales. Agrega el consumo por {partidaMateriales.unidad} para calcular las compras.</p>
-            : <div className="flex flex-col gap-1.5">
-                {materialesDe(partidaMateriales.id).map(m => {
-                  const necesario = (Number(partidaMateriales.cantidad) || 0) * (Number(m.rendimiento) || 0)
-                  const costo = necesario * (Number(m.precio_unitario) || 0)
-                  return (
-                    <div key={m.id} className="flex items-center gap-2 py-1.5 px-2.5 bg-white border border-[#e4e9f0] rounded-[6px]">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[12px] font-semibold text-ink">{m.material}</div>
-                        <div className="text-[10px] text-muted">{m.rendimiento} {m.unidad}/{partidaMateriales.unidad} - necesario: {necesario.toFixed(1)} {m.unidad}</div>
-                      </div>
-                      <span className="text-[12px] font-bold text-ink">{fmt(costo)}</span>
-                      {!soloLectura && (
-                        <div className="flex gap-1">
-                          <button onClick={() => openEditMat(partidaMateriales, m)} className="w-6 h-6 rounded bg-canvas text-muted text-[11px]">edit</button>
-                          <button onClick={() => delMat(m.id)} className="w-6 h-6 rounded bg-danger-bg text-danger text-[11px]">x</button>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>}
-          {!soloLectura && (
-            <button onClick={() => openNewMat(partidaMateriales)}
-              className="w-full py-1.5 mt-2 bg-white border border-dashed border-[#d1d9e6] rounded-[6px] text-[11px] text-brand font-semibold">
-              + Agregar material
-            </button>
-          )}
-        </div>
-      )}
+        )
+        return (
+          <Modal title={`Detalle · ${p.descripcion}`} onClose={() => setPartidaMatId(null)}>
+            <div className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1">
+
+              {/* Encabezado */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {p.notas && <span className="text-[10px] font-semibold text-[#0c447c] bg-[#e8f1fb] px-2 py-0.5 rounded">{p.notas}</span>}
+                <span className="text-[11px] text-muted">{cant} {p.unidad}</span>
+              </div>
+
+              {/* 1) Desglose de costo */}
+              <div>
+                <div className="text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">Desglose de costo</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <Stat label="Cantidad" value={`${cant} ${p.unidad}`} />
+                  <Stat label={`Material / ${p.unidad}`} value={fmt(cmat)} />
+                  <Stat label={`Mano de obra / ${p.unidad}`} value={fmt(cmo)} />
+                  <Stat label={`Costo total / ${p.unidad}`} value={fmt(costoU)} />
+                  <Stat label={`Precio venta / ${p.unidad}`} value={fmt(precioU)} hint={`markup ${p.markup_pct ?? markupGlobal}%`} />
+                  <Stat label="Margen unitario" value={fmt(precioU - costoU)} hint={`${margenPct}%`} />
+                  <Stat label="Costo total" value={fmt(totalCosto)} hint={`${cant} × ${fmt(costoU)}`} />
+                  <Stat label="Venta total" value={fmt(totalVenta)} hint={`${cant} × ${fmt(precioU)}`} />
+                  <Stat label="Margen total" value={fmt(margen)} hint={`${margenPct}%`} />
+                </div>
+              </div>
+
+              {/* 2) Avance y notas */}
+              <div>
+                <div className="text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">Avance y notas</div>
+                <div className="flex items-center gap-3 mb-2">
+                  <input type="range" min={0} max={100} step={5} value={av} disabled={soloLectura}
+                    onChange={e => setAllItems(prev => prev.map(x => x.id === p.id ? { ...x, avance: Number(e.target.value) } : x))}
+                    onMouseUp={e => updateAvance(p, Number((e.target as HTMLInputElement).value))}
+                    onTouchEnd={e => updateAvance(p, Number((e.target as HTMLInputElement).value))}
+                    className="flex-1 cursor-pointer" style={{ accentColor: colorAvance(av) }} />
+                  <span className="text-[13px] font-bold min-w-[42px] text-right" style={{ color: colorAvance(av) }}>{av}%</span>
+                </div>
+                <textarea value={detNotas} onChange={e => setDetNotas(e.target.value)} disabled={soloLectura}
+                  placeholder="Notas / categoría de la partida (ej: M1 · Limpieza)…" rows={2}
+                  className="w-full text-[12px] px-2.5 py-2 border border-line rounded-lg outline-none focus:border-brand resize-none" />
+                {!soloLectura && (
+                  <div className="flex justify-end mt-1">
+                    <button onClick={guardarNotas} className="text-[11px] text-brand font-semibold">Guardar notas</button>
+                  </div>
+                )}
+              </div>
+
+              {/* 3) Materiales a comprar (esta partida) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="text-[11px] font-bold text-muted uppercase tracking-wide">Materiales a comprar</div>
+                  {mats.length > 0 && <div className="text-[11px] font-bold text-ink">Total: {fmt(subtotalMats)}</div>}
+                </div>
+                {mats.length === 0
+                  ? <p className="text-[11px] text-muted py-1">Sin materiales. Agrega el consumo por {p.unidad} para calcular las compras.</p>
+                  : <div className="flex flex-col gap-1.5">
+                      {mats.map(m => {
+                        const necesario = cant * (Number(m.rendimiento) || 0)
+                        const costo = necesario * (Number(m.precio_unitario) || 0)
+                        return (
+                          <div key={m.id} className="flex items-center gap-2 py-1.5 px-2.5 bg-white border border-[#e4e9f0] rounded-[6px]">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[12px] font-semibold text-ink">{m.material}</div>
+                              <div className="text-[10px] text-muted">{m.rendimiento} {m.unidad}/{p.unidad} · a comprar: <strong>{necesario.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {m.unidad}</strong></div>
+                            </div>
+                            <span className="text-[12px] font-bold text-ink">{fmt(costo)}</span>
+                            {!soloLectura && (
+                              <div className="flex gap-1">
+                                <button onClick={() => openEditMat(p, m)} className="w-6 h-6 rounded bg-canvas text-muted text-[11px]">✎</button>
+                                <button onClick={() => delMat(m.id)} className="w-6 h-6 rounded bg-danger-bg text-danger text-[11px]">✕</button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>}
+                {!soloLectura && (
+                  <button onClick={() => openNewMat(p)}
+                    className="w-full py-1.5 mt-2 bg-white border border-dashed border-[#d1d9e6] rounded-[6px] text-[11px] text-brand font-semibold">
+                    + Agregar material
+                  </button>
+                )}
+              </div>
+
+              {/* 4) Total de compra por material (todo el proyecto) */}
+              {comprasProyecto.length > 0 && (
+                <div>
+                  <div className="text-[11px] font-bold text-muted uppercase tracking-wide mb-1.5">Total de compra del proyecto (por material)</div>
+                  <div className="border border-line rounded-lg overflow-hidden">
+                    <table className="w-full text-[12px] border-collapse">
+                      <thead>
+                        <tr className="bg-canvas text-muted">
+                          <th className="text-left font-semibold px-2.5 py-1.5">Material</th>
+                          <th className="text-right font-semibold px-2.5 py-1.5">A comprar</th>
+                          <th className="text-right font-semibold px-2.5 py-1.5">Costo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {comprasProyecto.map((c, i) => {
+                          const usado = nombresPartida.has(String(c.material || '').trim().toLowerCase())
+                          return (
+                            <tr key={i} className={`border-t border-line2 ${usado ? 'bg-[#f4f8fd]' : ''}`}>
+                              <td className="px-2.5 py-1.5 text-ink">{usado && '• '}{c.material}</td>
+                              <td className="px-2.5 py-1.5 text-right whitespace-nowrap">{c.necesario.toLocaleString('es-CL', { maximumFractionDigits: 2 })} {c.unidad}</td>
+                              <td className="px-2.5 py-1.5 text-right font-semibold whitespace-nowrap">{fmt(c.costo)}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-canvas border-t-2 border-line">
+                          <td className="px-2.5 py-1.5 font-extrabold text-ink" colSpan={2}>Total materiales del proyecto</td>
+                          <td className="px-2.5 py-1.5 text-right font-extrabold text-brand whitespace-nowrap">{fmt(comprasProyecto.reduce((s, c) => s + c.costo, 0))}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  <p className="text-[10px] text-muted mt-1">Las filas marcadas con • son materiales que también usa esta partida.</p>
+                </div>
+              )}
+            </div>
+          </Modal>
+        )
+      })()}
 
       {/* MODAL NUEVA/EDITAR */}
       {modal && (

@@ -32,10 +32,11 @@ interface Props {
   onAddHijo: (padre: any) => void      // agregar sub-nivel bajo este nodo
   onAvance: (nodo: any, val: number) => void
   onAvanceLocal: (id: string, val: number) => void
+  onDetalle?: (nodo: any) => void      // abrir detalle (materiales/costo) de una partida hoja
 }
 
 export default function FilaPartida(props: Props) {
-  const { nodo, ruta, valorDe, avanceDe, expanded, soloLectura, onToggle, onEdit, onDel, onAddHijo, onAvance, onAvanceLocal } = props
+  const { nodo, ruta, valorDe, avanceDe, expanded, soloLectura, onToggle, onEdit, onDel, onAddHijo, onAvance, onAvanceLocal, onDetalle } = props
 
   const hijos = nodo.children || []
   const esGrupo = hijos.length > 0 || nodo.es_grupo
@@ -62,9 +63,10 @@ export default function FilaPartida(props: Props) {
   return (
     <div className={`rounded-lg overflow-hidden ${nivel === 1 ? 'mb-2' : 'mb-1'}`}>
       <div
-        onClick={() => esGrupo && onToggle(nodo.id)}
-        className={`flex items-center gap-2.5 px-3 py-2.5 border-l-4 ${estiloNivel} ${esGrupo ? 'cursor-pointer' : ''}`}
+        onClick={() => esGrupo ? onToggle(nodo.id) : onDetalle?.(nodo)}
+        className={`flex items-center gap-2.5 px-3 py-2.5 border-l-4 ${estiloNivel} ${esGrupo || onDetalle ? 'cursor-pointer' : ''}`}
         style={{ borderLeftColor: colorAvance(avance), marginLeft: sangria }}
+        title={!esGrupo && onDetalle ? 'Ver detalle y materiales' : undefined}
       >
         {/* Flecha (solo grupos) */}
         {esGrupo
@@ -116,6 +118,12 @@ export default function FilaPartida(props: Props) {
         <span className="text-[13px] font-bold min-w-[38px] text-right flex-shrink-0" style={{ color: colorAvance(avance) }}>
           {avance}%
         </span>
+
+        {/* Ver detalle (partidas hoja) */}
+        {!esGrupo && onDetalle && (
+          <button onClick={e => { e.stopPropagation(); onDetalle(nodo) }} title="Ver detalle y materiales"
+            className="w-6 h-6 rounded-[5px] bg-[#eef3f9] text-brand text-[11px] font-bold flex items-center justify-center flex-shrink-0">🔍</button>
+        )}
 
         {/* Acciones */}
         {!soloLectura && (
