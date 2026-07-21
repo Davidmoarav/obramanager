@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       rendimiento:     Number(body.rendimiento) || 0,
       precio_unitario: Number(body.precio_unitario) || 0,
       notas:           body.notas || null,
-      user_id:         user.id,
+      user_id:         ownerId,   // guardar bajo el dueño (coincide con GET/PUT/DELETE)
     })
     .select()
     .single()
