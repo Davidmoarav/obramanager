@@ -259,6 +259,21 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
     })
     await load()
   }
+  // Copia los materiales de esta partida a la misma partida de los otros beneficiarios
+  const [aplicandoMat, setAplicandoMat] = useState(false)
+  const aplicarMaterialesATodos = async (partida: PartidaProyecto, cuantos: number) => {
+    if (!confirm(`¿Copiar estos materiales a la partida "${partida.descripcion}" de los otros ${cuantos} beneficiarios? No se duplican los que ya existan.`)) return
+    setAplicandoMat(true)
+    const res = await fetch('/api/partida-materiales/aplicar-a-todos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ partida_id: partida.id }),
+    })
+    const data = await res.json()
+    setAplicandoMat(false)
+    if (!res.ok) { alert('No se pudo aplicar: ' + (data.error || 'error desconocido')); return }
+    await load(); onAvanceChange?.()
+    alert(`Listo: ${data.insertados} materiales agregados en ${data.destinos} beneficiarios.`)
+  }
 
   // ═══ IMPORTAR DEL CATÁLOGO ═══
   const openImport = async () => {
@@ -431,6 +446,11 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
         const mats = materialesDe(p.id)
         const subtotalMats = mats.reduce((s, m) => s + (cant * (Number(m.rendimiento) || 0)) * (Number(m.precio_unitario) || 0), 0)
         const nombresPartida = new Set(mats.map(m => String(m.material || '').trim().toLowerCase()))
+        // Cuántas otras partidas (otros beneficiarios) tienen esta misma partida
+        const normD = (s: any) => String(s || '').toLowerCase().trim()
+        const matchingCount = allItems.filter(x =>
+          !x.es_grupo && x.id !== p.id &&
+          normD(x.descripcion) === normD(p.descripcion) && normD(x.notas) === normD(p.notas)).length
         const av = Math.round(Number(p.avance) || 0)
         const Stat = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
           <div className="bg-canvas rounded-lg p-2.5">
@@ -519,6 +539,12 @@ export default function PartidasPanel({ proyectoId, markupGlobal = 20, onAvanceC
                   <button onClick={() => openNewMat(p)}
                     className="w-full py-1.5 mt-2 bg-white border border-dashed border-[#d1d9e6] rounded-[6px] text-[11px] text-brand font-semibold">
                     + Agregar material
+                  </button>
+                )}
+                {!soloLectura && mats.length > 0 && matchingCount > 0 && (
+                  <button onClick={() => aplicarMaterialesATodos(p, matchingCount)} disabled={aplicandoMat}
+                    className="w-full py-2 mt-1.5 bg-[#eef3f9] border border-[#c5ddf5] rounded-[6px] text-[11px] text-brand font-bold disabled:opacity-60">
+                    {aplicandoMat ? 'Aplicando…' : `📋 Aplicar estos materiales a los otros ${matchingCount} beneficiarios`}
                   </button>
                 )}
               </div>

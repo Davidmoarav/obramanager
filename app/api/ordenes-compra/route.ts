@@ -30,16 +30,20 @@ export async function GET(req: NextRequest) {
     for (const p of partidas ?? []) cantPorPartida[p.id] = Number(p.cantidad) || 0
     const partIds = Object.keys(cantPorPartida)
 
-    // Solo los materiales de las partidas de este proyecto (no todos los del usuario)
-    const { data: mats } = partIds.length
-      ? await supabase.from('partida_materiales')
-          .select('material, unidad, rendimiento, precio_unitario, partida_id')
-          .in('partida_id', partIds).eq('user_id', ownerId)
-      : { data: [] as any[] }
+    // Solo los materiales de las partidas de este proyecto (no todos los del usuario).
+    // Por lotes de 100 ids para no exceder el largo de la URL con muchas partidas.
+    const mats: any[] = []
+    for (let i = 0; i < partIds.length; i += 100) {
+      const lote = partIds.slice(i, i + 100)
+      const { data } = await supabase.from('partida_materiales')
+        .select('material, unidad, rendimiento, precio_unitario, partida_id')
+        .in('partida_id', lote).eq('user_id', ownerId)
+      if (data) mats.push(...data)
+    }
 
     // Agrupar por material + unidad
     const grupos: Record<string, { material: string; unidad: string; cantidad: number; precio_unitario: number }> = {}
-    for (const m of mats ?? []) {
+    for (const m of mats) {
       const necesario = (cantPorPartida[m.partida_id] || 0) * (Number(m.rendimiento) || 0)
       if (necesario <= 0) continue
       const key = `${(m.material || '').trim().toLowerCase()}|${m.unidad || 'un'}`
@@ -169,7 +173,7 @@ export async function POST(req: Request) {
       estado:       body.estado || 'borrador',
       neto, iva, total,
       notas:        body.notas || null,
-      user_id:      user.id,
+      user_id:      ownerId,
     })
     .select().single()
 

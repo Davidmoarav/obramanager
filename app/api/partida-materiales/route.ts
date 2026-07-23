@@ -1,65 +1,17 @@
-// app/api/partida-materiales/route.ts
-// Materiales (rendimientos) de las partidas de obra.
-//   rendimiento = consumo de material por unidad de la partida
-//   cantidad necesaria = cantidad_partida x rendimiento
+// app/api/partida-materiales/aplicar-a-todos/route.ts
+// Copia los materiales de UNA partida a la MISMA partida (misma descripción y
+// categoría) de todos los demás beneficiarios/subproyectos del proyecto.
+// Así se define el consumo de materiales una sola vez y aplica a todos, sin
+// cargarlo uno por uno. No duplica: si un beneficiario ya tiene ese material,
+// se omite. El "a comprar" se recalcula solo, porque el rendimiento es por unidad.
 import { createServerSupabase } from '@/lib/supabase-server'
 import { guardEscritura, getOwnerId } from '@/lib/roles'
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 
-// ─── GET: materiales de una partida (partida_id) o de todo un proyecto (proyecto_id) ───
-export async function GET(req: NextRequest) {
-  const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const ownerId = await getOwnerId(supabase) || user.id
+const norm = (s: any) => String(s ?? '')
+  .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/\s+/g, ' ').trim()
 
-  const partidaId  = req.nextUrl.searchParams.get('partida_id')
-  const proyectoId = req.nextUrl.searchParams.get('proyecto_id')
-
-  // Por partida puntual
-  if (partidaId) {
-    const { data, error } = await supabase
-      .from('partida_materiales')
-      .select('*')
-      .eq('partida_id', partidaId)
-      .eq('user_id', ownerId)
-      .order('created_at', { ascending: true })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json(data ?? [])
-  }
-
-  // En lote: todos los materiales de las partidas de un proyecto.
-  // Un proyecto puede tener CIENTOS de partidas (varios beneficiarios), así que
-  // se consulta por lotes de ids para no exceder el largo máximo de la URL
-  // (un .in() con cientos de UUIDs rompía la petición y devolvía vacío).
-  if (proyectoId) {
-    const { data: parts } = await supabase
-      .from('partidas_proyecto')
-      .select('id')
-      .eq('proyecto_id', proyectoId)
-      .eq('user_id', ownerId)
-    const ids = (parts ?? []).map((p: any) => p.id)
-    if (ids.length === 0) return NextResponse.json([])
-
-    const out: any[] = []
-    for (let i = 0; i < ids.length; i += 100) {
-      const lote = ids.slice(i, i + 100)
-      const { data, error } = await supabase
-        .from('partida_materiales')
-        .select('*')
-        .in('partida_id', lote)
-        .eq('user_id', ownerId)
-        .order('created_at', { ascending: true })
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-      if (data) out.push(...data)
-    }
-    return NextResponse.json(out)
-  }
-
-  return NextResponse.json({ error: 'Falta partida_id o proyecto_id' }, { status: 400 })
-}
-
-// ─── POST: crear material ─────────────────────────────────
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
   const ro = await guardEscritura(supabase, 'obra')
@@ -68,76 +20,70 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id
 
-  const body = await req.json()
-  if (!body.partida_id) return NextResponse.json({ error: 'Falta partida_id' }, { status: 400 })
+  const { partida_id } = await req.json()
+  if (!partida_id) return NextResponse.json({ error: 'Falta partida_id' }, { status: 400 })
 
-  const { data, error } = await supabase
-    .from('partida_materiales')
-    .insert({
-      partida_id:      body.partida_id,
-      material:        body.material,
-      unidad:          body.unidad || 'un',
-      rendimiento:     Number(body.rendimiento) || 0,
-      precio_unitario: Number(body.precio_unitario) || 0,
-      notas:           body.notas || null,
-      user_id:         ownerId,   // guardar bajo el dueño (coincide con GET/PUT/DELETE)
-    })
-    .select()
-    .single()
+  // 1) Partida origen
+  const { data: origen, error: eO } = await supabase
+    .from('partidas_proyecto').select('*')
+    .eq('id', partida_id).eq('user_id', ownerId).single()
+  if (eO || !origen) return NextResponse.json({ error: 'No se encontró la partida' }, { status: 404 })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
-}
-
-// ─── PUT: actualizar material ─────────────────────────────
-export async function PUT(req: Request) {
-  const supabase = await createServerSupabase()
-  const ro = await guardEscritura(supabase, 'obra')
-  if (ro) return ro
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const ownerId = await getOwnerId(supabase) || user.id
-
-  const body = await req.json()
-  if (!body.id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
-
-  // Solo campos editables (no se toca partida_id ni user_id)
-  const update = {
-    material:        body.material,
-    unidad:          body.unidad || 'un',
-    rendimiento:     Number(body.rendimiento) || 0,
-    precio_unitario: Number(body.precio_unitario) || 0,
-    notas:           body.notas ?? null,
+  // 2) Materiales de la partida origen
+  const { data: origenMats } = await supabase
+    .from('partida_materiales').select('*')
+    .eq('partida_id', partida_id).eq('user_id', ownerId)
+  if (!origenMats || origenMats.length === 0) {
+    return NextResponse.json({ error: 'Esta partida no tiene materiales que copiar.' }, { status: 400 })
   }
 
-  const { data, error } = await supabase
-    .from('partida_materiales')
-    .update(update)
-    .eq('id', body.id)
-    .eq('user_id', ownerId)
-    .select()
-    .single()
+  // 3) Partidas destino: misma descripción y categoría (notas), otros nodos hoja
+  const { data: hojas } = await supabase
+    .from('partidas_proyecto')
+    .select('id, descripcion, notas, es_grupo')
+    .eq('proyecto_id', origen.proyecto_id).eq('user_id', ownerId)
+  const dO = norm(origen.descripcion), nO = norm(origen.notas)
+  const destinos = (hojas ?? []).filter((h: any) =>
+    h.id !== origen.id && !h.es_grupo && norm(h.descripcion) === dO && norm(h.notas) === nO)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
-}
+  if (destinos.length === 0) {
+    return NextResponse.json({ ok: true, destinos: 0, insertados: 0 })
+  }
 
-// ─── DELETE ───────────────────────────────────────────────
-export async function DELETE(req: Request) {
-  const supabase = await createServerSupabase()
-  const ro = await guardEscritura(supabase, 'obra')
-  if (ro) return ro
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const ownerId = await getOwnerId(supabase) || user.id
+  // 4) Materiales ya existentes en los destinos (por lotes) para no duplicar
+  const destIds = destinos.map((d: any) => d.id)
+  const yaTiene = new Set<string>()
+  for (let i = 0; i < destIds.length; i += 100) {
+    const lote = destIds.slice(i, i + 100)
+    const { data } = await supabase.from('partida_materiales')
+      .select('partida_id, material').in('partida_id', lote).eq('user_id', ownerId)
+    for (const m of data ?? []) yaTiene.add(m.partida_id + '¦' + norm(m.material))
+  }
 
-  const { id } = await req.json()
-  const { error } = await supabase
-    .from('partida_materiales')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', ownerId)
+  // 5) Construir inserciones (omitiendo los que ya existen)
+  const filas: any[] = []
+  for (const d of destinos) {
+    for (const om of origenMats) {
+      if (yaTiene.has(d.id + '¦' + norm(om.material))) continue
+      filas.push({
+        partida_id: d.id,
+        material: om.material,
+        unidad: om.unidad || 'un',
+        rendimiento: Number(om.rendimiento) || 0,
+        precio_unitario: Number(om.precio_unitario) || 0,
+        notas: om.notas ?? null,
+        user_id: ownerId,
+      })
+    }
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  let insertados = 0
+  for (let i = 0; i < filas.length; i += 100) {
+    const lote = filas.slice(i, i + 100)
+    const { error } = await supabase.from('partida_materiales').insert(lote)
+    if (error) return NextResponse.json({ error: error.message, insertados }, { status: 500 })
+    insertados += lote.length
+  }
+
+  return NextResponse.json({ ok: true, destinos: destinos.length, insertados })
 }
