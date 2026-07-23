@@ -173,7 +173,7 @@ export async function POST(req: Request) {
           user_id:         user.id,
         }
       })
-      .filter(Boolean)
+      .filter((f): f is NonNullable<typeof f> => f !== null)
 
     if (filasHijos.length > 0) {
       const { error: eh } = await supabase

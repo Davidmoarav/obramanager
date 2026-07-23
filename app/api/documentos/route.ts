@@ -1,6 +1,7 @@
 // app/api/documentos/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
 import { guardEscritura, getOwnerId } from '@/lib/roles'
+import { DocumentoSchema, validar } from '@/lib/validar'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // ─── GET: listar documentos (opcionalmente filtrar por proyecto_id) ──
@@ -36,10 +37,17 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id
 
-  const body = await req.json()
+  const v = validar(DocumentoSchema, await req.json())
+  if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
+
+  // FK: el proyecto debe pertenecer a ESTA organización
+  const { data: proy } = await supabase
+    .from('proyectos').select('id').eq('id', v.data.proyecto_id).eq('user_id', ownerId).maybeSingle()
+  if (!proy) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 })
+
   const { data, error } = await supabase
     .from('documentos')
-    .insert({ ...body, user_id: ownerId })
+    .insert({ ...v.data, user_id: ownerId })
     .select()
     .single()
 

@@ -1,6 +1,7 @@
 // app/api/facturas/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
 import { guardModulo, getOwnerId } from '@/lib/roles'
+import { FacturaSchema, validar, validarParcial } from '@/lib/validar'
 import { NextResponse } from 'next/server'
 
 export async function GET(req: Request) {
@@ -86,8 +87,9 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id
-  const body = await req.json()
-  const { data, error } = await supabase.from('facturas').insert({ ...body, user_id: ownerId }).select().single()
+  const v = validar(FacturaSchema, await req.json())
+  if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
+  const { data, error } = await supabase.from('facturas').insert({ ...v.data, user_id: ownerId }).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
@@ -100,8 +102,10 @@ export async function PUT(req: Request) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id
   const body = await req.json()
-  const { id, ...rest } = body
-  const { data, error } = await supabase.from('facturas').update(rest).eq('id', id).eq('user_id', ownerId).select().single()
+  if (!body.id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
+  const v = validarParcial(FacturaSchema, body)
+  if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
+  const { data, error } = await supabase.from('facturas').update(v.data).eq('id', body.id).eq('user_id', ownerId).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }

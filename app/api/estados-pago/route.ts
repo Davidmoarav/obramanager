@@ -204,6 +204,12 @@ export async function POST(req: Request) {
     notas, detalle = [],
   } = body
 
+  // FK: el proyecto debe pertenecer a ESTA organización
+  if (!proyecto_id) return NextResponse.json({ error: 'Falta proyecto_id' }, { status: 400 })
+  const { data: proyOk } = await supabase
+    .from('proyectos').select('id').eq('id', proyecto_id).eq('user_id', ownerId).maybeSingle()
+  if (!proyOk) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 })
+
   // Recalcular la cascada en el servidor (no confiar en montos del cliente).
   // CRITERIO ÚNICO (igual que sugerirEP): el avance ya viene a precio de
   // contrato — el margen está en el precio de cada partida. NO se re-suma

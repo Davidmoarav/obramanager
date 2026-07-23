@@ -5,3 +5,7 @@ node_modules/
 out/
 build/
 *.tsbuildinfo
+
+# SO / editor
+.DS_Store
+.claude/

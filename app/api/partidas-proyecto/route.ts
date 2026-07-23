@@ -91,6 +91,13 @@ export async function POST(req: Request) {
   const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
+  if (!body.proyecto_id) return NextResponse.json({ error: 'Falta proyecto_id' }, { status: 400 })
+
+  // FK: el proyecto debe pertenecer a ESTA organización
+  const { data: proyOk } = await supabase
+    .from('proyectos').select('id').eq('id', body.proyecto_id).eq('user_id', ownerId).maybeSingle()
+  if (!proyOk) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 })
+
   const { data, error } = await supabase
     .from('partidas_proyecto')
     .insert({

@@ -60,7 +60,7 @@ export default function ProveedoresPage() {
                     <div className="text-[12px]">{p.contacto}</div>
                     <div className="text-[11px] text-brand">{p.telefono}</div>
                   </Td>
-                  <Td className="font-bold">{fmt(p.monto3m)}</Td>
+                  <Td className="font-bold">{fmt(p.monto3m ?? 0)}</Td>
                   <Td><Badge estado={p.estado} tipo="proveedor" /></Td>
                   <Td>
                     <div className="flex gap-1">

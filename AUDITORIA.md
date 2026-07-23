@@ -142,4 +142,17 @@ Funcionalidad general coherente: cotización → conversión a proyecto → part
 
 **Verificación:** `tsc` 34 → 33 errores (todos preexistentes, ninguno en archivos tocados; el −1 es el `colSpan` de `Td` que además corrige RRHH).
 
-Fases 3-4 pendientes según plan de la sección 7.
+## 10. ✅ Fase 3 — APLICADA (2026-07-23)
+
+- **TypeScript a 0 errores** (venían 34): `children` opcional en `Th`/`Td`, tipos de partidas completados (`es_grupo`, costos unitarios, `markup_pct`), cookies tipadas en `middleware`/`supabase-server`, filtro con type-guard en conversión de cotizaciones.
+- **`next.config.ts`:** eliminados `ignoreBuildErrors` e `ignoreDuringBuilds` — los errores de tipos ahora BLOQUEAN el deploy. Agregados headers de seguridad (X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy).
+- **Validación con Zod (`lib/validar.ts`):** listas blancas por entidad — se descarta cualquier campo no declarado (fin del mass assignment) y se validan tipos, rangos y enums. Aplicada a POST/PUT de proyectos, contratos, proveedores, clientes, empleados, facturas y documentos.
+- **Validación de FKs por empresa:** `documentos`, `gastos-obra`, `estados-pago` y `partidas-proyecto` verifican que `proyecto_id` pertenezca a la organización antes de insertar.
+- **`sql/README.md`:** orden de instalación de los 30 archivos, qué reemplaza a qué (25/29 reescriben RLS y Storage), y advertencia del drift de esquema.
+- **`.gitignore`:** agregados `.DS_Store` y `.claude/`.
+
+**Verificación:** `tsc --noEmit` = 0 errores · `next build` exitoso (exit 0, 57 rutas) con el chequeo de tipos activo. Única advertencia: supabase-js en Edge Runtime (benigna, esperable con @supabase/ssr).
+
+**Nota (observación nueva):** `facturas.factura_ref` es `uuid` en `sql/10` pero el importador SII le escribe folios de texto — si en tu BD real la columna es `text` (drift), no pasa nada; si es `uuid`, esas filas fallarían. Verificar el tipo real de la columna.
+
+Fase 4 pendiente: API UF/UTM (mindicador.cl), tests de fórmulas, reemplazo de `xlsx`, componente PDF base.

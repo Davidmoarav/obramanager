@@ -1,6 +1,7 @@
 // app/api/contratos/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
 import { guardEscritura, getOwnerId } from '@/lib/roles'
+import { ContratoSchema, validar, validarParcial } from '@/lib/validar'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -35,8 +36,9 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id
-  const body = await req.json()
-  const { data, error } = await supabase.from('contratos').insert({ ...body, user_id: ownerId }).select().single()
+  const v = validar(ContratoSchema, await req.json())
+  if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
+  const { data, error } = await supabase.from('contratos').insert({ ...v.data, user_id: ownerId }).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
@@ -49,8 +51,10 @@ export async function PUT(req: Request) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id
   const body = await req.json()
-  const { id, created_at, user_id, ...rest } = body
-  const { data, error } = await supabase.from('contratos').update(rest).eq('id', id).eq('user_id', ownerId).select().single()
+  if (!body.id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
+  const v = validarParcial(ContratoSchema, body)
+  if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
+  const { data, error } = await supabase.from('contratos').update(v.data).eq('id', body.id).eq('user_id', ownerId).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }

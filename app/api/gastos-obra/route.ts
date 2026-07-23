@@ -34,6 +34,15 @@ export async function POST(req: Request) {
   const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
+  if (!body.proyecto_id || !(body.descripcion || '').trim()) {
+    return NextResponse.json({ error: 'Faltan proyecto y descripción' }, { status: 400 })
+  }
+
+  // FK: el proyecto debe pertenecer a ESTA organización
+  const { data: proy } = await supabase
+    .from('proyectos').select('id').eq('id', body.proyecto_id).eq('user_id', ownerId).maybeSingle()
+  if (!proy) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 })
+
   const { data, error } = await supabase
     .from('gastos_obra')
     .insert({
