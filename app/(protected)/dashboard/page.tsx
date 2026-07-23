@@ -1,17 +1,21 @@
-// app/dashboard/page.tsx  — SERVER COMPONENT (Tailwind moderno)
+// app/(protected)/dashboard/page.tsx  — SERVER COMPONENT
+// Usa el AppShell del layout (protected) y los datos de la ORGANIZACIÓN
+// (getOwnerId): un miembro invitado ve la empresa, no su cuenta vacía.
 import { createServerSupabase } from '@/lib/supabase-server'
-import { Badge, SectionTitle, Table, Th, Td } from '@/components/ui-server'
+import { getOwnerId } from '@/lib/roles'
+import { Badge, SectionTitle, Table, Th, Td } from '@/components/ui'
 import { fmt, fmtM } from '@/lib/format'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+  const ownerId = await getOwnerId(supabase) || user.id
 
   const [{ data: proyectos }, { data: empleados }, { data: facturas }] = await Promise.all([
-    supabase.from('proyectos').select('id, nombre, cliente, avance, valor, estado, created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
-    supabase.from('empleados').select('id, tipo').eq('user_id', user.id),
-    supabase.from('facturas').select('id, numero, cliente, tipo, estado, monto, created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
+    supabase.from('proyectos').select('id, nombre, cliente, avance, valor, estado, created_at').eq('user_id', ownerId).order('created_at', { ascending: false }),
+    supabase.from('empleados').select('id, tipo').eq('user_id', ownerId),
+    supabase.from('facturas').select('id, numero, cliente, tipo, estado, monto, created_at').eq('user_id', ownerId).order('created_at', { ascending: false }),
   ])
 
   const p = proyectos ?? []

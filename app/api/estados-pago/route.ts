@@ -200,14 +200,17 @@ export async function POST(req: Request) {
   const {
     proyecto_id, numero, periodo, fecha,
     avance_obra = 0,
-    utilidad_pct = 0, gg_pct = 0,
     descuentos = 0, anticipo_pct = 0, multas = 0, retencion_pct = 0,
     notas, detalle = [],
   } = body
 
-  // Recalcular la cascada en el servidor (no confiar en montos del cliente)
-  const utilidadMonto  = Math.round(avance_obra * utilidad_pct / 100)
-  const ggMonto        = Math.round(avance_obra * gg_pct / 100)
+  // Recalcular la cascada en el servidor (no confiar en montos del cliente).
+  // CRITERIO ÚNICO (igual que sugerirEP): el avance ya viene a precio de
+  // contrato — el margen está en el precio de cada partida. NO se re-suma
+  // utilidad/GG aquí: hacerlo duplicaría el margen.
+  const utilidad_pct = 0, gg_pct = 0
+  const utilidadMonto  = 0
+  const ggMonto        = 0
   const bruto          = avance_obra + utilidadMonto + ggMonto
   const anticipoDesc   = Math.round(bruto * anticipo_pct / 100)
   const retencionMonto = Math.round(bruto * retencion_pct / 100)

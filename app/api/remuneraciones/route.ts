@@ -1,7 +1,10 @@
 // app/api/remuneraciones/route.ts
-// Genera/guarda liquidaciones de un período
+// Genera/guarda liquidaciones de un período.
+// La liquidación se RECALCULA EN EL SERVIDOR desde el empleado + parámetros:
+// no se confía en montos enviados por el cliente.
 import { createServerSupabase } from '@/lib/supabase-server'
 import { guardModulo, getOwnerId } from '@/lib/roles'
+import { calcularLiquidacion, REM_DEFAULTS } from '@/types/finanzas'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Sincroniza el gasto de mano de obra: si el empleado está asignado a una obra,
@@ -62,6 +65,25 @@ export async function POST(req: Request) {
   const ownerId = await getOwnerId(supabase) || user.id
 
   const body = await req.json()
+  if (!body.empleado_id || !body.periodo) {
+    return NextResponse.json({ error: 'Faltan empleado_id y periodo' }, { status: 400 })
+  }
+
+  // Cargar empleado y parámetros DE LA ORGANIZACIÓN y recalcular en el servidor
+  const [{ data: emp }, { data: params }] = await Promise.all([
+    supabase.from('empleados').select('*').eq('id', body.empleado_id).eq('user_id', ownerId).maybeSingle(),
+    supabase.from('parametros_remuneracion').select('*').eq('user_id', ownerId).maybeSingle(),
+  ])
+  if (!emp) return NextResponse.json({ error: 'Empleado no encontrado' }, { status: 404 })
+
+  const calc = calcularLiquidacion(emp, { ...REM_DEFAULTS, ...(params ?? {}) })
+  const fila = {
+    empleado_id: body.empleado_id,
+    periodo: body.periodo,
+    ...calc,
+    estado: body.estado === 'pagada' ? 'pagada' : 'borrador',
+    user_id: ownerId,
+  }
 
   // Verificar si ya existe liquidación para ese empleado+periodo
   const { data: existing } = await supabase
@@ -76,7 +98,7 @@ export async function POST(req: Request) {
   if (existing) {
     const { data, error } = await supabase
       .from('liquidaciones')
-      .update({ ...body, user_id: ownerId })
+      .update(fila)
       .eq('id', existing.id)
       .select()
       .single()
@@ -85,7 +107,7 @@ export async function POST(req: Request) {
   } else {
     const { data, error } = await supabase
       .from('liquidaciones')
-      .insert({ ...body, user_id: ownerId })
+      .insert(fila)
       .select()
       .single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

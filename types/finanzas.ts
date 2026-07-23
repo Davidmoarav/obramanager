@@ -11,10 +11,24 @@ export interface ParametrosRemuneracion {
   uf_valor: number
   utm_valor: number
   tope_imponible_uf: number
+  tope_afc_uf?: number          // tope propio del seguro de cesantía (≠ tope AFP/salud)
+  jornada_semanal?: number      // horas semanales de la jornada ordinaria (Ley 21.561)
   gratificacion_tope: number
   colacion_default: number
   movilizacion_default: number
   updated_at?: string
+}
+
+// Defaults compartidos (los usa la API y el cálculo cuando aún no hay fila guardada).
+// Valores de referencia 2025-2026 — el usuario debe mantenerlos al día.
+export const REM_DEFAULTS: ParametrosRemuneracion = {
+  afp_pct: 10.00, afp_comision_pct: 1.44, salud_pct: 7.00,
+  afc_trabajador_pct: 0.60, afc_empleador_pct: 2.40,
+  uf_valor: 39000, utm_valor: 68000,
+  tope_imponible_uf: 87.80,
+  tope_afc_uf: 131.90,          // tope AFC (131,9 UF en 2025)
+  jornada_semanal: 42,          // 42 h desde abril 2026 (Ley 21.561)
+  gratificacion_tope: 209396, colacion_default: 0, movilizacion_default: 0,
 }
 
 export interface EmpleadoPrevisional {
@@ -103,9 +117,11 @@ export function calcularLiquidacion(
 ) {
   const sueldoBase = Number(emp.sueldo) || 0
 
-  // Horas extra: valor hora = sueldo/30/8 * 1.5 (recargo 50%)
-  const valorHora = sueldoBase / 30 / 8
-  const horasExtraMonto = Math.round(valorHora * 1.5 * (Number(emp.horas_extra) || 0))
+  // Horas extra con recargo 50% — fórmula de la Dirección del Trabajo:
+  //   factor = (28 / (30 × 4 × jornada)) × 1.5  →  45h: 0,0077778 · 44h: 0,0079545 · 42h: 0,0083333
+  const jornada = Number(params.jornada_semanal) || 42
+  const factorHoraExtra = (28 / (30 * 4 * jornada)) * 1.5
+  const horasExtraMonto = Math.round(sueldoBase * factorHoraExtra * (Number(emp.horas_extra) || 0))
 
   const bonoImponible = Number(emp.bono_imponible) || 0
 
@@ -134,9 +150,12 @@ export function calcularLiquidacion(
     descSalud = Math.round(totalImponible * saludPct / 100)
   }
 
-  // AFC (seguro cesantía) - trabajador solo si contrato indefinido
+  // AFC (seguro cesantía) - trabajador solo si contrato indefinido.
+  // Tiene TOPE PROPIO, más alto que el de AFP/salud (131,9 UF vs 87,8 UF en 2025).
+  const topeAfc = Math.round((Number(params.tope_afc_uf) || REM_DEFAULTS.tope_afc_uf!) * params.uf_valor)
+  const imponibleAfc = Math.min(imponibleBruto, topeAfc)
   const descAfc = emp.contrato_tipo === 'indefinido'
-    ? Math.round(totalImponible * params.afc_trabajador_pct / 100)
+    ? Math.round(imponibleAfc * params.afc_trabajador_pct / 100)
     : 0
 
   // Impuesto Único: base = renta bruta imponible − cotizaciones previsionales

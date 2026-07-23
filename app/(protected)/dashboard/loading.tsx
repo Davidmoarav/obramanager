@@ -1,4 +1,4 @@
-// app/dashboard/loading.tsx
+// app/(protected)/dashboard/loading.tsx
 import PageSkeleton from '@/components/PageSkeleton'
 
 export default function Loading() {

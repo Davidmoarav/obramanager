@@ -1,14 +1,8 @@
 // app/api/parametros-rem/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
 import { guardModulo, getOwnerId } from '@/lib/roles'
+import { REM_DEFAULTS } from '@/types/finanzas'
 import { NextResponse } from 'next/server'
-
-const DEFAULTS = {
-  afp_pct: 10.00, afp_comision_pct: 1.44, salud_pct: 7.00,
-  afc_trabajador_pct: 0.60, afc_empleador_pct: 2.40,
-  uf_valor: 39000, utm_valor: 68000, tope_imponible_uf: 87.80,
-  gratificacion_tope: 209396, colacion_default: 0, movilizacion_default: 0,
-}
 
 export async function GET() {
   const supabase = await createServerSupabase()
@@ -25,8 +19,9 @@ export async function GET() {
     .maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  // Si no existe, devolver defaults (sin guardar aún)
-  return NextResponse.json(data ?? { ...DEFAULTS })
+  // Si no existe, devolver defaults (sin guardar aún).
+  // Si existe pero es de antes de la Fase 2, completar los campos nuevos.
+  return NextResponse.json(data ? { ...REM_DEFAULTS, ...data } : { ...REM_DEFAULTS })
 }
 
 export async function PUT(req: Request) {

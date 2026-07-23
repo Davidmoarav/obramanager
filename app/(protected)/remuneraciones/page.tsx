@@ -90,10 +90,12 @@ export default function RemuneracionesPage() {
   }
 
   // ─── Guardar liquidación de un empleado ──────────────────
-  const guardarLiq = async (emp: EmpleadoPrevisional, calc: any) => {
+  // El servidor recalcula desde el empleado + parámetros guardados
+  // (lo que se ve en pantalla es referencial).
+  const guardarLiq = async (emp: EmpleadoPrevisional, _calc: any) => {
     await fetch('/api/remuneraciones', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ empleado_id: emp.id, periodo, estado: 'borrador', ...calc }),
+      body: JSON.stringify({ empleado_id: emp.id, periodo, estado: 'borrador' }),
     })
     setMsg(`Liquidación de ${emp.nombre} guardada`)
   }
@@ -237,6 +239,8 @@ export default function RemuneracionesPage() {
               <FormInput label="Salud - Fonasa/Isapre base (%)" value={params.salud_pct} onChange={v => updParam('salud_pct', v)} type="number" />
               <FormInput label="AFC - trabajador (%)" value={params.afc_trabajador_pct} onChange={v => updParam('afc_trabajador_pct', v)} type="number" />
               <FormInput label="AFC - empleador (%)" value={params.afc_empleador_pct} onChange={v => updParam('afc_empleador_pct', v)} type="number" />
+              <FormInput label="Tope imponible AFC (UF)" value={params.tope_afc_uf ?? 131.9} onChange={v => updParam('tope_afc_uf', v)} type="number" />
+              <FormInput label="Jornada semanal (horas)" value={params.jornada_semanal ?? 42} onChange={v => updParam('jornada_semanal', v)} type="number" />
             </div>
           </div>
 

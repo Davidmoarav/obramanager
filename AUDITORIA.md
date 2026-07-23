@@ -129,4 +129,17 @@ Funcionalidad general coherente: cotización → conversión a proyecto → part
 
 **Verificación:** `tsc --noEmit` sin errores nuevos en los archivos modificados (los 34 errores restantes son preexistentes, en archivos no tocados — deuda de la Fase 3).
 
-Fases 2-4 pendientes según plan de la sección 7.
+## 9. ✅ Fase 2 — APLICADA (2026-07-23)
+
+- **Dashboard:** movido a `(protected)` (misma URL `/dashboard`), ahora usa `getOwnerId` → los miembros ven los datos de la empresa. Eliminados `app/dashboard/` (layout duplicado), `components/ui-server.tsx` (unificado en `ui.tsx`, cuyo `Td` ahora acepta `colSpan`) y `components/SWRProvider.tsx` (huérfano).
+- **Horas extra:** factor legal DT `(28/(30×4×jornada))×1.5` con jornada configurable (nuevo parámetro `jornada_semanal`, default 42 h — Ley 21.561 vigente desde abril 2026). Antes se subestimaba ~25%.
+- **Tope AFC propio:** nuevo parámetro `tope_afc_uf` (131,9 UF); el AFC ya no usa el tope de AFP/salud.
+- **Liquidaciones server-side:** `POST /api/remuneraciones` ahora recalcula desde el empleado + parámetros de la organización; ignora montos del cliente. Defaults unificados en `REM_DEFAULTS` (types/finanzas.ts).
+- **EP criterio único:** `POST /api/estados-pago` ya no re-suma utilidad/GG (igual que la sugerencia) — eliminado el riesgo de doble margen. Los EP antiguos con utilidad/GG guardada se siguen mostrando bien.
+- **UI:** inputs de jornada semanal y tope AFC en Remuneraciones > Parámetros.
+
+**Pendiente manual:** ejecutar `sql/30_parametros_rem_fase2.sql` en Supabase (2 columnas nuevas, idempotente).
+
+**Verificación:** `tsc` 34 → 33 errores (todos preexistentes, ninguno en archivos tocados; el −1 es el `colSpan` de `Td` que además corrige RRHH).
+
+Fases 3-4 pendientes según plan de la sección 7.

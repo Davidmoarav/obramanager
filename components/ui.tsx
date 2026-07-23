@@ -135,8 +135,8 @@ export function Table({ children }: { children: React.ReactNode }) {
 export function Th({ children }: { children: React.ReactNode }) {
   return <th className="text-left px-3 py-2.5 border-b border-line font-semibold text-xs text-muted whitespace-nowrap">{children}</th>
 }
-export function Td({ children, className = '', style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
-  return <td className={`px-3 py-2.5 border-b border-[#f0f4f8] ${className}`} style={style}>{children}</td>
+export function Td({ children, className = '', style, colSpan }: { children: React.ReactNode; className?: string; style?: React.CSSProperties; colSpan?: number }) {
+  return <td className={`px-3 py-2.5 border-b border-[#f0f4f8] ${className}`} style={style} colSpan={colSpan}>{children}</td>
 }
 
 // ── SECTION TITLE ─────────────────────────────────────────
