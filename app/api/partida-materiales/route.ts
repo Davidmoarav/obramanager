@@ -28,24 +28,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(data ?? [])
   }
 
-  // En lote: todos los materiales de las partidas de un proyecto
+  // En lote: todos los materiales de las partidas de un proyecto.
+  // Un proyecto puede tener CIENTOS de partidas (varios beneficiarios), así que
+  // se consulta por lotes de ids para no exceder el largo máximo de la URL
+  // (un .in() con cientos de UUIDs rompía la petición y devolvía vacío).
   if (proyectoId) {
     const { data: parts } = await supabase
       .from('partidas_proyecto')
       .select('id')
       .eq('proyecto_id', proyectoId)
       .eq('user_id', ownerId)
-    const ids = (parts ?? []).map(p => p.id)
+    const ids = (parts ?? []).map((p: any) => p.id)
     if (ids.length === 0) return NextResponse.json([])
 
-    const { data, error } = await supabase
-      .from('partida_materiales')
-      .select('*')
-      .in('partida_id', ids)
-      .eq('user_id', ownerId)
-      .order('created_at', { ascending: true })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json(data ?? [])
+    const out: any[] = []
+    for (let i = 0; i < ids.length; i += 100) {
+      const lote = ids.slice(i, i + 100)
+      const { data, error } = await supabase
+        .from('partida_materiales')
+        .select('*')
+        .in('partida_id', lote)
+        .eq('user_id', ownerId)
+        .order('created_at', { ascending: true })
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (data) out.push(...data)
+    }
+    return NextResponse.json(out)
   }
 
   return NextResponse.json({ error: 'Falta partida_id o proyecto_id' }, { status: 400 })
