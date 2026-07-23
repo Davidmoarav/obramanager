@@ -2,11 +2,13 @@
 // Importación masiva del Registro de Compras y Ventas (RCV) del SII.
 // Recibe filas ya parseadas desde el cliente y las inserta como facturas.
 import { createServerSupabase } from '@/lib/supabase-server'
-import { getOwnerId } from '@/lib/roles'
+import { guardModulo, getOwnerId } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'facturacion')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id

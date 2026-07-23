@@ -13,6 +13,7 @@ export const MODULOS_POR_ROL: Record<string, Rol[]> = {
   iva:            ['admin', 'contador'],
   ppm:            ['admin', 'contador'],
   remuneraciones: ['admin', 'contador'],
+  rrhh:           ['admin', 'contador'],    // sueldos: el jefe de obra no los ve
   usuarios:       ['admin'],
   config_empresa: ['admin'],
   auditoria:      ['admin'],
@@ -29,12 +30,16 @@ export function rolPermiteModulo(rol: Rol, modulo: string): boolean {
 export async function getRolActual(supabase: any) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
-  const { data: m } = await supabase
+  // Determinista: si existieran varias membresías activas (no debería, hay
+  // índice único), siempre se usa la más antigua — igual que resolver_owner().
+  const { data: ms } = await supabase
     .from('miembros')
     .select('rol, owner_id')
     .eq('member_user_id', user.id)
     .eq('estado', 'activo')
-    .maybeSingle()
+    .order('created_at', { ascending: true })
+    .limit(1)
+  const m = ms?.[0]
   if (m) return { userId: user.id, email: user.email, rol: m.rol as Rol, ownerId: m.owner_id }
   return { userId: user.id, email: user.email, rol: 'admin' as Rol, ownerId: user.id }
 }

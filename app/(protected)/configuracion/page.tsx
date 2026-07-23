@@ -63,9 +63,16 @@ export default function ConfiguracionPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setUploading(false); return }
 
-    // Ruta: {user_id}/logo.{ext}  — sobrescribe el anterior
+    // Carpeta del DUEÑO de la organización (un admin invitado no es el dueño)
+    let ownerId = user.id
+    try {
+      const rol = await (await fetch('/api/mi-rol')).json()
+      if (rol?.owner_id) ownerId = rol.owner_id
+    } catch {}
+
+    // Ruta: {owner_id}/logo.{ext}  — sobrescribe el anterior
     const ext  = file.name.split('.').pop()?.toLowerCase() || 'png'
-    const path = `${user.id}/logo.${ext}`
+    const path = `${ownerId}/logo.${ext}`
 
     const { error: upErr } = await supabase.storage
       .from('empresa-logos')

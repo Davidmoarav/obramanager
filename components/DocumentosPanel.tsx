@@ -99,10 +99,18 @@ export default function DocumentosPanel({ proyectoId, proyectoNombre }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setUploading(false); return }
 
-    // Path: {user_id}/{proyecto_id}/{timestamp}_{filename}
+    // Carpeta del DUEÑO de la organización (no del miembro que sube):
+    // así todos los miembros pueden ver/descargar el archivo.
+    let ownerId = user.id
+    try {
+      const rol = await (await fetch('/api/mi-rol')).json()
+      if (rol?.owner_id) ownerId = rol.owner_id
+    } catch {}
+
+    // Path: {owner_id}/{proyecto_id}/{timestamp}_{filename}
     const ts   = Date.now()
     const safe = pendingFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const path = `${user.id}/${proyectoId}/${ts}_${safe}`
+    const path = `${ownerId}/${proyectoId}/${ts}_${safe}`
 
     const { error: upErr } = await supabase.storage
       .from('proyecto-docs')

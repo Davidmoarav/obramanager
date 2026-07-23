@@ -19,6 +19,8 @@ export async function GET() {
     rol: info.rol,
     email: info.email,
     es_admin: info.rol === 'admin',
+    // Dueño de la organización: los archivos de Storage van SIEMPRE en su carpeta
+    owner_id: info.ownerId,
     modulos_restringidos: MODULOS_POR_ROL,
   })
 }

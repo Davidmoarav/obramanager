@@ -1,7 +1,7 @@
 // app/api/proveedor-productos/route.ts
 // Catálogo de productos por proveedor: CRUD + carga masiva (CSV) + búsqueda.
 import { createServerSupabase } from '@/lib/supabase-server'
-import { getOwnerId } from '@/lib/roles'
+import { guardEscritura, getOwnerId } from '@/lib/roles'
 import { NextResponse } from 'next/server'
 
 const COLS = 'id, proveedor_id, codigo, descripcion, unidad, precio, created_at'
@@ -31,6 +31,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id
@@ -83,6 +85,8 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id
@@ -103,6 +107,8 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id

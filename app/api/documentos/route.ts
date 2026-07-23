@@ -1,6 +1,6 @@
 // app/api/documentos/route.ts
 import { createServerSupabase } from '@/lib/supabase-server'
-import { getOwnerId } from '@/lib/roles'
+import { guardEscritura, getOwnerId } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // ─── GET: listar documentos (opcionalmente filtrar por proyecto_id) ──
@@ -30,6 +30,8 @@ export async function GET(req: NextRequest) {
 // ─── POST: registrar documento (el archivo ya fue subido al Storage) ──
 export async function POST(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id
@@ -48,6 +50,8 @@ export async function POST(req: Request) {
 // ─── DELETE: eliminar documento + archivo de Storage ──
 export async function DELETE(req: Request) {
   const supabase = await createServerSupabase()
+  const ro = await guardEscritura(supabase, 'obra')
+  if (ro) return ro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id

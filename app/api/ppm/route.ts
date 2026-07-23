@@ -2,11 +2,13 @@
 // Configuración de PPM (tasa + régimen) por período. Editable por el usuario,
 // ya que el SII asigna/reliquida la tasa de forma particular a cada contribuyente.
 import { createServerSupabase } from '@/lib/supabase-server'
-import { getOwnerId } from '@/lib/roles'
+import { guardModulo, getOwnerId } from '@/lib/roles'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function GET(req: NextRequest) {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'ppm')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id
@@ -22,6 +24,8 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const supabase = await createServerSupabase()
+  const denied = await guardModulo(supabase, 'ppm')
+  if (denied) return denied
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const ownerId = await getOwnerId(supabase) || user.id
